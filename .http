@@ -1,0 +1,8 @@
+### Login test
+POST http://10.100.1.80:3333/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@mail.com",
+  "password": "123456"
+}
