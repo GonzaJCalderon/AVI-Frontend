@@ -45,6 +45,7 @@ export default function TablaUsuarios({
   onBusquedaChange,
   onEditFormChange
 }: Props) {
+  
   const usuariosFiltrados = usuarios.filter(u =>
     `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase())
   )

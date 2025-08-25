@@ -20,11 +20,13 @@ export default function AdminUsuariosPage() {
   })
   const [busqueda, setBusqueda] = useState('')
 
-  useEffect(() => {
-    if (usuario.rol !== 'admin') {
-      router.push('/usuario')
-    }
-  }, [usuario, router])
+ useEffect(() => {
+  if (!usuario || !usuario.rol) return; // Esperá que cargue
+  if (usuario.rol !== 'admin') {
+    router.push('/usuario')
+  }
+}, [usuario, router])
+
 
   useEffect(() => {
     const mock: Usuario[] = [

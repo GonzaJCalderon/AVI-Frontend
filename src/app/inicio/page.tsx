@@ -29,6 +29,11 @@ import {
   DialogContentText,
   Tooltip,
 } from '@mui/material';
+import BusquedaAvanzada from '@/components/BusquedaAvanzada';
+import TablaFormularios from '@/components/TablaFormularios';
+import DialogCambiarEstado from '@/components/DialogCambiarEstado';
+
+
 
 import { departments, delitos, estados } from '@/utils/constants';
 
@@ -560,140 +565,14 @@ export default function InicioPage() {
   return (
     <Box sx={{ p: 4 }}>
       {/* BÚSQUEDA AVANZADA */}
- <Paper id="busqueda-avanzada" sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom>
-          Búsqueda avanzada
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              fullWidth
-              label="Coordinador"
-              name="coordinador"
-              value={filtro.coordinador}
-              onChange={handleFiltroInput}
-            />
-          </Grid>
+ <BusquedaAvanzada
+  filtro={filtro}
+  handleFiltroInput={handleFiltroInput}
+  handleFiltroSelect={handleFiltroSelect}
+  handleExportarExcel={handleExportarExcel}
+  EstadoDot={EstadoDot}
+/>
 
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField fullWidth label="Operador" name="operador" value={filtro.operador} onChange={handleFiltroInput} />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField fullWidth label="Víctima" name="victima" value={filtro.victima} onChange={handleFiltroInput} />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField fullWidth label="Número" name="numero" value={filtro.numero} onChange={handleFiltroInput} />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField fullWidth label="DNI" name="dni" value={filtro.dni} onChange={handleFiltroInput} />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth>
-              <InputLabel id="delito-label">Delito</InputLabel>
-              <Select
-                labelId="delito-label"
-                label="Delito"
-                name="delito"
-                value={filtro.delito}
-                onChange={handleFiltroSelect}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                {delitos.map((d) => (
-                  <MenuItem key={d} value={d}>
-                    {d}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth>
-              <InputLabel id="departamento-label">Departamento</InputLabel>
-              <Select
-                labelId="departamento-label"
-                label="Departamento"
-                name="departamento"
-                value={filtro.departamento}
-                onChange={handleFiltroSelect}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                {departments.map((d) => (
-                  <MenuItem key={d} value={d}>
-                    {d}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth>
-              <InputLabel id="estado-label">Estado</InputLabel>
-              <Select
-                labelId="estado-label"
-                label="Estado"
-                name="estado"
-                value={filtro.estado}
-                onChange={handleFiltroSelect}
-                renderValue={(selected) => {
-                  if (selected === 'Todos' || selected === '') return 'Todos';
-                  return (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <EstadoDot estado={selected as string} />
-                      {selected as string}
-                    </Box>
-                  );
-                }}
-              >
-                <MenuItem value="Todos">Todos</MenuItem>
-                {estados.map((estado) => (
-                  <MenuItem key={estado} value={estado}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <EstadoDot estado={estado} />
-                      {estado}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Fecha desde"
-              name="fechaDesde"
-              value={filtro.fechaDesde}
-              onChange={handleFiltroInput}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Fecha hasta"
-              name="fechaHasta"
-              value={filtro.fechaHasta}
-              onChange={handleFiltroInput}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Button fullWidth variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportarExcel}>
-              Exportar Excel
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
 
       <Box display="flex" gap={2} mb={2}>
         <Button
@@ -756,127 +635,33 @@ export default function InicioPage() {
       </Box>
 
       {/* TABLA DE RESULTADOS */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom>
-          Formularios encontrados
-        </Typography>
+     <TablaFormularios
+  formulariosPagina={formulariosPagina}
+  formulariosFiltradosLength={formulariosFiltrados.length}
+  seleccionados={seleccionados}
+  toggleSeleccionado={toggleSeleccionado}
+  toggleTodos={toggleTodos}
+  handleOpenMenu={handleOpenMenu}
+  handleCloseMenu={handleCloseMenu}
+  handleAccion={handleAccion}
+  anchorEl={anchorEl}
+  pagina={pagina}
+  setPagina={setPagina}
+  formatearFecha={formatearFecha}
+  selectedId={selectedId}
+  renderEstadoChip={renderEstadoChip}
+/>
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    indeterminate={seleccionados.length > 0 && seleccionados.length < formulariosPagina.length}
-                    checked={formulariosPagina.length > 0 && seleccionados.length === formulariosPagina.length}
-                    onChange={toggleTodos}
-                  />
-                </TableCell>
-                <TableCell>ID</TableCell>
-                <TableCell>Coordinador</TableCell>
-                <TableCell>Operador</TableCell>
-                <TableCell>Víctima(s)</TableCell>
-                <TableCell>Número</TableCell>
-                <TableCell>DNI</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Delito</TableCell>
-                <TableCell>Departamento</TableCell>
-                {/* <TableCell>Resumen</TableCell> */}
-                <TableCell align="center">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
 
-            <TableBody>
-              {formulariosPagina.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell padding="checkbox">
-                    <Checkbox checked={seleccionados.includes(f.id)} onChange={() => toggleSeleccionado(f.id)} />
-                  </TableCell>
-                  <TableCell>{f.id}</TableCell>
-                  <TableCell>{f.coordinador}</TableCell>
-                  <TableCell>{f.operador}</TableCell>
-                  <TableCell>{f.victima}</TableCell>
-                  <TableCell>{f.numero}</TableCell>
-                  <TableCell>{f.dni}</TableCell>
-                  <TableCell>{formatearFecha(f.fecha)}</TableCell>
-                  <TableCell>{renderEstadoChip(f.estado)}</TableCell>
-                  <TableCell>{f.delito}</TableCell>
-                  <TableCell>{f.departamento}</TableCell>
-                  {/* <TableCell>{renderResumen(f)}</TableCell> */}
-                  <TableCell align="center">
-                    <IconButton onClick={(e) => handleOpenMenu(e, f.id)}>
-                      <MoreVertIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+    <DialogCambiarEstado
+  open={openEstadoDialog}
+  onClose={() => setOpenEstadoDialog(false)}
+  onConfirmar={confirmarCambioEstado}
+  nuevoEstado={nuevoEstado}
+  setNuevoEstado={setNuevoEstado}
+  EstadoDot={EstadoDot}
+/>
 
-        {/* Paginación */}
-        <Box display="flex" justifyContent="center" mt={2}>
-          <Pagination
-            count={Math.ceil(formulariosFiltrados.length / formulariosPorPagina)}
-            page={pagina}
-            onChange={(_, value) => setPagina(value)}
-            color="primary"
-          />
-        </Box>
-
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-          <MenuItem onClick={() => handleAccion('ver')}>Ver</MenuItem>
-          <MenuItem onClick={() => handleAccion('editar')}>Editar</MenuItem>
-          <MenuItem onClick={() => handleAccion('imprimir')}>Imprimir</MenuItem>
-          <MenuItem onClick={() => handleAccion('estado')}>Cambiar estado</MenuItem>
-          <MenuItem onClick={() => handleAccion('listar')}>Listar Todos</MenuItem>
-        </Menu>
-      </Paper>
-
-      <Dialog open={openEstadoDialog} onClose={() => setOpenEstadoDialog(false)}>
-        <DialogTitle>Cambiar estado</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <DialogContentText sx={{ mb: 2 }}>
-            Seleccioná el nuevo estado para los formularios seleccionados:
-          </DialogContentText>
-
-          <FormControl fullWidth>
-            <InputLabel id="nuevo-estado-label">Estado</InputLabel>
-            <Select
-              labelId="nuevo-estado-label"
-              label="Estado"
-              value={nuevoEstado}
-              onChange={(e) => setNuevoEstado(e.target.value as string)}
-              renderValue={(selected) =>
-                selected ? (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <EstadoDot estado={selected as string} />
-                    {selected as string}
-                  </Box>
-                ) : (
-                  'Seleccionar'
-                )
-              }
-            >
-              {estados.map((estado) => (
-                <MenuItem key={estado} value={estado}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <EstadoDot estado={estado} />
-                    {estado}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEstadoDialog(false)}>Cancelar</Button>
-          <Button onClick={confirmarCambioEstado} variant="contained" disabled={!nuevoEstado}>
-            Confirmar
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
