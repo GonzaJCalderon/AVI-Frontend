@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Intervenciones {
+  id                     Int                    @id @default(autoincrement())
+  numero_intervencion    String                 @unique @db.VarChar(50)
+  fecha                  DateTime               @db.Date
+  coordinador            String?                @db.VarChar(255)
+  operador               String?                @db.VarChar(255)
+  resena_hecho           String?                @db.Text
+  fecha_creacion         DateTime?              @default(now()) @db.Timestamptz(6)
+  eliminado      Boolean   @default(false)
+  estado         String?   @db.VarChar(20) // Ej: "activa", "cerrada", "archivada", "eliminada"
+  abusos_sexuales        AbusosSexuales[]
+  acciones_primera_linea AccionesPrimeraLinea[]
+  derivaciones           Derivaciones[]
+  hechos_delictivos      HechosDelictivos[]
+  intervenciones_tipo    IntervencionesTipo[]
+  seguimientos           Seguimientos[]
+  victimas               Victimas[]
+
+  @@map("intervenciones")
+}
+
+model Derivaciones {
+  id                 Int                @id @default(autoincrement())
+  intervencion_id    Int?
+  tipo_derivacion_id Int?
+  derivador          String?            @db.VarChar(80)
+  fecha_derivacion   DateTime?          @db.Timestamp(6)
+  intervencion       Intervenciones?    @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tipo_derivaciones  tipo_derivaciones? @relation(fields: [tipo_derivacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("derivaciones")
+}
+
+model HechosDelictivos {
+  id              Int                          @id @default(autoincrement())
+  intervencion_id Int?
+  expediente      String?                      @db.VarChar(255)
+  num_agresores   Int?
+  fecha_created   DateTime?                    @default(now()) @db.Timestamptz(6)
+  intervencion    Intervenciones?              @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  geo             HechosDelictivosGeo[]
+  relaciones      HechosDelictivosRelaciones[]
+
+  @@map("hechos_delictivos")
+}
+
+model HechosDelictivosRelaciones {
+  id                           Int               @id @default(autoincrement())
+  hecho_delictivo_id           Int?
+  robo                         Boolean?          @default(false)
+  robo_arma_fuego              Boolean?          @default(false)
+  robo_arma_blanca             Boolean?          @default(false)
+  amenazas                     Boolean?          @default(false)
+  lesiones                     Boolean?          @default(false)
+  lesiones_arma_fuego          Boolean?          @default(false)
+  lesiones_arma_blanca         Boolean?          @default(false)
+  homicidio_delito             Boolean?          @default(false)
+  homicidio_accidente_vial     Boolean?          @default(false)
+  homicidio_av_hecho           Boolean?          @default(false)
+  femicidio                    Boolean?          @default(false)
+  travestisidio_transfemicidio Boolean?          @default(false)
+  violencia_genero             Boolean?          @default(false)
+  otros                        Boolean?          @default(false)
+  hecho_delictivo              HechosDelictivos? @relation(fields: [hecho_delictivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("hechos_delictivos_relaciones")
+}
+
+model HechosDelictivosGeo {
+  id                 Int               @id @default(autoincrement())
+  hecho_delictivo_id Int?
+  domicilio          String?           @db.VarChar(250)
+  departamento_id    Int?
+  fecha              DateTime?         @default(now()) @db.Timestamptz(6)
+  departamentos      departamentos?    @relation(fields: [departamento_id], references: [dep_id], onDelete: NoAction, onUpdate: NoAction)
+  hecho_delictivo    HechosDelictivos? @relation(fields: [hecho_delictivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("hechos_delictivos_geo")
+}
+
+model AccionesPrimeraLinea {
+  id              Int             @id @default(autoincrement())
+  intervencion_id Int?
+  acciones        String?
+  user_audit      Int?
+  fecha           DateTime?       @default(now()) @db.Timestamptz(6)
+  intervencion    Intervenciones? @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("acciones_primera_linea")
+}
+
+model AbusosSexuales {
+  id              Int                   @id @default(autoincrement())
+  intervencion_id Int?
+  tipo_abuso      Int?
+  intervencion    Intervenciones?       @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  datos           DatosAbusosSexuales[]
+
+  @@map("abusos_sexuales")
+}
+
+model DatosAbusosSexuales {
+  id              Int             @id @default(autoincrement())
+  kit             String?         @db.VarChar(50)
+  relacion        String?         @db.VarChar(100)
+  relacion_otro   String?
+  lugar_hecho     String?         @db.VarChar(100)
+  lugar_otro      String?
+  abuso_sexual_id Int?
+  abuso_sexual    AbusosSexuales? @relation(fields: [abuso_sexual_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("datos_abusos_sexuales")
+}
+
+model Direcciones {
+  id                     Int                     @id @default(autoincrement())
+  calle_nro              String?                 @db.VarChar(255)
+  barrio                 String?                 @db.VarChar(255)
+  departamento           String?                 @db.VarChar(100)
+  localidad              String?                 @db.VarChar(100)
+  personas_entrevistadas PersonasEntrevistadas[]
+  victimas               Victimas[]
+
+  @@map("direcciones")
+}
+
+model Victimas {
+  id                         Int                     @id @default(autoincrement())
+  cantidad_victima_por_hecho Int?
+  dni                        String?                 @db.VarChar(20)
+  nombre                     String?                 @db.VarChar(255)
+  genero_id                  Int?
+  fecha_nacimiento           DateTime?               @db.Date
+  telefono                   String?                 @db.VarChar(50)
+  ocupacion                  String?                 @db.VarChar(100)
+  direccion_id               Int?
+  intervencion_id            Int?
+  personas_entrevistadas     PersonasEntrevistadas[]
+  direccion                  Direcciones?            @relation(fields: [direccion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  generos                    generos?                @relation(fields: [genero_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  intervencion               Intervenciones?         @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("victimas")
+}
+
+model PersonasEntrevistadas {
+  id               Int          @id @default(autoincrement())
+  nombre           String?      @db.VarChar(255)
+  direccion_id     Int?
+  relacion_victima String?      @db.VarChar(255)
+  victima_id       Int?
+  direccion        Direcciones? @relation(fields: [direccion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  victima          Victimas?    @relation(fields: [victima_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("personas_entrevistadas")
+}
+
+model IntervencionesTipo {
+  id               Int             @id @default(autoincrement())
+  intervencion_id  Int?
+  crisis           Boolean?        @default(false)
+  telefonica       Boolean?        @default(false)
+  domiciliaria     Boolean?        @default(false)
+  psicologica      Boolean?        @default(false)
+  medica           Boolean?        @default(false)
+  social           Boolean?        @default(false)
+  legal            Boolean?        @default(false)
+  sin_intervencion Boolean?        @default(false)
+  archivo_caso     Boolean?        @default(false)
+  intervencion     Intervenciones? @relation(fields: [intervencion_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("intervenciones_tipo")
+}
+
+model Seguimientos {
+  id              Int                   @id @default(autoincrement())
+  hubo            Boolean?              @default(false)
+  intervencion_id Int?
+  intervencion    Intervenciones?       @relation(fields: [intervencion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detalles        SeguimientosDetalle[]
+  tipo            SeguimientosTipo[]
+
+  @@map("seguimientos")
+}
+
+model SeguimientosTipo {
+  id                     Int           @id @default(autoincrement())
+  seguimiento_id         Int?
+  asesoramientolegal     Boolean?      @default(false)
+  tratamientopsicologico Boolean?      @default(false)
+  seguimientolegal       Boolean?      @default(false)
+  archivocaso            Boolean?      @default(false)
+  seguimiento            Seguimientos? @relation(fields: [seguimiento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("seguimientos_tipo")
+}
+
+model SeguimientosDetalle {
+  id             Int          @id @default(autoincrement())
+  seguimiento_id Int
+  detalle        String?
+  seguimiento    Seguimientos @relation(fields: [seguimiento_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("seguimientos_detalle")
+}
+
+model departamentos {
+  id                    Int                   @id @default(autoincrement())
+  descripcion           String?               @db.VarChar(45)
+  dep_id                Int?                  @unique
+  hechos_delictivos_geo HechosDelictivosGeo[]
+}
+
+model direcciones_entrevistadas {
+  id           Int     @id @default(autoincrement())
+  calle_nro    String? @db.VarChar(255)
+  barrio       String? @db.VarChar(255)
+  departamento String? @db.VarChar(100)
+  localidad    String? @db.VarChar(100)
+}
+
+model generos {
+  id          Int        @id @default(autoincrement())
+  descripcion String?    @db.VarChar(80)
+  victimas    Victimas[]
+}
+
+model tipo_derivaciones {
+  id           Int            @id @default(autoincrement())
+  descripcion  String?        @db.VarChar(80)
+  derivaciones Derivaciones[]
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  nombre    String   @db.VarChar(255)
+  rol       String   @default("usuario") @db.VarChar(50)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  refreshTokens RefreshToken[]
+
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  userId    Int
+  usuario   Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_refresh_tokens_user")
+
+  @@index([expiresAt], map: "idx_refresh_tokens_expiresat")
+  @@index([token], map: "idx_refresh_tokens_token")
+  @@map("refresh_tokens")
+}
