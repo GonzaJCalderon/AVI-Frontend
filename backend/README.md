@@ -1,42 +1,76 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# API del Sistema de Asistencia a Víctimas (FAV)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API RESTful construida con [NestJS](https://nestjs.com/), [Prisma](https://www.prisma.io/) y [PostgreSQL](https://www.postgresql.org/) para gestionar las intervenciones y el seguimiento de víctimas de delitos.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Características
 
-## Description
+-   Autenticación basada en JWT (Access & Refresh Tokens).
+-   Gestión completa de Intervenciones (CRUD).
+-   Manejo de estados para intervenciones (activa, cerrada, archivada, eliminada).
+-   Roles de usuario (admin, usuario).
+-   Validación de datos de entrada con `class-validator`.
+-   Documentación de API autogenerada con Swagger (OpenAPI).
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Requisitos Previos
 
-## Project setup
+-   Node.js (v20 o superior recomendado)
+-   npm o yarn
+-   PostgreSQL
+
+## Configuración del Proyecto
+
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone <URL_DEL_REPOSITORIO>
+    cd fav
+    ```
+
+2.  **Instalar dependencias:**
+    ```bash
+    npm install
+    ```
+
+3.  **Configurar variables de entorno:**
+    Crea un archivo `.env` en la raíz del proyecto. Puedes basarte en el archivo `JWT_SETUP.md` para las variables necesarias.
+
+    ```env
+    # Base de Datos
+    DATABASE_URL="postgresql://USUARIO:CONTRASEÑA@localhost:5432/NOMBRE_BD"
+
+    # JWT
+    JWT_SECRET="tu-secreto-super-seguro-cambiar-en-produccion"
+    JWT_EXPIRES_IN="1h"
+    REFRESH_TOKEN_SECRET="tu-otro-secreto-super-seguro"
+    REFRESH_TOKEN_EXPIRES_IN="7d"
+
+    # Aplicación
+    PORT=3000
+    NODE_ENV=development
+    ```
+
+4.  **Configuración de la Base de Datos:**
+    Ejecuta las migraciones de Prisma para crear las tablas en tu base de datos.
+    ```bash
+    npm run prisma:migrate
+    ```
+
+5.  **Generar el cliente de Prisma:**
+    ```bash
+    npm run prisma:generate
+    ```
+
+6.  **(Opcional) Crear usuario administrador:**
+    El proyecto incluye un script para crear un usuario administrador por defecto.
+    ```bash
+    npm run create:admin
+    ```
+    Esto creará un usuario con las siguientes credenciales:
+    -   **Email:** `admin@fav.com`
+    -   **Contraseña:** `admin123`
+
+## Ejecutar la Aplicación
 
 ```bash
-$ npm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
 # watch mode
 $ npm run start:dev
 
