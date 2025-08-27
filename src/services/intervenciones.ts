@@ -7,6 +7,8 @@ export type IntervencionItem = {
   fecha: string;
   coordinador?: string;
   operador?: string;
+  estado?: string;           // ✅ agregado
+  eliminado?: boolean;       // ✅ agregado
 
   hechoDelictivo?: {
     expediente?: string;
@@ -27,27 +29,26 @@ export type IntervencionItem = {
       homicidioAccidenteVial?: boolean;
       homicidioAvHecho?: boolean;
       femicidio?: boolean;
-      travestisidioTransfemicidio?: boolean;
+      transfemicidio?: boolean;
       violenciaGenero?: boolean;
       otros?: boolean;
     };
   };
 
-victimas?: {
-  dni?: string;
-  nombre?: string;
-  genero?: number;
-  fechaNacimiento?: string;
-  telefono?: string;
-  ocupacion?: string;
-  direccion?: {
-    calleNro?: string;
-    barrio?: string;
-    departamento?: number;
-    localidad?: number;
-  };
-}[];
-
+  victimas?: {
+    dni?: string;
+    nombre?: string;
+    genero?: number;
+    fechaNacimiento?: string;
+    telefono?: string;
+    ocupacion?: string;
+    direccion?: {
+      calleNro?: string;
+      barrio?: string;
+      departamento?: number;
+      localidad?: number;
+    };
+  }[];
 
   _count?: {
     derivaciones?: number;
@@ -69,9 +70,12 @@ type IntervencionesListResponse = {
  */
 export type CreateIntervencionPayload = {
   intervencion: {
-    coordinador: string
-    operador: string
-  }
+  coordinador: string
+  operador: string
+  fecha: string
+  resena_hecho: string
+}
+
   derivacion: {
     motivos: number
     derivador: string
@@ -96,7 +100,8 @@ export type CreateIntervencionPayload = {
       homicidioAccidenteVial: boolean
       homicidioAvHecho: boolean
       femicidio: boolean
-      travestisidioTransfemicidio: boolean
+ transfemicidio: boolean;
+
       violenciaGenero: boolean
       otros: boolean
     }
@@ -199,3 +204,22 @@ export const actualizarIntervencion = (id: number, data: Partial<CreateIntervenc
 
 export const eliminarIntervencion = (id: number) =>
   apiFetch<void>(`/intervenciones/${id}`, { method: 'DELETE' })
+
+// En /services/intervenciones.ts
+export const eliminarIntervencionSoft = async (id: number) => {
+  return await apiFetch(`/intervenciones/${id}/soft-delete`, {
+    method: 'PATCH'
+  });
+};
+
+export const cerrarIntervencion = async (id: number) => {
+  return await apiFetch(`/intervenciones/${id}/cerrar`, {
+    method: 'PATCH'
+  });
+};
+
+export const archivarIntervencion = async (id: number) => {
+  return await apiFetch(`/intervenciones/${id}/archivar`, {
+    method: 'PATCH'
+  });
+};

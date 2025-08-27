@@ -1,9 +1,9 @@
 'use client';
-
+import { useRouter } from 'next/navigation'
+import React from 'react';
 import {
   Box,
   Checkbox,
-  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -16,11 +16,11 @@ import {
   TableRow,
   Typography,
   Paper,
+  Divider,
+  Button,
 } from '@mui/material';
-
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { Formulario } from '@/types/formulario';
-
 
 interface Props {
   formulariosPagina: Formulario[];
@@ -55,14 +55,29 @@ export default function TablaFormularios({
   selectedId,
   renderEstadoChip,
 }: Props) {
-  
   const formulariosPorPagina = 5;
+const router = useRouter();
+  const formularioSeleccionado = formulariosPagina.find(f => f.id === selectedId);
+  const esEliminado = formularioSeleccionado?.estado === 'Eliminado';
+  const esActivo = formularioSeleccionado?.estado === 'Activo';
+  const esArchivado = formularioSeleccionado?.estado === 'Archivado';
 
   return (
     <Paper sx={{ p: 3 }}>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Formularios encontrados
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h6" fontWeight="bold">
+          Formularios encontrados
+        </Typography>
+       <Button
+  onClick={() =>router.push('/listar-formularios')
+}
+  variant="outlined"
+  size="small"
+  startIcon={<span>📋</span>}
+>
+  Listar Todos
+</Button>
+      </Box>
 
       <TableContainer>
         <Table>
@@ -71,11 +86,12 @@ export default function TablaFormularios({
               <TableCell padding="checkbox">
                 <Checkbox
                   indeterminate={
-                    seleccionados.length > 0 && seleccionados.length < formulariosPagina.length
+                    seleccionados.length > 0 &&
+                    seleccionados.length < formulariosPagina.filter(f => f.estado !== 'Eliminado').length
                   }
                   checked={
-                    formulariosPagina.length > 0 &&
-                    seleccionados.length === formulariosPagina.length
+                    formulariosPagina.filter(f => f.estado !== 'Eliminado').length > 0 &&
+                    formulariosPagina.filter(f => f.estado !== 'Eliminado').every(f => seleccionados.includes(f.id))
                   }
                   onChange={toggleTodos}
                 />
@@ -93,14 +109,20 @@ export default function TablaFormularios({
               <TableCell align="center">Acciones</TableCell>
             </TableRow>
           </TableHead>
-
           <TableBody>
             {formulariosPagina.map((f) => (
-              <TableRow key={f.id}>
+              <TableRow
+                key={f.id}
+                sx={{
+                  opacity: f.estado === 'Eliminado' ? 0.6 : 1,
+                  backgroundColor: f.estado === 'Eliminado' ? '#f5f5f5' : 'inherit'
+                }}
+              >
                 <TableCell padding="checkbox">
                   <Checkbox
                     checked={seleccionados.includes(f.id)}
                     onChange={() => toggleSeleccionado(f.id)}
+                    disabled={f.estado === 'Eliminado'}
                   />
                 </TableCell>
                 <TableCell>{f.id}</TableCell>
@@ -114,7 +136,10 @@ export default function TablaFormularios({
                 <TableCell>{f.delito}</TableCell>
                 <TableCell>{f.departamento}</TableCell>
                 <TableCell align="center">
-                  <IconButton onClick={(e) => handleOpenMenu(e, f.id)}>
+                  <IconButton
+                    onClick={(e) => handleOpenMenu(e, f.id)}
+                    disabled={f.estado === 'Eliminado'}
+                  >
                     <MoreVertIcon />
                   </IconButton>
                 </TableCell>
@@ -124,7 +149,6 @@ export default function TablaFormularios({
         </Table>
       </TableContainer>
 
-      {/* Paginación */}
       <Box display="flex" justifyContent="center" mt={2}>
         <Pagination
           count={Math.ceil(formulariosFiltradosLength / formulariosPorPagina)}
@@ -134,12 +158,37 @@ export default function TablaFormularios({
         />
       </Box>
 
+      {/* Menú contextual por fila */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-        <MenuItem onClick={() => handleAccion('ver')}>Ver</MenuItem>
-        <MenuItem onClick={() => handleAccion('editar')}>Editar</MenuItem>
-        <MenuItem onClick={() => handleAccion('imprimir')}>Imprimir</MenuItem>
-        <MenuItem onClick={() => handleAccion('estado')}>Cambiar estado</MenuItem>
-        <MenuItem onClick={() => handleAccion('listar')}>Listar Todos</MenuItem>
+        {[
+          <MenuItem key="ver" onClick={() => handleAccion('ver')}>👁️ Ver</MenuItem>,
+          !esEliminado && (
+            <MenuItem key="editar" onClick={() => handleAccion('editar')}>✏️ Editar</MenuItem>
+          ),
+          <MenuItem key="imprimir" onClick={() => handleAccion('imprimir')}>🖨️ Imprimir</MenuItem>,
+
+          <Divider key="divider-1" />,
+
+          !esEliminado && (
+            <MenuItem key="estado" onClick={() => handleAccion('estado')}>🔄 Cambiar estado</MenuItem>
+          ),
+          
+          !esEliminado && !esArchivado && (
+            <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
+          ),
+
+          !esEliminado && <Divider key="divider-2" />,
+
+          !esEliminado && (
+            <MenuItem
+              key="eliminar"
+              onClick={() => handleAccion('eliminar')}
+              sx={{ color: 'error.main' }}
+            >
+              🗑️ Eliminar
+            </MenuItem>
+          )
+        ].filter(Boolean)}
       </Menu>
     </Paper>
   );

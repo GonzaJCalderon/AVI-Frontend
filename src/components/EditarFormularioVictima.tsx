@@ -21,10 +21,19 @@ import {
   Paper
 } from '@mui/material'
 
+import { useRouter } from 'next/navigation'
+import { actualizarIntervencion } from '@/services/intervenciones'
+import { Snackbar, Alert } from '@mui/material'
+
+
+
+
 /**
  * Tipo de detalle flexible (acepta tu IntervencionItem "resumido" + variantes más completas)
  * Extendelo si tu API devuelve más campos/estructuras.
  */
+
+
 export type IntervencionDetalle = {
   id: number
   numero_intervencion?: string
@@ -276,6 +285,12 @@ export type EditarFormularioVictimaProps = {
 
 export default function EditarFormularioVictima({ selected }: EditarFormularioVictimaProps) {
   const apiData = useMemo(() => selected, [selected])
+
+  const router = useRouter()
+  const [guardando, setGuardando] = useState(false)
+  const [mensaje, setMensaje] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
 
   const [form, setForm] = useState<FormState>({
     // 1
@@ -574,6 +589,40 @@ export default function EditarFormularioVictima({ selected }: EditarFormularioVi
     (k: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setField(k, e.target.value)
+
+    const handleGuardarCambios = async () => {
+  try {
+    setGuardando(true)
+    setMensaje(null)
+    setError(null)
+
+    // Simulamos el payload final. Aca deberías construir tu payload real
+    const payload = {
+      intervencion: {
+        fecha: form.fechaIntervencion,
+        coordinador: form.coordinador,
+        operador: form.operador,
+        resena_hecho: form.observaciones
+      }
+      // Agregá las demás secciones si tu backend las espera
+    }
+
+    await actualizarIntervencion(apiData.id, payload)
+
+    setMensaje('Cambios guardados correctamente ✅')
+
+    // Redirigir luego de 2 segundos
+    setTimeout(() => {
+      router.push('/inicio')
+    }, 2000)
+  } catch (e: any) {
+    console.error('Error al guardar', e)
+    setError('Ocurrió un error al guardar. Intentalo de nuevo.')
+  } finally {
+    setGuardando(false)
+  }
+}
+
 
   const handleCheckbox =
     (path: string) =>
@@ -1004,17 +1053,24 @@ export default function EditarFormularioVictima({ selected }: EditarFormularioVi
 
       <Box textAlign="center">
         <Button
-          variant="contained"
-          color="success"
-          size="large"
-          onClick={() => {
-            // Acá tendrás el “form” completo listo para persistir
-            console.log('Guardar/Enviar formulario', form)
-          }}
-        >
-          Guardar Cambios
-        </Button>
+  variant="contained"
+  color="success"
+  size="large"
+  onClick={handleGuardarCambios}
+  disabled={guardando}
+>
+  {guardando ? 'Guardando...' : 'Guardar Cambios'}
+</Button>
+
       </Box>
+      <Snackbar open={!!mensaje} autoHideDuration={6000} onClose={() => setMensaje(null)}>
+  <Alert severity="success" onClose={() => setMensaje(null)}>{mensaje}</Alert>
+</Snackbar>
+
+<Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+  <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
+</Snackbar>
+
     </Box>
   )
 }

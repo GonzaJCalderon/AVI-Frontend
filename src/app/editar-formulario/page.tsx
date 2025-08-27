@@ -1,62 +1,58 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Box, CircularProgress, Alert, Typography } from '@mui/material'
-import { obtenerIntervencion } from '@/services/intervenciones'
-import EditarFormularioVictima, { IntervencionDetalle } from '@/components/EditarFormularioVictima'
+import { useSearchParams, useRouter } from 'next/navigation'
+import EditarFormularioVictima from '@/components/EditarFormularioVictima'
+import { IntervencionItem, obtenerIntervencion } from '@/services/intervenciones'
+import { CircularProgress, Box, Alert } from '@mui/material'
 
-export default function EditarFormularioPage() {
-  const sp = useSearchParams()
-  const id = sp.get('id')
-  const [data, setData] = useState<IntervencionDetalle | null>(null)
+export default function Page() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const id = searchParams.get('id')
+
+  const [data, setData] = useState<IntervencionItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) {
-      setError('Falta el parámetro "id" en la URL')
+      setError('No se proporcionó ID')
       setLoading(false)
       return
     }
-    ;(async () => {
+
+    const fetchData = async () => {
       try {
-        const detalle = await obtenerIntervencion(Number(id))
-        // `obtenerIntervencion` devuelve tu IntervencionItem; el editor
-        // soporta tanto tu forma “resumida” como estructuras más completas.
-        setData(detalle as unknown as IntervencionDetalle)
+        const intervencion = await obtenerIntervencion(Number(id)) // ✅ USANDO TU SERVICIO
+        setData(intervencion)
       } catch (e: any) {
-        setError(e?.message || 'No se pudo cargar la intervención')
+        setError(e.message)
       } finally {
         setLoading(false)
       }
-    })()
+    }
+
+    fetchData()
   }, [id])
 
   if (loading) {
     return (
-      <Box p={4} display="flex" gap={2} alignItems="center">
+      <Box display="flex" justifyContent="center" mt={10}>
         <CircularProgress />
-        <Typography>Cargando intervención…</Typography>
       </Box>
     )
   }
 
   if (error) {
     return (
-      <Box p={4}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <Alert severity="error" sx={{ mt: 5 }}>
+        {error}
+      </Alert>
     )
   }
 
-  if (!data) {
-    return (
-      <Box p={4}>
-        <Alert severity="warning">No se encontraron datos.</Alert>
-      </Box>
-    )
-  }
+  if (!data) return null
 
   return <EditarFormularioVictima selected={data} />
 }

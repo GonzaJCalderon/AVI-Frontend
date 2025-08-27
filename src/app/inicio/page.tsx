@@ -32,10 +32,7 @@ import {
 import BusquedaAvanzada from '@/components/BusquedaAvanzada';
 import TablaFormularios from '@/components/TablaFormularios';
 import DialogCambiarEstado from '@/components/DialogCambiarEstado';
-
-
-
-import { departments, delitos, estados } from '@/utils/constants';
+import { ESTADOS_UI, estadoColorMap, normalizeEstado, type EstadoUI } from '@/utils/constants';
 
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -49,8 +46,13 @@ import GavelIcon from '@mui/icons-material/Gavel';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 import * as XLSX from 'xlsx-js-style';
-
-import { listarIntervenciones, IntervencionItem } from '@/services/intervenciones';
+import {
+  listarIntervenciones,
+  IntervencionItem,
+  eliminarIntervencionSoft,
+  cerrarIntervencion,
+  archivarIntervencion,
+} from '@/services/intervenciones';
 
 type Formulario = {
   id: string;
@@ -60,7 +62,7 @@ type Formulario = {
   numero: string;
   dni: string;
   fecha: string;
-  estado: string;
+  estado: EstadoUI;
   delito: string;
   departamento: string;
   counts?: {
@@ -97,7 +99,10 @@ export default function InicioPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [openEstadoDialog, setOpenEstadoDialog] = useState(false);
-  const [nuevoEstado, setNuevoEstado] = useState('');
+  const [nuevoEstado, setNuevoEstado] = useState<EstadoUI | ''>('');
+
+  // ✅ Estados seleccionables (excluye "Eliminado")
+  const ESTADOS_SELECCIONABLES: EstadoUI[] = ['Activo', 'Archivado'];
 
   // Carga real desde /api/intervenciones
   useEffect(() => {
@@ -106,7 +111,6 @@ export default function InicioPage() {
       setError(null);
       try {
         const data: IntervencionItem[] = await listarIntervenciones();
-        // console.log('[DEBUG] Respuesta del backend:', data);
 
         const mapped: Formulario[] = data.map((it) => {
           const victima = it.victimas?.[0]; // primera víctima si existe
@@ -125,18 +129,15 @@ export default function InicioPage() {
               ? String(victima.direccion.departamento)
               : '—';
 
-          const dniParsed = victima?.dni || '—';
-          const victimaNombre = victima?.nombre || '—';
-
           return {
             id: String(it.id),
             coordinador: it.coordinador || '—',
             operador: it.operador || '—',
-            victima: victimaNombre,
+            victima: victima?.nombre || '—',
             numero: it.numero_intervencion || '—',
-            dni: dniParsed,
+            dni: victima?.dni || '—',
             fecha: new Date(it.fecha).toISOString().slice(0, 10),
-            estado: 'Pendiente',
+            estado: normalizeEstado(it.estado, it.eliminado),
             delito: delitoParsed,
             departamento: departamentoParsed,
             counts: {
@@ -147,7 +148,6 @@ export default function InicioPage() {
             },
           };
         });
-
         setFormularios(mapped);
       } catch (e: any) {
         setError(e?.message || 'No se pudieron cargar las intervenciones');
@@ -158,21 +158,17 @@ export default function InicioPage() {
     load();
   }, []);
 
-  // ÚNICA declaración, se usa en toda la página y para Excel
-  const estadoColorMap: Record<string, string> = {
-    Pendiente: '#FBC02D',
-    Finalizado: '#4CAF50',
-    Archivado: '#2196F3',
-  };
-
   function EstadoDot({ estado }: { estado: string }) {
+    // Verificación de tipo segura para indexar estadoColorMap
+    const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
+    const color = estadoColorMap[colorKey] || 'grey';
     return (
       <Box
         sx={{
           width: 10,
           height: 10,
           borderRadius: '50%',
-          bgcolor: estadoColorMap[estado] || 'grey.500',
+          bgcolor: color,
           mr: 1,
         }}
       />
@@ -198,12 +194,25 @@ export default function InicioPage() {
     });
   };
 
-  const handleEliminarSeleccionados = () => {
+  const handleEliminarSeleccionados = async () => {
     if (seleccionados.length === 0) return;
     const confirmado = confirm(`¿Seguro que deseas eliminar ${seleccionados.length} formularios?`);
     if (!confirmado) return;
-    setFormularios((prev) => prev.filter((f) => !seleccionados.includes(f.id)));
-    setSeleccionados([]);
+
+    try {
+      await Promise.all(seleccionados.map(id => eliminarIntervencionSoft(Number(id))));
+      // ✅ Actualizar estado a "Eliminado" en lugar de remover del array
+      setFormularios(prev => 
+        prev.map(f => 
+          seleccionados.includes(f.id) 
+            ? { ...f, estado: 'Eliminado' as EstadoUI }
+            : f
+        )
+      );
+      setSeleccionados([]);
+    } catch (e: any) {
+      alert(e?.message || 'No se pudieron eliminar algunos elementos');
+    }
   };
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>, id: string) => {
@@ -216,27 +225,66 @@ export default function InicioPage() {
     setSelectedId(null);
   };
 
-  const handleAccion = (accion: string) => {
+  const handleAccion = async (accion: string) => {
     if (!selectedId) return;
-    switch (accion) {
-      case 'ver':
-        router.push(`/ver-formularios?id=${selectedId}`);
-        break;
-      case 'editar':
-        router.push(`/editar-formulario?id=${selectedId}`);
-        break;
-      case 'imprimir':
-        window.open(`/imprimir-formulario?id=${selectedId}`, '_blank');
-        break;
-      case 'listar':
-        router.push(`/listar-formularios`);
-        break;
-      case 'estado':
-        setSeleccionados([selectedId]);
-        setOpenEstadoDialog(true);
-        break;
+
+    try {
+      switch (accion) {
+        case 'ver':
+          router.push(`/ver-formularios?id=${selectedId}`);
+          break;
+
+        case 'editar':
+          router.push(`/editar-formulario?id=${selectedId}`);
+          break;
+
+        case 'imprimir':
+          window.open(`/imprimir-formulario?id=${selectedId}`, '_blank');
+          break;
+
+        case 'listar':
+          router.push(`/listar-formularios`);
+          break;
+
+        case 'estado':
+          // ✅ Solo permitir cambio de estado si NO está eliminado
+          const formulario = formularios.find(f => f.id === selectedId);
+          if (formulario?.estado === 'Eliminado') {
+            alert('No se puede cambiar el estado de una intervención eliminada');
+            break;
+          }
+          setSeleccionados([selectedId]);
+          setOpenEstadoDialog(true);
+          break;
+
+     
+
+        case 'archivar': {
+          // ✅ Archivar: mueve directamente a archivo (cualquier estado -> Archivado) 
+          // Esta acción es administrativa, no implica resolución del caso
+          await archivarIntervencion(Number(selectedId));
+          setFormularios(prev =>
+            prev.map(f => f.id === selectedId ? { ...f, estado: 'Archivado' as EstadoUI } : f)
+          );
+          break;
+        }
+
+        case 'eliminar': {
+          const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
+          if (!ok) break;
+          await eliminarIntervencionSoft(Number(selectedId));
+          // ✅ Cambiar estado a "Eliminado" en lugar de remover
+          setFormularios(prev => 
+            prev.map(f => f.id === selectedId ? { ...f, estado: 'Eliminado' as EstadoUI } : f)
+          );
+          break;
+        }
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Ocurrió un error realizando la acción');
+    } finally {
+      handleCloseMenu();
     }
-    handleCloseMenu();
   };
 
   // Navega a creación de caso
@@ -283,14 +331,23 @@ export default function InicioPage() {
   };
 
   const toggleSeleccionado = (id: string) => {
+    // ✅ No permitir seleccionar formularios eliminados
+    const formulario = formularios.find(f => f.id === id);
+    if (formulario?.estado === 'Eliminado') {
+      return; // No hacer nada si está eliminado
+    }
+    
     setSeleccionados((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
   const toggleTodos = () => {
-    if (formulariosPagina.every((f) => seleccionados.includes(f.id))) {
-      setSeleccionados((prev) => prev.filter((id) => !formulariosPagina.some((f) => f.id === id)));
+    // ✅ Solo seleccionar formularios que NO estén eliminados
+    const formulariosSinEliminar = formulariosPagina.filter(f => f.estado !== 'Eliminado');
+    
+    if (formulariosSinEliminar.every((f) => seleccionados.includes(f.id))) {
+      setSeleccionados((prev) => prev.filter((id) => !formulariosSinEliminar.some((f) => f.id === id)));
     } else {
-      const nuevosIds = formulariosPagina.map((f) => f.id);
+      const nuevosIds = formulariosSinEliminar.map((f) => f.id);
       setSeleccionados((prev) => [...new Set([...prev, ...nuevosIds])]);
     }
   };
@@ -403,7 +460,9 @@ export default function InicioPage() {
 
         if (c === estadoColIdx) {
           const estado = String(cell.v || '');
-          const hex = (estadoColorMap[estado] || '#9E9E9E').replace('#', '').toUpperCase();
+          // Verificación de tipo segura
+          const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
+          const hex = (estadoColorMap[colorKey] || '#9E9E9E').replace('#', '').toUpperCase();
           baseStyle.fill = { patternType: 'solid', fgColor: { rgb: hex } };
           baseStyle.font = { bold: true, color: { rgb: 'FFFFFF' } };
           baseStyle.alignment = { horizontal: 'center', vertical: 'center' };
@@ -430,13 +489,14 @@ export default function InicioPage() {
   // ======== FIN EXPORTACIÓN ========
 
   const renderEstadoChip = (estado: string) => {
-    const colorMap: Record<'Pendiente' | 'Finalizado' | 'Archivado' | string, any> = {
-      Pendiente: 'warning',
-      Finalizado: 'success',
+    const muiColorMap: Record<EstadoUI, 'success' | 'info' | 'default'> = {
+      Activo: 'success',
       Archivado: 'info',
+      Eliminado: 'default',
     };
-    const color = colorMap[estado] || 'default';
-    return <Chip label={estado} color={color} size="small" />;
+    // Verificación de tipo segura
+    const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
+    return <Chip label={estado} color={muiColorMap[colorKey] || 'default'} size="small" />;
   };
 
   // Resumen con Material Icons + tooltip + etiqueta en grilla 2×2
@@ -529,17 +589,29 @@ export default function InicioPage() {
 
   const handleCambiarEstadoSeleccionados = () => {
     if (seleccionados.length === 0) return;
+    
+    // ✅ Verificar que no haya formularios eliminados en la selección
+    const hayEliminados = seleccionados.some(id => {
+      const formulario = formularios.find(f => f.id === id);
+      return formulario?.estado === 'Eliminado';
+    });
+    
+    if (hayEliminados) {
+      alert('No se puede cambiar el estado de intervenciones eliminadas');
+      return;
+    }
+    
     setOpenEstadoDialog(true);
   };
 
   const confirmarCambioEstado = () => {
-    if (!nuevoEstado || !estados.includes(nuevoEstado)) {
+    if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
       alert('Estado inválido');
       return;
     }
-
-    setFormularios((prev) => prev.map((f) => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado } : f)));
-
+    setFormularios(prev =>
+      prev.map(f => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado as EstadoUI } : f))
+    );
     setSeleccionados([]);
     setSelectedId(null);
     setNuevoEstado('');
@@ -565,14 +637,13 @@ export default function InicioPage() {
   return (
     <Box sx={{ p: 4 }}>
       {/* BÚSQUEDA AVANZADA */}
- <BusquedaAvanzada
-  filtro={filtro}
-  handleFiltroInput={handleFiltroInput}
-  handleFiltroSelect={handleFiltroSelect}
-  handleExportarExcel={handleExportarExcel}
-  EstadoDot={EstadoDot}
-/>
-
+      <BusquedaAvanzada
+        filtro={filtro}
+        handleFiltroInput={handleFiltroInput}
+        handleFiltroSelect={handleFiltroSelect}
+        handleExportarExcel={handleExportarExcel}
+        EstadoDot={EstadoDot}
+      />
 
       <Box display="flex" gap={2} mb={2}>
         <Button
@@ -591,6 +662,15 @@ export default function InicioPage() {
           onClick={handleImprimirSeleccionados}
         >
           🖨️ Imprimir seleccionados
+        </Button>
+
+        <Button
+          variant="outlined"
+          color="error"
+          disabled={seleccionados.length === 0}
+          onClick={handleEliminarSeleccionados}
+        >
+          🗑️ Eliminar seleccionados
         </Button>
       </Box>
 
@@ -635,33 +715,33 @@ export default function InicioPage() {
       </Box>
 
       {/* TABLA DE RESULTADOS */}
-     <TablaFormularios
-  formulariosPagina={formulariosPagina}
-  formulariosFiltradosLength={formulariosFiltrados.length}
-  seleccionados={seleccionados}
-  toggleSeleccionado={toggleSeleccionado}
-  toggleTodos={toggleTodos}
-  handleOpenMenu={handleOpenMenu}
-  handleCloseMenu={handleCloseMenu}
-  handleAccion={handleAccion}
-  anchorEl={anchorEl}
-  pagina={pagina}
-  setPagina={setPagina}
-  formatearFecha={formatearFecha}
-  selectedId={selectedId}
-  renderEstadoChip={renderEstadoChip}
-/>
+      <TablaFormularios
+        formulariosPagina={formulariosPagina}
+        formulariosFiltradosLength={formulariosFiltrados.length}
+        seleccionados={seleccionados}
+        toggleSeleccionado={toggleSeleccionado}
+        toggleTodos={toggleTodos}
+        handleOpenMenu={handleOpenMenu}
+        handleCloseMenu={handleCloseMenu}
+        handleAccion={handleAccion}
+        anchorEl={anchorEl}
+        pagina={pagina}
+        setPagina={setPagina}
+        formatearFecha={formatearFecha}
+        selectedId={selectedId}
+        renderEstadoChip={renderEstadoChip}
+      />
 
-
-    <DialogCambiarEstado
-  open={openEstadoDialog}
-  onClose={() => setOpenEstadoDialog(false)}
-  onConfirmar={confirmarCambioEstado}
-  nuevoEstado={nuevoEstado}
-  setNuevoEstado={setNuevoEstado}
-  EstadoDot={EstadoDot}
-/>
-
+      {/* ✅ Pasar solo estados seleccionables al dialog */}
+      <DialogCambiarEstado
+        open={openEstadoDialog}
+        onClose={() => setOpenEstadoDialog(false)}
+        onConfirmar={confirmarCambioEstado}
+        nuevoEstado={nuevoEstado}
+        setNuevoEstado={setNuevoEstado}
+        EstadoDot={EstadoDot}
+        estadosDisponibles={ESTADOS_SELECCIONABLES} // ✅ Nueva prop
+      />
     </Box>
   );
 }

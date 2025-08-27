@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react'; // ✅ Agregar esta importación
 import {
   Box,
   Button,
@@ -15,7 +16,7 @@ import {
 
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
-import { departments, delitos, estados } from '@/utils/constants';
+import { departments, delitos, ESTADOS_UI } from '@/utils/constants';
 
 interface Props {
   filtro: {
@@ -33,7 +34,8 @@ interface Props {
   handleFiltroInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleFiltroSelect: (e: any) => void;
   handleExportarExcel: () => void;
-  EstadoDot: ({ estado }: { estado: string }) => JSX.Element;
+  EstadoDot: ({ estado }: { estado: string }) => React.ReactElement;
+  estadosParaFiltro?: string[]; // ✅ Nueva prop opcional para filtros
 }
 
 export default function BusquedaAvanzada({
@@ -42,6 +44,7 @@ export default function BusquedaAvanzada({
   handleFiltroSelect,
   handleExportarExcel,
   EstadoDot,
+  estadosParaFiltro = [...ESTADOS_UI], // ✅ Por defecto incluye todos (para filtros sí queremos ver eliminados)
 }: Props) {
   return (
     <Paper id="busqueda-avanzada" sx={{ p: 3, mb: 3 }}>
@@ -130,7 +133,8 @@ export default function BusquedaAvanzada({
               }}
             >
               <MenuItem value="Todos">Todos</MenuItem>
-              {estados.map((estado) => (
+              {/* ✅ Usar estadosParaFiltro (incluye todos los estados para poder filtrar) */}
+              {estadosParaFiltro.map((estado) => (
                 <MenuItem key={estado} value={estado}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <EstadoDot estado={estado} />
