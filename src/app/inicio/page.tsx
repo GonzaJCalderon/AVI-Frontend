@@ -52,6 +52,8 @@ import {
   eliminarIntervencionSoft,
   cerrarIntervencion,
   archivarIntervencion,
+  cambiarEstadoMultipleConVerificacion, 
+  debugCambioEstado, 
 } from '@/services/intervenciones';
 
 type Formulario = {
@@ -188,11 +190,14 @@ export default function InicioPage() {
   };
 
   const handleImprimirSeleccionados = () => {
-    if (seleccionados.length === 0) return;
-    seleccionados.forEach((id) => {
-      window.open(`/imprimir-formulario?id=${id}`, '_blank');
-    });
-  };
+  if (seleccionados.length === 0) return
+
+  const query = seleccionados.map(id => `id=${id}`).join('&')
+  const url = `/imprimir-multiples-formularios?${query}`
+
+  window.open(url, '_blank')
+}
+
 
   const handleEliminarSeleccionados = async () => {
     if (seleccionados.length === 0) return;
@@ -604,19 +609,65 @@ export default function InicioPage() {
     setOpenEstadoDialog(true);
   };
 
-  const confirmarCambioEstado = () => {
-    if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
-      alert('Estado inválido');
-      return;
-    }
+// Reemplaza la función confirmarCambioEstado en InicioPage.tsx
+
+const confirmarCambioEstado = async () => {
+  if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
+    alert('Estado inválido');
+    return;
+  }
+
+  // Mostrar loading
+  const loading = document.createElement('div');
+  loading.textContent = `Cambiando estado a "${nuevoEstado}"...`;
+  loading.style.cssText = `
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8); color: white; padding: 20px;
+    border-radius: 8px; z-index: 9999; font-family: Arial, sans-serif;
+  `;
+  document.body.appendChild(loading);
+
+  try {
+    // Convertir IDs de string a number
+    const idsNumero = seleccionados.map(id => Number(id));
+    
+    // ✅ Usar la nueva función con verificación
+    console.log(`Cambiando estado de ${idsNumero.length} intervenciones a "${nuevoEstado}"`);
+    await cambiarEstadoMultipleConVerificacion(idsNumero, nuevoEstado);
+    
+    // ✅ Actualizar el estado local SOLO después de verificación exitosa
     setFormularios(prev =>
       prev.map(f => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado as EstadoUI } : f))
     );
-    setSeleccionados([]);
-    setSelectedId(null);
-    setNuevoEstado('');
-    setOpenEstadoDialog(false);
-  };
+    
+    console.log(`Estado cambiado y verificado exitosamente a "${nuevoEstado}"`);
+    
+    // Mostrar mensaje de éxito
+    alert(`Estado cambiado exitosamente a "${nuevoEstado}" para ${seleccionados.length} intervenciones`);
+    
+  } catch (error: any) {
+    console.error('Error cambiando estado:', error);
+    
+    // Mostrar error detallado
+    const mensaje = error.message || error.toString();
+    alert(
+      `Error cambiando estado: ${mensaje}\n\n` +
+      `Esto puede indicar que el backend no está persistiendo correctamente los cambios. ` +
+      `Verifica que el endpoint esté funcionando correctamente.`
+    );
+    
+    // NO cerrar el diálogo si hay error
+    document.body.removeChild(loading);
+    return;
+  }
+
+  // Limpiar y cerrar solo si todo fue exitoso
+  document.body.removeChild(loading);
+  setSeleccionados([]);
+  setSelectedId(null);
+  setNuevoEstado('');
+  setOpenEstadoDialog(false);
+};
 
   if (cargando) {
     return (

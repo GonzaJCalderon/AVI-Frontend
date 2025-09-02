@@ -32,10 +32,22 @@ export const estadoColorMap: Record<EstadoUI, string> = {
  */
 export function normalizeEstado(raw?: string, eliminado?: boolean): EstadoUI {
   if (eliminado) return 'Eliminado';
-  switch ((raw || '').toLowerCase()) {
-    case 'activo': return 'Activo';
-    case 'archivado': return 'Archivado';
-    case 'eliminado': return 'Eliminado';
-    default: return 'Activo';
+  const estado = (raw || '').toLowerCase();
+
+  switch (estado) {
+    case 'activo':
+    case 'activa':
+      return 'Activo';
+
+    case 'archivado':
+    case 'archivada':
+      return 'Archivado';
+
+    case 'eliminado':
+    case 'eliminada':
+      return 'Eliminado';
+
+    default:
+      return 'Activo'; // fallback
   }
 }

@@ -45,3 +45,8 @@ html, body {
   margin: 0;
   font-family: 'Poppins', 'Roboto', 'Helvetica', 'Arial', sans-serif;
 }
+
+/* 🚫 Oculta el toast de error de Next.js en desarrollo */
+nextjs-portal > div[data-nextjs-toast="true"] {
+  display: none !important;
+}

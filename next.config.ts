@@ -7,6 +7,12 @@ const withAnalyzer = withBundleAnalyzer({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // ✅ Desactivar Dev Tools (dev overlay)
+  devIndicators: {
+    buildActivity: false,
+  },
+
   images: {
     remotePatterns: [
       {
@@ -15,6 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
   async rewrites() {
     return [
       {

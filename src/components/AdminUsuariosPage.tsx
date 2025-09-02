@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Box, Typography, Paper, Button } from '@mui/material'
-import useUsuario from '@/hooks/useUsuario'
+import useUsuario from '@/hooks/useUsuarios'
 import { useRouter } from 'next/navigation'
 import TablaUsuarios from '@/components/TablaUsuarios'
 import { Usuario } from '@/components/types'
