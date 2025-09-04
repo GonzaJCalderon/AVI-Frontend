@@ -167,7 +167,7 @@ export type CreateIntervencionPayload = {
       homicidioAccidenteVial: boolean
       homicidioAvHecho: boolean
       femicidio: boolean
-      transfemicidio: boolean
+    travestisidio_transfemicidio: boolean;
       violenciaGenero: boolean
       otros: boolean
     }

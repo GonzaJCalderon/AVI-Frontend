@@ -691,7 +691,7 @@ tipoHecho: {
     homicidioAccidenteVial: f.homicidioAccidenteVial,
     homicidioAvHecho: f.homicidioAvHecho,
     femicidio: f.femicidio,
-    travestisidioTransfemicidio: f.transfemicidio, // ✅ FIXED: Backend expects this field name
+ travestisidio_transfemicidio: f.transfemicidio,
     violenciaGenero: f.violenciaGenero,
     otros: f.otros,
   },
