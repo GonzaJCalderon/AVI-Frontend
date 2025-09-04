@@ -662,11 +662,12 @@ fetch('/localidadesMendoza.json')
     sinIntervencion: f.sinIntervencion,
     archivoCaso: f.archivoCaso,
   },
- derivacion: {
+derivacion: {
   derivador: f.derivadorNombre,
   motivos: f.motivoDerivacion === '' ? 0 : Number(f.motivoDerivacion),
-  fecha_derivacion: derivFechaISO.replace('T', ' '),
+  hora: derivFechaISO.replace('T', ' '), // <-- este es el nombre correcto
 },
+
 
   hechoDelictivo: {
     expediente: f.nroExpediente,
