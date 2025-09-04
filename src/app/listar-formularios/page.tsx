@@ -99,43 +99,43 @@ export default function ListarFormulariosPage() {
       
       // Transformar los datos con la nueva columna de reseña
       const formulariosTransformados: FormularioDisplay[] = data.map((item) => {
-        const victima = item.victimas?.[0];
-        
-        // Procesar tipo de delito
-        const delitoParsed = item.hechoDelictivo?.tipoHecho
-          ? Object.entries(item.hechoDelictivo.tipoHecho)
-              .filter(([_, value]) => value === true)
-              .map(([key]) => key)
-              .join(', ')
-          : 'No especificado';
+  const victima = item.victimas?.[0];
 
-        // Procesar departamento
-        const departamentoParsed =
-          typeof item.hechoDelictivo?.ubicacion?.departamento === 'number'
-            ? String(item.hechoDelictivo.ubicacion.departamento)
-            : typeof victima?.direccion?.departamento === 'number'
-            ? String(victima.direccion.departamento)
-            : 'No especificado';
+  // Extraer relaciones delictivas (delitos)
+  const relaciones = item.hechos_delictivos?.[0]?.relaciones || [];
+  const delitos: string[] = relaciones.flatMap(rel => 
+    Object.entries(rel)
+      .filter(([key, value]) => 
+        typeof value === 'boolean' && value === true && key !== 'id' && key !== 'hecho_delictivo_id'
+      )
+      .map(([key]) => key.replace(/_/g, ' '))
+  );
+  const delitoParsed = delitos.length > 0 ? delitos.join(', ') : 'No especificado';
 
-        return {
-          id: String(item.id),
-          numero: item.numero_intervencion || 'Sin número',
-          coordinador: item.coordinador || 'No asignado',
-          operador: item.operador || 'No asignado',
-          victima: victima?.nombre || 'No registrada',
-          fecha: new Date(item.fecha).toISOString().slice(0, 10),
-          estado: normalizeEstado(item.estado, item.eliminado),
-          delito: delitoParsed,
-          departamento: departamentoParsed,
-          reseña: item.reseña_hecho || 'Sin reseña', // Nueva columna agregada
-          counts: {
-            derivaciones: item._count?.derivaciones ?? 0,
-            hechos_delictivos: item._count?.hechos_delictivos ?? 0,
-            victimas: item._count?.victimas ?? 0,
-            seguimientos: item._count?.seguimientos ?? 0,
-          },
-        };
-      });
+  // Extraer departamento
+  const departamento =
+    item.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.descripcion || 'No especificado';
+
+  return {
+    id: String(item.id),
+    numero: item.numero_intervencion || 'Sin número',
+    coordinador: item.coordinador || 'No asignado',
+    operador: item.operador || 'No asignado',
+    victima: victima?.nombre || 'No registrada',
+    fecha: new Date(item.fecha).toISOString().slice(0, 10),
+    estado: normalizeEstado(item.estado, item.eliminado),
+    delito: delitoParsed,
+    departamento: departamento,
+    reseña: item.reseña_hecho || 'Sin reseña',
+    counts: {
+      derivaciones: item.derivaciones?.length ?? 0,
+      hechos_delictivos: item.hechos_delictivos?.length ?? 0,
+      victimas: item.victimas?.length ?? 0,
+      seguimientos: item.seguimientos?.length ?? 0,
+    },
+  };
+});
+
 
       setFormularios(formulariosTransformados);
       console.log(`Cargados ${formulariosTransformados.length} formularios`);

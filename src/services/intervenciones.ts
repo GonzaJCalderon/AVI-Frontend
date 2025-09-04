@@ -1,5 +1,6 @@
 // src/services/intervenciones.ts
 import { apiFetch } from './api'
+import { normalizeEstado } from '@/utils/constants';
 
 export type IntervencionItem = {
   id: number;
@@ -7,10 +8,11 @@ export type IntervencionItem = {
   fecha: string;
   coordinador?: string;
   operador?: string;
-  estado?: string;           // ✅ agregado
-  eliminado?: boolean;       // ✅ agregado
+  estado?: string;
+  eliminado?: boolean;
   reseña_hecho?: string;
 
+  // 🟡 Estructura vieja opcional (por compatibilidad)
   hechoDelictivo?: {
     expediente?: string;
     numAgresores?: number;
@@ -36,7 +38,43 @@ export type IntervencionItem = {
     };
   };
 
-  victimas?: {
+  // ✅ Nueva estructura del backend
+  hechos_delictivos?: Array<{
+    id: number;
+    expediente?: string;
+    num_agresores?: number;
+
+    relaciones?: Array<{
+      id: number;
+      hecho_delictivo_id: number;
+      robo: boolean;
+      robo_arma_fuego: boolean;
+      robo_arma_blanca: boolean;
+      amenazas: boolean;
+      lesiones: boolean;
+      lesiones_arma_fuego: boolean;
+      lesiones_arma_blanca: boolean;
+      homicidio_delito: boolean;
+      homicidio_accidente_vial: boolean;
+      homicidio_av_hecho: boolean;
+      femicidio: boolean;
+      travestisidio_transfemicidio: boolean;
+      violencia_genero: boolean;
+      otros: boolean;
+    }>;
+
+    geo?: Array<{
+      domicilio?: string;
+      departamentos?: {
+        id?: number;
+        descripcion?: string;
+        dep_id?: number;
+      };
+    }>;
+  }>;
+
+  victimas?: Array<{
+    id?: number;
     dni?: string;
     nombre?: string;
     genero?: number;
@@ -49,7 +87,34 @@ export type IntervencionItem = {
       departamento?: number;
       localidad?: number;
     };
-  }[];
+  }>;
+
+  derivaciones?: Array<{
+    id: number;
+    tipo_derivacion_id: number;
+  }>;
+
+  abusos_sexuales?: Array<{
+    id: number;
+  }>;
+
+  acciones_primera_linea?: Array<{
+    id: number;
+  }>;
+
+  intervenciones_tipo?: Array<{
+    id: number;
+  }>;
+
+  seguimientos?: Array<{
+    id: number;
+    tipo?: Array<{
+      id: number;
+    }>;
+    detalles?: Array<{
+      id: number;
+    }>;
+  }>;
 
   _count?: {
     derivaciones?: number;
@@ -59,6 +124,7 @@ export type IntervencionItem = {
   };
 };
 
+
 type IntervencionesListResponse = {
   success: boolean
   message: string
@@ -66,21 +132,22 @@ type IntervencionesListResponse = {
 }
 
 /**
- * Payload EXACTO que espera el backend para POST /api/intervenciones
+ * Payload EXACTO que espera el backend para POST/PATCH /api/intervenciones
  */
 export type CreateIntervencionPayload = {
   intervencion: {
-  coordinador: string
-  operador: string
-  fecha: string
-  resena_hecho: string
-}
+    coordinador: string
+    operador: string
+    fecha: string
+    resena_hecho: string
+  }
 
   derivacion: {
     motivos: number
     derivador: string
     hora: string
   }
+  
   hechoDelictivo: {
     expediente: string
     numAgresores: number
@@ -100,17 +167,19 @@ export type CreateIntervencionPayload = {
       homicidioAccidenteVial: boolean
       homicidioAvHecho: boolean
       femicidio: boolean
- transfemicidio: boolean;
-
+      transfemicidio: boolean
       violenciaGenero: boolean
       otros: boolean
     }
   }
+  
   accionesPrimeraLinea: string
+  
   abusoSexual: {
     simple: boolean
     agravado: boolean
   }
+  
   datosAbusoSexual: {
     kit: string
     relacion: string
@@ -118,6 +187,7 @@ export type CreateIntervencionPayload = {
     lugarHecho: string
     lugarOtro: string
   }
+  
   victima: {
     dni: string
     nombre: string
@@ -132,6 +202,7 @@ export type CreateIntervencionPayload = {
       localidad: number
     }
   }
+  
   personaEntrevistada: {
     nombre: string
     relacionVictima: string
@@ -142,6 +213,7 @@ export type CreateIntervencionPayload = {
       localidad: number
     }
   }
+  
   tipoIntervencion: {
     crisis: boolean
     telefonica: boolean
@@ -153,6 +225,7 @@ export type CreateIntervencionPayload = {
     sinIntervencion: boolean
     archivoCaso: boolean
   }
+  
   seguimiento: {
     realizado: boolean
     tipo: {
@@ -162,6 +235,7 @@ export type CreateIntervencionPayload = {
       archivoCaso: boolean
     }
   }
+  
   detalleSeguimiento: string
 }
 
@@ -170,13 +244,15 @@ export type IntervencionCreated = {
   [k: string]: any
 }
 
+// ===== OPERACIONES BÁSICAS CRUD =====
+
 export const crearIntervencion = (payload: CreateIntervencionPayload) =>
   apiFetch<IntervencionCreated>('/intervenciones', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 
-export const listarIntervenciones = async () => {
+export const listarIntervenciones = async (): Promise<IntervencionItem[]> => {
   const res = await apiFetch<IntervencionesListResponse>('/intervenciones', { method: 'GET' })
   return res.data
 }
@@ -187,7 +263,7 @@ type IntervencionSingleResponse = {
   data: IntervencionItem;
 };
 
-export const obtenerIntervencion = async (id: number): Promise<IntervencionItem> => {
+export const obtenerIntervencionPorId = async (id: number): Promise<IntervencionItem> => {
   const res = await apiFetch<IntervencionSingleResponse>(`/intervenciones/${id}`, {
     method: 'GET',
   });
@@ -204,7 +280,8 @@ export const actualizarIntervencion = (id: number, data: Partial<CreateIntervenc
 export const eliminarIntervencion = (id: number) =>
   apiFetch<void>(`/intervenciones/${id}`, { method: 'DELETE' })
 
-// ✅ Funciones específicas para cambio de estado
+// ===== OPERACIONES DE CAMBIO DE ESTADO =====
+
 export const eliminarIntervencionSoft = async (id: number) => {
   return await apiFetch(`/intervenciones/${id}/soft-delete`, {
     method: 'PATCH'
@@ -223,14 +300,12 @@ export const archivarIntervencion = async (id: number) => {
   });
 };
 
-// ✅ Nueva función para activar una intervención
 export const activarIntervencion = async (id: number) => {
   return await apiFetch(`/intervenciones/${id}/activar`, {
     method: 'PATCH'
   });
 };
 
-// ✅ Función genérica para cambiar estado (si el backend la soporta)
 export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string) => {
   return await apiFetch(`/intervenciones/${id}/estado`, {
     method: 'PATCH',
@@ -238,16 +313,14 @@ export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string)
   });
 };
 
-// ✅ AGREGAR: Importar normalizeEstado
-import { normalizeEstado } from '@/utils/constants';
+// ===== FUNCIONES DE DEPURACIÓN Y VERIFICACIÓN =====
 
-// ✅ NUEVA: Función de debug para verificar qué está pasando realmente
 export const debugCambioEstado = async (id: number, nuevoEstado: string) => {
   console.log(`🔍 DEBUG: Iniciando cambio de estado para ID ${id}`);
-  
+
   try {
     // 1. Ver estado ANTES del cambio
-    const antes = await obtenerIntervencion(id);
+    const antes = await obtenerIntervencionPorId(id);
     const estadoAntes = normalizeEstado(antes.estado, antes.eliminado);
     console.log(`📊 Estado ANTES: "${estadoAntes}"`);
     console.log(`📄 Datos completos ANTES:`, {
@@ -256,17 +329,17 @@ export const debugCambioEstado = async (id: number, nuevoEstado: string) => {
       eliminado: antes.eliminado,
       numero_intervencion: antes.numero_intervencion
     });
-    
+
     // 2. Hacer el cambio
     console.log(`🔄 Ejecutando cambio a "${nuevoEstado}"`);
     const respuestaCambio = await archivarIntervencion(id);
     console.log(`📤 Respuesta del backend:`, respuestaCambio);
-    
+
     // 3. Esperar y verificar
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // 4. Ver estado DESPUÉS del cambio
-    const despues = await obtenerIntervencion(id);
+    const despues = await obtenerIntervencionPorId(id);
     const estadoDespues = normalizeEstado(despues.estado, despues.eliminado);
     console.log(`📊 Estado DESPUÉS: "${estadoDespues}"`);
     console.log(`📄 Datos completos DESPUÉS:`, {
@@ -275,7 +348,7 @@ export const debugCambioEstado = async (id: number, nuevoEstado: string) => {
       eliminado: despues.eliminado,
       numero_intervencion: despues.numero_intervencion
     });
-    
+
     // 5. Comparar
     if (estadoAntes === estadoDespues) {
       console.log(`🚨 PROBLEMA: El estado NO cambió (sigue siendo "${estadoDespues}")`);
@@ -284,14 +357,15 @@ export const debugCambioEstado = async (id: number, nuevoEstado: string) => {
       console.log(`✅ ÉXITO: Estado cambió de "${estadoAntes}" a "${estadoDespues}"`);
       return true;
     }
-    
+
   } catch (error) {
     console.error(`❌ Error en debug:`, error);
     return false;
   }
 };
 
-// ✅ NUEVA: Función mejorada para cambio de estado con verificación posterior
+// ===== FUNCIONES CON VERIFICACIÓN =====
+
 export const cambiarEstadoConVerificacion = async (id: number, nuevoEstado: string) => {
   console.log(`Cambiando estado de intervención ${id} a "${nuevoEstado}"`);
   
@@ -306,26 +380,22 @@ export const cambiarEstadoConVerificacion = async (id: number, nuevoEstado: stri
         resultado = await archivarIntervencion(id);
         break;
       default:
-        resultado = await apiFetch(`/intervenciones/${id}/estado`, {
-          method: 'PATCH',
-          body: JSON.stringify({ estado: nuevoEstado })
-        });
+        resultado = await cambiarEstadoIntervencion(id, nuevoEstado);
         break;
     }
     
     console.log(`Respuesta del cambio de estado:`, resultado);
     
-    // 2. ✅ VERIFICAR que el cambio se persistió correctamente
-    // Esperar un momento para que el backend procese
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    // 2. Verificar que el cambio se persistió correctamente
+    await new Promise(resolve => setTimeout(resolve, 500)); // dar tiempo al backend
+
     // 3. Obtener la intervención actualizada del backend
-    const intervencionActualizada = await obtenerIntervencion(id);
+    const intervencionActualizada = await obtenerIntervencionPorId(id);
     const estadoActual = normalizeEstado(intervencionActualizada.estado, intervencionActualizada.eliminado);
     
     console.log(`Estado después del cambio: "${estadoActual}" (esperado: "${nuevoEstado}")`);
     
-    // 4. ✅ Verificar que el estado coincida
+    // 4. Verificar que el estado coincida
     if (estadoActual !== nuevoEstado) {
       throw new Error(
         `El cambio de estado no se persistió correctamente. ` +
@@ -342,7 +412,6 @@ export const cambiarEstadoConVerificacion = async (id: number, nuevoEstado: stri
   }
 };
 
-// ✅ REEMPLAZAR: Función mejorada para cambio múltiple con verificación
 export const cambiarEstadoMultipleConVerificacion = async (ids: number[], nuevoEstado: string) => {
   console.log(`Iniciando cambio de estado para ${ids.length} intervenciones a "${nuevoEstado}"`);
   
@@ -380,7 +449,30 @@ export const cambiarEstadoMultipleConVerificacion = async (ids: number[], nuevoE
   return exitosas;
 };
 
-// ✅ MANTENER: Función original para compatibilidad (pero ahora sabemos que no verifica)
+// ===== FUNCIONES CON REINTENTOS =====
+
+const cambiarEstadoConReintentos = async (id: number, estado: string, maxReintentos = 3) => {
+  for (let intento = 1; intento <= maxReintentos; intento++) {
+    try {
+      switch (estado) {
+        case 'Activo':
+          return await activarIntervencion(id);
+        case 'Archivado':
+          return await archivarIntervencion(id);
+        default:
+          return await cambiarEstadoIntervencion(id, estado);
+      }
+    } catch (error: any) {
+      if (intento === maxReintentos) {
+        throw error;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000 * intento));
+      console.log(`Reintentando ${intento + 1}/${maxReintentos} para intervención ${id}`);
+    }
+  }
+};
+
 export const cambiarEstadoMultiple = async (ids: number[], nuevoEstado: string) => {
   console.log(`Iniciando cambio de estado para ${ids.length} intervenciones a "${nuevoEstado}"`);
   
@@ -388,21 +480,7 @@ export const cambiarEstadoMultiple = async (ids: number[], nuevoEstado: string) 
     try {
       console.log(`Procesando intervención ${id} (${index + 1}/${ids.length})`);
       
-      let resultado;
-      switch (nuevoEstado) {
-        case 'Activo':
-          resultado = await activarIntervencion(id);
-          break;
-        case 'Archivado':
-          resultado = await archivarIntervencion(id);
-          break;
-        default:
-          resultado = await apiFetch(`/intervenciones/${id}/estado`, {
-            method: 'PATCH',
-            body: JSON.stringify({ estado: nuevoEstado })
-          });
-          break;
-      }
+      const resultado = await cambiarEstadoConReintentos(id, nuevoEstado);
       
       console.log(`✅ Intervención ${id} actualizada correctamente`);
       return { id, success: true, result: resultado };
@@ -455,29 +533,4 @@ export const cambiarEstadoMultiple = async (ids: number[], nuevoEstado: string) 
   }
   
   return exitosas;
-};
-
-const cambiarEstadoConReintentos = async (id: number, estado: string, maxReintentos = 3) => {
-  for (let intento = 1; intento <= maxReintentos; intento++) {
-    try {
-      switch (estado) {
-        case 'Activo':
-          return await activarIntervencion(id);
-        case 'Archivado':
-          return await archivarIntervencion(id);
-        default:
-          return await apiFetch(`/intervenciones/${id}/estado`, {
-            method: 'PATCH',
-            body: JSON.stringify({ estado })
-          });
-      }
-    } catch (error: any) {
-      if (intento === maxReintentos) {
-        throw error;
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000 * intento));
-      console.log(`Reintentando ${intento + 1}/${maxReintentos} para intervención ${id}`);
-    }
-  }
 };

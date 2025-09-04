@@ -56,24 +56,8 @@ import {
   debugCambioEstado, 
 } from '@/services/intervenciones';
 
-type Formulario = {
-  id: string;
-  coordinador: string;
-  operador: string;
-  victima: string;
-  numero: string;
-  dni: string;
-  fecha: string;
-  estado: EstadoUI;
-  delito: string;
-  departamento: string;
-  counts?: {
-    derivaciones: number;
-    hechos_delictivos: number;
-    victimas: number;
-    seguimientos: number;
-  };
-};
+// ✅ Importar el tipo desde el archivo de tipos
+import { Formulario } from '@/types/formulario';
 
 export default function InicioPage() {
   const router = useRouter();
@@ -116,38 +100,40 @@ export default function InicioPage() {
 
         const mapped: Formulario[] = data.map((it) => {
           const victima = it.victimas?.[0]; // primera víctima si existe
+const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
+  ? Object.entries(it.hechos_delictivos[0].relaciones[0])
+      .filter(([key, val]) => val === true && key !== 'id' && key !== 'hecho_delictivo_id')
+      .map(([key]) => key.replaceAll('_', ' '))
+      .join(', ')
+  : '—';
 
-          const delitoParsed = it.hechoDelictivo?.tipoHecho
-            ? Object.entries(it.hechoDelictivo.tipoHecho)
-                .filter(([_, value]) => value === true)
-                .map(([key]) => key)
-                .join(', ')
-            : '—';
+const departamentoParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.descripcion || '—';
 
-          const departamentoParsed =
-            typeof it.hechoDelictivo?.ubicacion?.departamento === 'number'
-              ? String(it.hechoDelictivo.ubicacion.departamento)
-              : typeof victima?.direccion?.departamento === 'number'
-              ? String(victima.direccion.departamento)
-              : '—';
+const reseñaParsed = it.reseña_hecho?.trim() || '—';
 
-          return {
-            id: String(it.id),
-            coordinador: it.coordinador || '—',
-            operador: it.operador || '—',
-            victima: victima?.nombre || '—',
-            numero: it.numero_intervencion || '—',
-            dni: victima?.dni || '—',
-            fecha: new Date(it.fecha).toISOString().slice(0, 10),
-            estado: normalizeEstado(it.estado, it.eliminado),
-            delito: delitoParsed,
-            departamento: departamentoParsed,
-            counts: {
-              derivaciones: it._count?.derivaciones ?? 0,
-              hechos_delictivos: it._count?.hechos_delictivos ?? 0,
-              victimas: it._count?.victimas ?? 0,
-              seguimientos: it._count?.seguimientos ?? 0,
-            },
+
+         return {
+  id: String(it.id),
+  coordinador: it.coordinador || '—',
+  operador: it.operador || '—',
+  victima: victima?.nombre || '—',
+  numero: it.numero_intervencion || '—',
+  numero_intervencion: it.numero_intervencion, // 👈 opcional pero útil
+  dni: victima?.dni || '—',
+  fecha: new Date(it.fecha).toISOString().slice(0, 10),
+  estado: normalizeEstado(it.estado, it.eliminado),
+  eliminado: it.eliminado, // 👈 importante para tabla
+ delito: delitoParsed,
+departamento: departamentoParsed,
+reseña_hecho: reseñaParsed,
+
+          counts: {
+  derivaciones: it.derivaciones?.length ?? 0,
+  hechos_delictivos: it.hechos_delictivos?.length ?? 0,
+  victimas: it.victimas?.length ?? 0,
+  seguimientos: it.seguimientos?.length ?? 0,
+},
+
           };
         });
         setFormularios(mapped);
@@ -190,14 +176,13 @@ export default function InicioPage() {
   };
 
   const handleImprimirSeleccionados = () => {
-  if (seleccionados.length === 0) return
+    if (seleccionados.length === 0) return
 
-  const query = seleccionados.map(id => `id=${id}`).join('&')
-  const url = `/imprimir-multiples-formularios?${query}`
+    const query = seleccionados.map(id => `id=${id}`).join('&')
+    const url = `/imprimir-multiples-formularios?${query}`
 
-  window.open(url, '_blank')
-}
-
+    window.open(url, '_blank')
+  }
 
   const handleEliminarSeleccionados = async () => {
     if (seleccionados.length === 0) return;
@@ -261,8 +246,6 @@ export default function InicioPage() {
           setSeleccionados([selectedId]);
           setOpenEstadoDialog(true);
           break;
-
-     
 
         case 'archivar': {
           // ✅ Archivar: mueve directamente a archivo (cualquier estado -> Archivado) 
@@ -609,65 +592,64 @@ export default function InicioPage() {
     setOpenEstadoDialog(true);
   };
 
-// Reemplaza la función confirmarCambioEstado en InicioPage.tsx
+  // Reemplaza la función confirmarCambioEstado en InicioPage.tsx
+  const confirmarCambioEstado = async () => {
+    if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
+      alert('Estado inválido');
+      return;
+    }
 
-const confirmarCambioEstado = async () => {
-  if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
-    alert('Estado inválido');
-    return;
-  }
+    // Mostrar loading
+    const loading = document.createElement('div');
+    loading.textContent = `Cambiando estado a "${nuevoEstado}"...`;
+    loading.style.cssText = `
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8); color: white; padding: 20px;
+      border-radius: 8px; z-index: 9999; font-family: Arial, sans-serif;
+    `;
+    document.body.appendChild(loading);
 
-  // Mostrar loading
-  const loading = document.createElement('div');
-  loading.textContent = `Cambiando estado a "${nuevoEstado}"...`;
-  loading.style.cssText = `
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.8); color: white; padding: 20px;
-    border-radius: 8px; z-index: 9999; font-family: Arial, sans-serif;
-  `;
-  document.body.appendChild(loading);
+    try {
+      // Convertir IDs de string a number
+      const idsNumero = seleccionados.map(id => Number(id));
+      
+      // ✅ Usar la nueva función con verificación
+      console.log(`Cambiando estado de ${idsNumero.length} intervenciones a "${nuevoEstado}"`);
+      await cambiarEstadoMultipleConVerificacion(idsNumero, nuevoEstado);
+      
+      // ✅ Actualizar el estado local SOLO después de verificación exitosa
+      setFormularios(prev =>
+        prev.map(f => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado as EstadoUI } : f))
+      );
+      
+      console.log(`Estado cambiado y verificado exitosamente a "${nuevoEstado}"`);
+      
+      // Mostrar mensaje de éxito
+      alert(`Estado cambiado exitosamente a "${nuevoEstado}" para ${seleccionados.length} intervenciones`);
+      
+    } catch (error: any) {
+      console.error('Error cambiando estado:', error);
+      
+      // Mostrar error detallado
+      const mensaje = error.message || error.toString();
+      alert(
+        `Error cambiando estado: ${mensaje}\n\n` +
+        `Esto puede indicar que el backend no está persistiendo correctamente los cambios. ` +
+        `Verifica que el endpoint esté funcionando correctamente.`
+      );
+      
+      // NO cerrar el diálogo si hay error
+      document.body.removeChild(loading);
+      return;
+    }
 
-  try {
-    // Convertir IDs de string a number
-    const idsNumero = seleccionados.map(id => Number(id));
-    
-    // ✅ Usar la nueva función con verificación
-    console.log(`Cambiando estado de ${idsNumero.length} intervenciones a "${nuevoEstado}"`);
-    await cambiarEstadoMultipleConVerificacion(idsNumero, nuevoEstado);
-    
-    // ✅ Actualizar el estado local SOLO después de verificación exitosa
-    setFormularios(prev =>
-      prev.map(f => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado as EstadoUI } : f))
-    );
-    
-    console.log(`Estado cambiado y verificado exitosamente a "${nuevoEstado}"`);
-    
-    // Mostrar mensaje de éxito
-    alert(`Estado cambiado exitosamente a "${nuevoEstado}" para ${seleccionados.length} intervenciones`);
-    
-  } catch (error: any) {
-    console.error('Error cambiando estado:', error);
-    
-    // Mostrar error detallado
-    const mensaje = error.message || error.toString();
-    alert(
-      `Error cambiando estado: ${mensaje}\n\n` +
-      `Esto puede indicar que el backend no está persistiendo correctamente los cambios. ` +
-      `Verifica que el endpoint esté funcionando correctamente.`
-    );
-    
-    // NO cerrar el diálogo si hay error
+    // Limpiar y cerrar solo si todo fue exitoso
     document.body.removeChild(loading);
-    return;
-  }
-
-  // Limpiar y cerrar solo si todo fue exitoso
-  document.body.removeChild(loading);
-  setSeleccionados([]);
-  setSelectedId(null);
-  setNuevoEstado('');
-  setOpenEstadoDialog(false);
-};
+    setSeleccionados([]);
+    setSelectedId(null);
+    setNuevoEstado('');
+    setOpenEstadoDialog(false);
+  };
 
   if (cargando) {
     return (

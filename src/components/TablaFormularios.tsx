@@ -56,11 +56,23 @@ export default function TablaFormularios({
   renderEstadoChip,
 }: Props) {
   const formulariosPorPagina = 5;
-const router = useRouter();
-  const formularioSeleccionado = formulariosPagina.find(f => f.id === selectedId);
-  const esEliminado = formularioSeleccionado?.estado === 'Eliminado';
-  const esActivo = formularioSeleccionado?.estado === 'Activo';
-  const esArchivado = formularioSeleccionado?.estado === 'Archivado';
+  const router = useRouter();
+  
+  const formularioSeleccionado = formulariosPagina.find(f => f.id.toString() === selectedId);
+  const esEliminado = formularioSeleccionado?.eliminado || formularioSeleccionado?.estado === 'eliminada';
+  const esActivo = formularioSeleccionado?.estado === 'activa';
+  const esArchivado = formularioSeleccionado?.estado === 'archivada';
+
+// ✅ Solo retornan directamente los campos del tipo Formulario
+
+const obtenerDelitos = (formulario: Formulario): string => formulario.delito || '—';
+
+const obtenerDepartamento = (formulario: Formulario): string => formulario.departamento || '—';
+
+const obtenerVictima = (formulario: Formulario): string => formulario.victima || '—';
+
+const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
+
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -68,15 +80,14 @@ const router = useRouter();
         <Typography variant="h6" fontWeight="bold">
           Formularios encontrados
         </Typography>
-       <Button
-  onClick={() =>router.push('/listar-formularios')
-}
-  variant="outlined"
-  size="small"
-  startIcon={<span>📋</span>}
->
-  Listar Todos
-</Button>
+        <Button
+          onClick={() => router.push('/listar-formularios')}
+          variant="outlined"
+          size="small"
+          startIcon={<span>📋</span>}
+        >
+          Listar Todos
+        </Button>
       </Box>
 
       <TableContainer>
@@ -87,11 +98,11 @@ const router = useRouter();
                 <Checkbox
                   indeterminate={
                     seleccionados.length > 0 &&
-                    seleccionados.length < formulariosPagina.filter(f => f.estado !== 'Eliminado').length
+                    seleccionados.length < formulariosPagina.filter(f => !f.eliminado).length
                   }
                   checked={
-                    formulariosPagina.filter(f => f.estado !== 'Eliminado').length > 0 &&
-                    formulariosPagina.filter(f => f.estado !== 'Eliminado').every(f => seleccionados.includes(f.id))
+                    formulariosPagina.filter(f => !f.eliminado).length > 0 &&
+                    formulariosPagina.filter(f => !f.eliminado).every(f => seleccionados.includes(f.id.toString()))
                   }
                   onChange={toggleTodos}
                 />
@@ -105,6 +116,7 @@ const router = useRouter();
               <TableCell>Fecha</TableCell>
               <TableCell>Estado</TableCell>
               <TableCell>Delito</TableCell>
+              <TableCell>Reseña Hechos</TableCell>
               <TableCell>Departamento</TableCell>
               <TableCell align="center">Acciones</TableCell>
             </TableRow>
@@ -114,31 +126,32 @@ const router = useRouter();
               <TableRow
                 key={f.id}
                 sx={{
-                  opacity: f.estado === 'Eliminado' ? 0.6 : 1,
-                  backgroundColor: f.estado === 'Eliminado' ? '#f5f5f5' : 'inherit'
+                  opacity: f.eliminado ? 0.6 : 1,
+                  backgroundColor: f.eliminado ? '#f5f5f5' : 'inherit'
                 }}
               >
                 <TableCell padding="checkbox">
                   <Checkbox
-                    checked={seleccionados.includes(f.id)}
-                    onChange={() => toggleSeleccionado(f.id)}
-                    disabled={f.estado === 'Eliminado'}
+                    checked={seleccionados.includes(f.id.toString())}
+                    onChange={() => toggleSeleccionado(f.id.toString())}
+                    disabled={f.eliminado}
                   />
                 </TableCell>
                 <TableCell>{f.id}</TableCell>
                 <TableCell>{f.coordinador}</TableCell>
                 <TableCell>{f.operador}</TableCell>
-                <TableCell>{f.victima}</TableCell>
-                <TableCell>{f.numero}</TableCell>
-                <TableCell>{f.dni}</TableCell>
+                <TableCell>{obtenerVictima(f)}</TableCell>
+                <TableCell>{f.numero_intervencion}</TableCell>
+                <TableCell>{obtenerDNI(f)}</TableCell>
                 <TableCell>{formatearFecha(f.fecha)}</TableCell>
-                <TableCell>{renderEstadoChip(f.estado)}</TableCell>
-                <TableCell>{f.delito}</TableCell>
-                <TableCell>{f.departamento}</TableCell>
+                <TableCell>{renderEstadoChip(f.estado || 'sin estado')}</TableCell>
+                <TableCell>{obtenerDelitos(f)}</TableCell>
+                <TableCell>{f.reseña_hecho || '—'}</TableCell>
+                <TableCell>{obtenerDepartamento(f)}</TableCell>
                 <TableCell align="center">
                   <IconButton
-                    onClick={(e) => handleOpenMenu(e, f.id)}
-                    disabled={f.estado === 'Eliminado'}
+                    onClick={(e) => handleOpenMenu(e, f.id.toString())}
+                    disabled={f.eliminado}
                   >
                     <MoreVertIcon />
                   </IconButton>

@@ -101,14 +101,17 @@ export default function SidebarNavbar() {
           <ListItem
             button
             key={item.label}
-            onClick={() => {
-              if (item.path.includes('#')) {
-                window.location.href = item.path
-              } else {
-                router.push(item.path)
-              }
-              if (isMobile) setMobileOpen(false)
-            }}
+          onClick={() => {
+  if (item.label === 'Nuevo Caso') {
+    window.open('http://10.100.1.80/avd/formulario_asistencia_victimas.html', '_blank', 'noopener,noreferrer')
+  } else if (item.path.includes('#')) {
+    window.location.href = item.path
+  } else {
+    router.push(item.path)
+  }
+  if (isMobile) setMobileOpen(false)
+}}
+
             selected={pathname === item.path}
             sx={{
               '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.15)' },
