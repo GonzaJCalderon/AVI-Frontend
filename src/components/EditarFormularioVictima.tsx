@@ -503,16 +503,19 @@ const [localidades, setLocalidades] = useState<Array<{
 }>>([]);
 
 
-fetch('/departamentosMendoza.json')
-  .then(res => res.json())
-  .then(data => setDepartamentos(data.departamentos || []))
-  .catch(err => console.error('Error cargando departamentos:', err));
+useEffect(() => {
+  // Cargar departamentos
+  fetch('/departamentosMendoza.json')
+    .then(res => res.json())
+    .then(data => setDepartamentos(data.departamentos || []))
+    .catch(err => console.error('Error cargando departamentos:', err));
 
-
-fetch('/localidadesMendoza.json')
-  .then(res => res.json())
-  .then(data => setLocalidades(data.localidades || []))
-  .catch(err => console.error('Error cargando localidades:', err));
+  // Cargar localidades  
+  fetch('/localidadesMendoza.json')
+    .then(res => res.json())
+    .then(data => setLocalidades(data.localidades || []))
+    .catch(err => console.error('Error cargando localidades:', err));
+}, []); // Se ejecuta una sola vez al montar el componente
 
 
 
@@ -665,7 +668,7 @@ fetch('/localidadesMendoza.json')
 derivacion: {
   derivador: f.derivadorNombre,
   motivos: f.motivoDerivacion === '' ? 0 : Number(f.motivoDerivacion),
-  hora: derivFechaISO.replace('T', ' '), // <-- este es el nombre correcto
+  fecha_derivacion: derivFechaISO.replace('T', ' '), // ✅ CORRECTO
 },
 
 
@@ -691,7 +694,7 @@ tipoHecho: {
     homicidioAccidenteVial: f.homicidioAccidenteVial,
     homicidioAvHecho: f.homicidioAvHecho,
     femicidio: f.femicidio,
- travestisidio_transfemicidio: f.transfemicidio,
+  travestisidioTransfemicidio: f.transfemicidio,
     violenciaGenero: f.violenciaGenero,
     otros: f.otros,
   },
@@ -732,9 +735,9 @@ personaEntrevistada: {
   direccion: {
     calleNro: f.entrevistadoCalle,
     barrio: f.entrevistadoBarrio,
-departamento: toValidPositiveNumber(f.entrevistadoDepartamento),
-
- localidad: toOptionalPositiveNumber(f.entrevistadoLocalidad),
+    departamento: toValidPositiveNumber(f.entrevistadoDepartamento),
+    // ✅ Cambiar esta línea:
+    localidad: toValidPositiveNumber(f.entrevistadoLocalidad), // En lugar de toOptionalPositiveNumber
   }
 },
 
@@ -1201,8 +1204,7 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
           </Grid>
         </Grid>
 
-    
-);
+  
 
 <Grid container spacing={2} sx={{ mb: 3 }}>
   <Grid item xs={12} md={4}>

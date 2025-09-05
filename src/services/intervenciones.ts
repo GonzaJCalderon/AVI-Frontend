@@ -10,7 +10,7 @@ export type IntervencionItem = {
   operador?: string;
   estado?: string;
   eliminado?: boolean;
-  reseña_hecho?: string;
+resena_hecho?: string; 
 
   // 🟡 Estructura vieja opcional (por compatibilidad)
   hechoDelictivo?: {
@@ -142,11 +142,11 @@ export type CreateIntervencionPayload = {
     resena_hecho: string
   }
 
-  derivacion: {
-    motivos: number
-    derivador: string
-    hora: string
-  }
+derivacion: {
+  motivos: number
+  derivador: string
+  fecha_derivacion: string  // ✅ CORRECTO
+}
   
   hechoDelictivo: {
     expediente: string
@@ -167,7 +167,7 @@ export type CreateIntervencionPayload = {
       homicidioAccidenteVial: boolean
       homicidioAvHecho: boolean
       femicidio: boolean
-    travestisidio_transfemicidio: boolean;
+ travestisidioTransfemicidio: boolean; 
       violenciaGenero: boolean
       otros: boolean
     }

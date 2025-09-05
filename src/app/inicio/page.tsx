@@ -109,7 +109,7 @@ const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
 
 const departamentoParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.descripcion || '—';
 
-const reseñaParsed = it.reseña_hecho?.trim() || '—';
+const reseñaParsed = it.resena_hecho?.trim() || '—';
 
 
          return {
