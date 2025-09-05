@@ -126,7 +126,7 @@ export default function ListarFormulariosPage() {
     estado: normalizeEstado(item.estado, item.eliminado),
     delito: delitoParsed,
     departamento: departamento,
-    reseña: item.reseña_hecho || 'Sin reseña',
+    reseña: item.resena_hecho || 'Sin reseña',
     counts: {
       derivaciones: item.derivaciones?.length ?? 0,
       hechos_delictivos: item.hechos_delictivos?.length ?? 0,

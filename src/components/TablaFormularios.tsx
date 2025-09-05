@@ -146,7 +146,7 @@ const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
                 <TableCell>{formatearFecha(f.fecha)}</TableCell>
                 <TableCell>{renderEstadoChip(f.estado || 'sin estado')}</TableCell>
                 <TableCell>{obtenerDelitos(f)}</TableCell>
-                <TableCell>{f.reseña_hecho || '—'}</TableCell>
+<TableCell>{f.reseña_hecho || '—'}</TableCell>
                 <TableCell>{obtenerDepartamento(f)}</TableCell>
                 <TableCell align="center">
                   <IconButton
