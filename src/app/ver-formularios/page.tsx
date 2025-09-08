@@ -1,8 +1,7 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { obtenerIntervencion } from '@/services/intervenciones';
+import { obtenerIntervencionPorId } from '@/services/intervenciones'; // ✅ Fixed import
 import {
   Box,
   Typography,
@@ -15,7 +14,6 @@ import {
 export default function VerFormulariosPage() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
-
   const [intervencion, setIntervencion] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +27,7 @@ export default function VerFormulariosPage() {
 
     const fetchData = async () => {
       try {
-        const response = await obtenerIntervencion(Number(id));
+        const response = await obtenerIntervencionPorId(Number(id)); // ✅ Fixed function call
         console.log('[DEBUG] Intervención:', response);
         setIntervencion(response);
       } catch (err: any) {
@@ -91,7 +89,6 @@ export default function VerFormulariosPage() {
         <Typography variant="h5" fontWeight="bold" gutterBottom>
           Intervención #{intervencion.numero_intervencion}
         </Typography>
-
         <Typography><strong>Coordinador:</strong> {intervencion.coordinador}</Typography>
         <Typography><strong>Operador:</strong> {intervencion.operador}</Typography>
         <Typography><strong>Fecha:</strong> {formatFecha(intervencion.fecha)}</Typography>
@@ -135,7 +132,6 @@ export default function VerFormulariosPage() {
             <Typography><strong>Teléfono:</strong> {v.telefono}</Typography>
             <Typography><strong>Ocupación:</strong> {v.ocupacion}</Typography>
             <Typography><strong>Dirección:</strong> {v.direccion?.calle_nro}, {v.direccion?.barrio}</Typography>
-
             {v.personas_entrevistadas?.map((p: any) => (
               <Box key={p.id} mt={1}>
                 <Typography variant="subtitle2">Persona Entrevistada:</Typography>
@@ -184,7 +180,6 @@ export default function VerFormulariosPage() {
         {intervencion.seguimientos?.map((s: any) => (
           <Box key={s.id}>
             <Typography><strong>Hubo seguimiento:</strong> {s.hubo ? 'Sí' : 'No'}</Typography>
-
             {s.tipo?.[0] && (
               <>
                 <Typography><strong>Tipos:</strong></Typography>

@@ -2,43 +2,30 @@
 import { apiFetch } from './api'
 import { normalizeEstado } from '@/utils/constants';
 
+// src/types/intervencion.ts
+
 export type IntervencionItem = {
   id: number;
   numero_intervencion: string;
   fecha: string;
+  fecha_creacion?: string;
   coordinador?: string;
   operador?: string;
   estado?: string;
   eliminado?: boolean;
-resena_hecho?: string; 
+  resena_hecho?: string;
 
-  // 🟡 Estructura vieja opcional (por compatibilidad)
-  hechoDelictivo?: {
-    expediente?: string;
-    numAgresores?: number;
-    ubicacion?: {
-      calleBarrio?: string;
-      departamento?: number;
+  derivaciones?: Array<{
+    id: number;
+    tipo_derivacion_id: number;
+    derivador?: string;
+    fecha_derivacion?: string;
+    tipo_derivaciones?: {
+      id: number;
+      descripcion: string;
     };
-    tipoHecho?: {
-      robo?: boolean;
-      roboArmaFuego?: boolean;
-      roboArmaBlanca?: boolean;
-      amenazas?: boolean;
-      lesiones?: boolean;
-      lesionesArmaFuego?: boolean;
-      lesionesArmaBlanca?: boolean;
-      homicidioDelito?: boolean;
-      homicidioAccidenteVial?: boolean;
-      homicidioAvHecho?: boolean;
-      femicidio?: boolean;
-      transfemicidio?: boolean;
-      violenciaGenero?: boolean;
-      otros?: boolean;
-    };
-  };
+  }>;
 
-  // ✅ Nueva estructura del backend
   hechos_delictivos?: Array<{
     id: number;
     expediente?: string;
@@ -78,50 +65,87 @@ resena_hecho?: string;
     dni?: string;
     nombre?: string;
     genero?: number;
-    fechaNacimiento?: string;
+    fecha_nacimiento?: string;
     telefono?: string;
     ocupacion?: string;
+    direccion_id?: number;
     direccion?: {
-      calleNro?: string;
+      id: number;
+      calle_nro?: string;
       barrio?: string;
-      departamento?: number;
-      localidad?: number;
+      departamento?: string;
+      localidad?: string;
     };
-  }>;
-
-  derivaciones?: Array<{
-    id: number;
-    tipo_derivacion_id: number;
+    generos?: {
+      id: number;
+      descripcion: string;
+    };
+    personas_entrevistadas?: Array<{
+      id: number;
+      nombre: string;
+      relacion_victima: string;
+      direccion_id: number;
+      direccion?: {
+        id: number;
+        calle_nro?: string;
+        barrio?: string;
+        departamento?: string;
+        localidad?: string;
+      };
+    }>;
   }>;
 
   abusos_sexuales?: Array<{
     id: number;
+    tipo_abuso?: number;
+    datos?: Array<{
+      id: number;
+      kit: string;
+      relacion: string;
+      relacion_otro: string;
+      lugar_hecho: string;
+      lugar_otro: string;
+      abuso_sexual_id: number;
+    }>;
   }>;
 
   acciones_primera_linea?: Array<{
     id: number;
+    acciones: string;
+    fecha: string;
+    user_audit: number;
   }>;
 
   intervenciones_tipo?: Array<{
     id: number;
+    crisis: boolean;
+    telefonica: boolean;
+    domiciliaria: boolean;
+    psicologica: boolean;
+    medica: boolean;
+    social: boolean;
+    legal: boolean;
+    sin_intervencion: boolean;
+    archivo_caso: boolean;
   }>;
 
   seguimientos?: Array<{
     id: number;
+    hubo: boolean;
     tipo?: Array<{
       id: number;
+      asesoramientolegal: boolean;
+      tratamientopsicologico: boolean;
+      seguimientolegal: boolean;
+      archivocaso: boolean;
+      seguimiento_id: number;
     }>;
     detalles?: Array<{
       id: number;
+      seguimiento_id: number;
+      detalle: string;
     }>;
   }>;
-
-  _count?: {
-    derivaciones?: number;
-    hechos_delictivos?: number;
-    victimas?: number;
-    seguimientos?: number;
-  };
 };
 
 

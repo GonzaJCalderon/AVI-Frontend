@@ -21,6 +21,8 @@ import SearchIcon from '@mui/icons-material/Search'
 import LogoutIcon from '@mui/icons-material/Logout'
 import GroupIcon from '@mui/icons-material/Group'
 import MenuIcon from '@mui/icons-material/Menu'
+import PrintIcon from '@mui/icons-material/Print'
+
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -72,6 +74,14 @@ export default function SidebarNavbar() {
     { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: '/nuevo-caso' },
     { label: 'Buscar', icon: <SearchIcon />, path: '/inicio#busqueda-avanzada' },
     { label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' },
+  {
+  label: 'Formulario para imprimir',
+  icon: <PrintIcon />,
+  path: '/formulario.pdf',
+  action: 'imprimir-pdf'
+}
+
+
   ]
 
   const userItems = [
@@ -98,34 +108,48 @@ export default function SidebarNavbar() {
       {/* NAVEGACIÓN PRINCIPAL */}
       <List>
         {navItems.map((item) => (
-          <ListItem
-            button
-            key={item.label}
-          onClick={() => {
-  if (item.label === 'Nuevo Caso') {
-    window.open('http://10.100.1.80/avd/formulario_asistencia_victimas.html', '_blank', 'noopener,noreferrer')
+       <ListItem
+  button
+  key={item.label}
+ onClick={() => {
+  if (item.action === 'imprimir-pdf') {
+    const win = window.open(item.path, '_blank');
+    if (win) {
+      win.focus();
+      win.onload = () => {
+        setTimeout(() => {
+          win.print();
+        }, 500);
+      };
+    }
+  } else if (item.label === 'Nuevo Caso') {
+    window.open('http://10.100.1.80/avd/formulario_asistencia_victimas.html', '_blank', 'noopener,noreferrer');
+  } else if (item.label === 'Formulario Acción') {
+    window.open('/formulario-accion', '_blank');
   } else if (item.path.includes('#')) {
-    window.location.href = item.path
+    window.location.href = item.path;
   } else {
-    router.push(item.path)
+    router.push(item.path);
   }
-  if (isMobile) setMobileOpen(false)
+
+  if (isMobile) setMobileOpen(false);
 }}
 
-            selected={pathname === item.path}
-            sx={{
-              '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.15)' },
-              '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
-              justifyContent: hovered || isMobile ? 'flex-start' : 'center',
-              px: hovered || isMobile ? 3 : 2,
-              transition: 'padding 0.3s',
-            }}
-          >
-            <ListItemIcon sx={{ color: 'white', minWidth: 0, mr: hovered || isMobile ? 2 : 0 }}>
-              {item.icon}
-            </ListItemIcon>
-            {(hovered || isMobile) && <ListItemText primary={item.label} />}
-          </ListItem>
+  selected={pathname === item.path}
+  sx={{
+    '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.15)' },
+    '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+    justifyContent: hovered || isMobile ? 'flex-start' : 'center',
+    px: hovered || isMobile ? 3 : 2,
+    transition: 'padding 0.3s',
+  }}
+>
+  <ListItemIcon sx={{ color: 'white', minWidth: 0, mr: hovered || isMobile ? 2 : 0 }}>
+    {item.icon}
+  </ListItemIcon>
+  {(hovered || isMobile) && <ListItemText primary={item.label} />}
+</ListItem>
+
         ))}
       </List>
 

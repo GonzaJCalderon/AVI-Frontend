@@ -12,6 +12,23 @@ export const delitos = [
   'Travestisidio / Transfemicidio', 'Violencia de género', 'Otros'
 ];
 
+export const delitoKeyMap: Record<string, string> = {
+  robo: 'Robo',
+  robo_arma_fuego: 'Robo con arma de fuego',
+  robo_arma_blanca: 'Robo con arma blanca',
+  amenazas: 'Amenazas',
+  lesiones: 'Lesiones',
+  lesiones_arma_fuego: 'Lesiones con arma de fuego',
+  lesiones_arma_blanca: 'Lesiones con arma blanca',
+  homicidio_delito: 'Homicidio por Delito',
+  homicidio_accidente_vial: 'Homicidio por Accidente Vial',
+  homicidio_av_hecho: 'Homicidio / Av. Hecho',
+  femicidio: 'Femicidio',
+  travestisidio_transfemicidio: 'Travestisidio / Transfemicidio',
+  violencia_genero: 'Violencia de género',
+  otros: 'Otros',
+};
+
 /**
  * Estados válidos de la UI (normalizados desde el backend)
  * Backend: "activo" | "archivado" | "eliminado"

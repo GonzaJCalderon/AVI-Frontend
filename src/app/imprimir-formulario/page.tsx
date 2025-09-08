@@ -82,42 +82,173 @@ type IntervencionData = {
   detalleSeguimiento?: string
 }
 
+const mapLugar = (key: string): string => {
+  const map: Record<string, string> = {
+    institucion: 'Institución',
+    viaPublica: 'Vía Pública',
+    domParticular: 'Dom. particular',
+    lugarTrabajo: 'Lugar de trab.'
+  }
+  return map[key] || key
+}
+
+
 export default function ImprimirFormularioPage() {
   const id = useSearchParams().get('id')
   const [data, setData] = useState<IntervencionData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!id) return
+useEffect(() => {
+  if (!id) return
+const obtenerDatos = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) throw new Error('Token no encontrado')
 
-    const obtenerDatos = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) throw new Error('Token no encontrado')
-
-        const res = await fetch(`http://10.100.1.80:3333/api/intervenciones/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json'
-          }
-        })
-
-        const json = await res.json()
-        if (!res.ok || !json.success || !json.data) {
-          throw new Error('Error en la respuesta del servidor')
-        }
-
-        setData(json.data)
-      } catch (error) {
-        console.error(error)
-        setData(null)
-      } finally {
-        setLoading(false)
+    const res = await fetch(`http://10.100.1.80:3333/api/intervenciones/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
       }
+    })
+
+    const json = await res.json()
+    if (!res.ok || !json.success || !json.data) {
+      throw new Error('Error en la respuesta del servidor')
     }
 
-    obtenerDatos()
-  }, [id])
+    // 🎯 Mapeo (dejalo como lo tenés)
+    const mappedData: IntervencionData = {
+      intervencion: {
+        coordinador: json.data.coordinador || '',
+        operador: json.data.operador || '',
+        fecha: json.data.fecha || '',
+        resena_hecho: json.data.resena_hecho || '',
+        nroFicha: json.data.numero_intervencion || ''
+      },
+      derivacion: json.data.derivaciones?.[0]
+        ? {
+            motivos: json.data.derivaciones[0].tipo_derivacion_id ?? 0,
+            derivador: json.data.derivaciones[0].derivador || '',
+            hora: json.data.derivaciones[0].fecha_derivacion?.split('T')[1]?.slice(0, 5) || ''
+          }
+        : undefined,
+      hechoDelictivo: json.data.hechos_delictivos?.[0]
+        ? {
+            expediente: json.data.hechos_delictivos[0].expediente || '',
+            numAgresores: json.data.hechos_delictivos[0].num_agresores || 0,
+            fecha: json.data.hechos_delictivos[0].geo?.[0]?.fecha || '',
+            hora: json.data.hechos_delictivos[0].geo?.[0]?.fecha?.split('T')[1]?.slice(0, 5) || '',
+            ubicacion: {
+              calleBarrio: json.data.hechos_delictivos[0].geo?.[0]?.domicilio || '',
+              departamento: json.data.hechos_delictivos[0].geo?.[0]?.departamentos?.dep_id || 0
+            },
+            tipoHecho: {
+              'Robo': json.data.hechos_delictivos[0].relaciones?.[0]?.robo || false,
+              'Robo con arma de fuego': json.data.hechos_delictivos[0].relaciones?.[0]?.robo_arma_fuego || false,
+              'Robo con arma blanca': json.data.hechos_delictivos[0].relaciones?.[0]?.robo_arma_blanca || false,
+              'Amenazas': json.data.hechos_delictivos[0].relaciones?.[0]?.amenazas || false,
+              'Lesiones': json.data.hechos_delictivos[0].relaciones?.[0]?.lesiones || false,
+              'Lesiones con arma de fuego': json.data.hechos_delictivos[0].relaciones?.[0]?.lesiones_arma_fuego || false,
+              'Lesiones con arma blanca': json.data.hechos_delictivos[0].relaciones?.[0]?.lesiones_arma_blanca || false,
+              'Homicidio por delito': json.data.hechos_delictivos[0].relaciones?.[0]?.homicidio_delito || false,
+              'Homicidio por accidente vial': json.data.hechos_delictivos[0].relaciones?.[0]?.homicidio_accidente_vial || false,
+              'Homicidio/ Av. Hecho': json.data.hechos_delictivos[0].relaciones?.[0]?.homicidio_av_hecho || false,
+              'Femicidio': json.data.hechos_delictivos[0].relaciones?.[0]?.femicidio || false,
+              'Travestisidio/ transfemicidio': json.data.hechos_delictivos[0].relaciones?.[0]?.travestisidio_transfemicidio || false,
+              'Violencia de género': json.data.hechos_delictivos[0].relaciones?.[0]?.violencia_genero || false,
+              'Otros': json.data.hechos_delictivos[0].relaciones?.[0]?.otros || false
+            }
+          }
+        : undefined,
+      accionesPrimeraLinea: json.data.acciones_primera_linea?.[0]?.acciones || '',
+      abusoSexual: {
+        simple: false, // No disponible en la estructura
+        agravado: false // No disponible en la estructura
+      },
+      datosAbusoSexual: json.data.abusos_sexuales?.[0]?.datos?.[0]
+        ? {
+            kit: json.data.abusos_sexuales[0].datos[0].kit.toUpperCase(),
+            relacion: json.data.abusos_sexuales[0].datos[0].relacion || '',
+            relacionOtro: json.data.abusos_sexuales[0].datos[0].relacion_otro || '',
+            lugarHecho: mapLugar(json.data.abusos_sexuales[0].datos[0].lugar_hecho),
+            lugarOtro: json.data.abusos_sexuales[0].datos[0].lugar_otro || ''
+          }
+        : undefined,
+      victima: json.data.victimas?.[0]
+        ? {
+            dni: json.data.victimas[0].dni || '',
+            cantidadVictimas: json.data.victimas[0].cantidad_victima_por_hecho || 1,
+            nombre: json.data.victimas[0].nombre || '',
+            genero: Number(json.data.victimas[0].genero_id) || 0,
+            fechaNacimiento: json.data.victimas[0].fecha_nacimiento || '',
+            telefono: json.data.victimas[0].telefono || '',
+            ocupacion: json.data.victimas[0].ocupacion || '',
+            direccion: {
+              calleNro: json.data.victimas[0].direccion?.calle_nro || '',
+              barrio: json.data.victimas[0].direccion?.barrio || '',
+              departamento: Number(json.data.victimas[0].direccion?.departamento) || 0,
+              localidad: Number(json.data.victimas[0].direccion?.localidad) || 0
+            }
+          }
+        : undefined,
+      personaEntrevistada: json.data.victimas?.[0]?.personas_entrevistadas?.[0]
+        ? {
+            nombre: json.data.victimas[0].personas_entrevistadas[0].nombre || '',
+            relacionVictima: json.data.victimas[0].personas_entrevistadas[0].relacion_victima || '',
+            direccion: {
+              calleNro: json.data.victimas[0].personas_entrevistadas[0].direccion?.calle_nro || '',
+              barrio: json.data.victimas[0].personas_entrevistadas[0].direccion?.barrio || '',
+              departamento: Number(json.data.victimas[0].personas_entrevistadas[0].direccion?.departamento) || 0,
+              localidad: Number(json.data.victimas[0].personas_entrevistadas[0].direccion?.localidad) || 0
+            }
+          }
+        : undefined,
+      tipoIntervencion: json.data.intervenciones_tipo?.[0]
+        ? {
+            'Intervención en crisis': json.data.intervenciones_tipo[0].crisis,
+            'Intervención social': json.data.intervenciones_tipo[0].social,
+            'Intervención legal': json.data.intervenciones_tipo[0].legal,
+            'Intervención telefónica': json.data.intervenciones_tipo[0].telefonica,
+            'Intervención Psicológica': json.data.intervenciones_tipo[0].psicologica,
+            'Intervención médica': json.data.intervenciones_tipo[0].medica,
+            'Intervención domiciliaria': json.data.intervenciones_tipo[0].domiciliaria,
+            'Sin intervención': json.data.intervenciones_tipo[0].sin_intervencion,
+            'Archivo': json.data.intervenciones_tipo[0].archivo_caso
+          }
+        : undefined,
+      seguimiento: json.data.seguimientos?.[0]
+        ? {
+            realizado: json.data.seguimientos[0].hubo || false,
+            tipo: json.data.seguimientos[0].tipo?.[0]
+              ? {
+                  'Asesoramiento legal': json.data.seguimientos[0].tipo[0].asesoramientolegal,
+                  'Tratamiento psicológico': json.data.seguimientos[0].tipo[0].tratamientopsicologico,
+                  'Seguimiento legal': json.data.seguimientos[0].tipo[0].seguimientolegal,
+                  'Archivo': json.data.seguimientos[0].tipo[0].archivocaso
+                }
+              : {}
+          }
+        : undefined,
+      detalleSeguimiento: json.data.seguimientos?.[0]?.detalles?.[0]?.detalle || ''
+    }
+
+    console.log('📦 JSON crudo del backend:', json.data)
+    console.log('📄 Datos mapeados para el formulario PDF:', mappedData)
+
+    setData(mappedData)
+  } catch (error) {
+    console.error('[❌ ERROR AL CARGAR INTERVENCIÓN]', error)
+    setData(null)
+  } finally {
+    setLoading(false)
+  }
+}
+
+
+  obtenerDatos()
+}, [id])
+
 
   const handlePrintPDF = async () => {
     const html2pdf = (await import('html2pdf.js')).default

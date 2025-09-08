@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react'; // ✅ Agregar esta importación
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -12,11 +12,25 @@ import {
   Select,
   TextField,
   Typography,
+  Checkbox,
+  Chip,
 } from '@mui/material';
 
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import ClearAllIcon from '@mui/icons-material/ClearAll';
 
-import { departments, delitos, ESTADOS_UI } from '@/utils/constants';
+import { delitos, ESTADOS_UI } from '@/utils/constants';
+
+interface Departamento {
+  id: string;
+  nombre: string;
+}
+
+interface Localidad {
+  id: string;
+  nombre: string;
+  departamento_id: string;
+}
 
 interface Props {
   filtro: {
@@ -28,14 +42,16 @@ interface Props {
     fechaDesde: string;
     fechaHasta: string;
     estado: string;
-    delito: string;
+    delito: string[];
     departamento: string;
+    localidad?: string;
   };
   handleFiltroInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleFiltroSelect: (e: any) => void;
   handleExportarExcel: () => void;
   EstadoDot: ({ estado }: { estado: string }) => React.ReactElement;
-  estadosParaFiltro?: string[]; // ✅ Nueva prop opcional para filtros
+  estadosParaFiltro?: string[];
+  onReset: () => void; // 👈 nuevo
 }
 
 export default function BusquedaAvanzada({
@@ -44,8 +60,38 @@ export default function BusquedaAvanzada({
   handleFiltroSelect,
   handleExportarExcel,
   EstadoDot,
-  estadosParaFiltro = [...ESTADOS_UI], // ✅ Por defecto incluye todos (para filtros sí queremos ver eliminados)
+  estadosParaFiltro = [...ESTADOS_UI],
+  onReset, // 👈 nuevo
 }: Props) {
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [localidades, setLocalidades] = useState<Localidad[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const depRes = await fetch('/departamentosMendoza.json');
+        const locRes = await fetch('/localidadesMendoza.json');
+
+        const depData = await depRes.json();
+        const locData = await locRes.json();
+
+        setDepartamentos(depData.departamentos);
+        setLocalidades(locData.localidades);
+      } catch (error) {
+        console.error('Error cargando datos de departamentos o localidades', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const departamentoSeleccionado = departamentos.find(
+    (dep) => dep.id === filtro.departamento
+  );
+
+  const localidadesFiltradas = departamentoSeleccionado
+    ? localidades.filter((l) => l.departamento_id === departamentoSeleccionado.id)
+    : [];
+
   return (
     <Paper id="busqueda-avanzada" sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -53,72 +99,101 @@ export default function BusquedaAvanzada({
       </Typography>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField fullWidth label="Coordinador" name="coordinador" value={filtro.coordinador} onChange={handleFiltroInput} />
-        </Grid>
+        {/* CAMPOS DE TEXTO */}
+        {[
+          ['Coordinador', 'coordinador'],
+          ['Operador', 'operador'],
+          ['Víctima', 'victima'],
+          ['Número', 'numero'],
+          ['DNI', 'dni'],
+        ].map(([label, name]) => (
+          <Grid item xs={12} sm={6} md={4} key={name}>
+            <TextField
+              fullWidth
+              label={label}
+              name={name}
+              value={filtro[name as keyof typeof filtro] as string}
+              onChange={handleFiltroInput}
+            />
+          </Grid>
+        ))}
 
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField fullWidth label="Operador" name="operador" value={filtro.operador} onChange={handleFiltroInput} />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField fullWidth label="Víctima" name="victima" value={filtro.victima} onChange={handleFiltroInput} />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField fullWidth label="Número" name="numero" value={filtro.numero} onChange={handleFiltroInput} />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField fullWidth label="DNI" name="dni" value={filtro.dni} onChange={handleFiltroInput} />
-        </Grid>
-
+        {/* SELECT MULTIPLE DE DELITOS */}
         <Grid item xs={12} sm={6} md={4}>
           <FormControl fullWidth>
-            <InputLabel id="delito-label">Delito</InputLabel>
+            <InputLabel id="delito-label">Delitos</InputLabel>
             <Select
               labelId="delito-label"
-              label="Delito"
               name="delito"
+              multiple
               value={filtro.delito}
               onChange={handleFiltroSelect}
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {(selected as string[]).map((value) => (
+                    <Chip key={value} label={value} />
+                  ))}
+                </Box>
+              )}
             >
-              <MenuItem value="">Todos</MenuItem>
-              {delitos.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d}
+              {delitos.map((delito) => (
+                <MenuItem key={delito} value={delito}>
+                  <Checkbox checked={filtro.delito.includes(delito)} />
+                  {delito}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
+        {/* SELECT DEPARTAMENTO */}
         <Grid item xs={12} sm={6} md={4}>
           <FormControl fullWidth>
             <InputLabel id="departamento-label">Departamento</InputLabel>
             <Select
               labelId="departamento-label"
-              label="Departamento"
               name="departamento"
               value={filtro.departamento}
               onChange={handleFiltroSelect}
             >
               <MenuItem value="">Todos</MenuItem>
-              {departments.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d}
+              {departamentos.map((dep) => (
+                <MenuItem key={dep.id} value={dep.id.toString()}>
+                  {dep.nombre}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
 
+        {/* SELECT LOCALIDAD (si lo querés visible, descomenta)
+        {filtro.departamento && (
+          <Grid item xs={12} sm={6} md={4}>
+            <FormControl fullWidth>
+              <InputLabel id="localidad-label">Localidad</InputLabel>
+              <Select
+                labelId="localidad-label"
+                name="localidad"
+                value={filtro.localidad || ''}
+                onChange={handleFiltroSelect}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                {localidadesFiltradas.map((loc) => (
+                  <MenuItem key={loc.id} value={loc.nombre}>
+                    {loc.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        )} */}
+
+        {/* SELECT ESTADO */}
         <Grid item xs={12} sm={6} md={4}>
           <FormControl fullWidth>
             <InputLabel id="estado-label">Estado</InputLabel>
             <Select
               labelId="estado-label"
-              label="Estado"
               name="estado"
               value={filtro.estado}
               onChange={handleFiltroSelect}
@@ -133,7 +208,6 @@ export default function BusquedaAvanzada({
               }}
             >
               <MenuItem value="Todos">Todos</MenuItem>
-              {/* ✅ Usar estadosParaFiltro (incluye todos los estados para poder filtrar) */}
               {estadosParaFiltro.map((estado) => (
                 <MenuItem key={estado} value={estado}>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -146,6 +220,7 @@ export default function BusquedaAvanzada({
           </FormControl>
         </Grid>
 
+        {/* FECHAS */}
         <Grid item xs={12} sm={6} md={4}>
           <TextField
             fullWidth
@@ -170,10 +245,27 @@ export default function BusquedaAvanzada({
           />
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Button fullWidth variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportarExcel}>
-            Exportar Excel
-          </Button>
+        {/* BOTONES: Exportar / Limpiar */}
+        <Grid item xs={12} sm={12} md={4}>
+          <Box display="flex" gap={1} width="100%">
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              onClick={handleExportarExcel}
+            >
+              Exportar Excel
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="error"
+              startIcon={<ClearAllIcon />}
+              onClick={onReset}
+            >
+              Limpiar
+            </Button>
+          </Box>
         </Grid>
       </Grid>
     </Paper>

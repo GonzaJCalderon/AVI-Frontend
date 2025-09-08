@@ -68,48 +68,45 @@ export const useUsuarios = (): UseUsuariosReturn => {
     setError(null);
   }, []);
 
-  const fetchUsuarios = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await usuarioService.getUsuarios();
-      if (Array.isArray(data)) {
-        setUsuarios(data);
-      } else {
-        console.warn('La respuesta no es un array:', data);
-        setUsuarios([]);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al cargar usuarios';
-      setError(errorMessage);
-      console.error('Error fetching usuarios:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+ // hooks/useUsuarios.ts
+const fetchUsuarios = useCallback(async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const data = await usuarioService.getUsuarios({ includeInactivos: true }); // 👈 acá
+    setUsuarios(Array.isArray(data) ? data : []);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Error desconocido al cargar usuarios';
+    setError(errorMessage);
+    setUsuarios([]); // opcional
+    console.error('Error fetching usuarios:', err);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
-  const createUsuario = useCallback(async (data: CreateUsuarioData): Promise<boolean> => {
-    setCreating(true);
-    setError(null);
-    try {
-      const newUsuario = await usuarioService.createUsuario(data);
-      if (newUsuario && typeof newUsuario.id === 'number') {
-        setUsuarios(prev => [...prev, newUsuario]);
-        return true;
-      } else {
-        console.warn('Usuario creado no válido:', newUsuario);
-        await fetchUsuarios();
-        return true;
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al crear usuario';
-      setError(errorMessage);
-      console.error('Error creating usuario:', err);
-      return false;
-    } finally {
-      setCreating(false);
+const createUsuario = useCallback(async (data: CreateUsuarioData): Promise<boolean> => {
+  setCreating(true);
+  setError(null);
+  try {
+    const newUsuario = await usuarioService.createUsuario(data);
+    // agregamos optimistamente y refrescamos para sincronizar
+    if (newUsuario && typeof newUsuario.id === 'number') {
+      setUsuarios(prev => [...prev, newUsuario]);
     }
-  }, [fetchUsuarios]);
+    await fetchUsuarios();
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error desconocido al crear usuario';
+    setError(msg);
+    console.error('Error creating usuario:', err);
+    return false;
+  } finally {
+    setCreating(false);
+  }
+}, [fetchUsuarios]);
+
+
 
   const updateUsuario = useCallback(async (id: number, data: UpdateUsuarioData): Promise<boolean> => {
     setUpdating(true);
@@ -152,24 +149,37 @@ export const useUsuarios = (): UseUsuariosReturn => {
   }, []);
 
   const toggleUsuarioStatus = useCallback(async (id: number, activo: boolean): Promise<boolean> => {
-    setUpdating(true);
-    setError(null);
-    try {
-      const updatedUsuario = await usuarioService.toggleUsuarioStatus(id, activo);
-      if (!updatedUsuario || typeof updatedUsuario.id !== 'number') {
-        throw new Error('Usuario actualizado no válido');
-      }
-      setUsuarios(prev => prev.map(u => (u.id === id ? updatedUsuario : u)));
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al cambiar estado del usuario';
-      setError(errorMessage);
-      console.error('Error toggling usuario status:', err);
-      return false;
-    } finally {
-      setUpdating(false);
+  setUpdating(true);
+  setError(null);
+  try {
+    // ✅ Tomar el usuario actual de la lista para enviar campos requeridos
+    const current = usuarios.find(u => u.id === id);
+    const payload: UpdateUsuarioData = {
+      activo,
+      ...(current?.nombre ? { nombre: current.nombre } : {}),
+      ...(current?.email ? { email: current.email } : {}),
+      ...(current?.rol ? { rol: current.rol } : {}),
+    };
+
+    // ✅ Usar updateUsuario (más flexible) en vez de toggleUsuarioStatus directo
+    const updatedUsuario = await usuarioService.updateUsuario(id, payload);
+
+    if (!updatedUsuario || typeof updatedUsuario.id !== 'number') {
+      throw new Error('Usuario actualizado no válido');
     }
-  }, []);
+
+    setUsuarios(prev => prev.map(u => (u.id === id ? updatedUsuario : u)));
+    return true;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Error desconocido al cambiar estado del usuario';
+    setError(errorMessage);
+    console.error('Error toggling usuario status:', err);
+    return false;
+  } finally {
+    setUpdating(false);
+  }
+}, [usuarios]);
+
 
   const resetPassword = useCallback(async (id: number): Promise<{ temporaryPassword: string } | null> => {
     setUpdating(true);

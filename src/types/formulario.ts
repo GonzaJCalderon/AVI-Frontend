@@ -85,7 +85,9 @@ export type Formulario = {
   fecha: string;
   estado: string; // Debería usar EstadoUI si está disponible
   delito: string;
-  departamento: string;
+  departamento: string; // 👈 Agregado para mostrar el nombre
+  departamentoId: string;
+  localidad?: string; // ✅ <<-- AGREGADO
   reseña_hecho: string;
     eliminado?: boolean;
   numero_intervencion?: string;

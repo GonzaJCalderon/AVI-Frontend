@@ -2,6 +2,37 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.80:3333/api';
 
+// services/usuarioService.ts (arriba del todo o dentro de la clase como métodos estáticos)
+const toBool = (v: any): boolean => {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v === 1;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (['1', 'true', 'sí', 'si', 'activo'].includes(s)) return true;
+    if (['0', 'false', 'no', 'inactivo', 'bloqueado'].includes(s)) return false;
+  }
+  return false; // default seguro: no asumir true
+};
+
+const toRol = (v: any): 'admin' | 'user' => {
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s === 'admin' || s === 'administrator' || s === 'adm') return 'admin';
+  return 'user';
+};
+
+// services/usuarioService.ts
+
+const normalizeUsuario = (raw: any): Usuario => ({
+  id: Number(raw.id),
+  nombre: raw.nombre ?? raw.name ?? '',
+  email: raw.email ?? '',
+  rol: toRol(raw.rol),
+  activo: toBool(raw.activo ?? raw.enabled ?? raw.isActive),
+  createdAt: raw.createdAt,
+  updatedAt: raw.updatedAt,
+});
+
+
 // ✅ Lee token desde varias claves comunes
 const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -47,8 +78,10 @@ export interface UpdateUsuarioData {
   nombre?: string;
   email?: string;
   rol?: 'admin' | 'user';
-  // si tu backend acepta password aquí, podrías agregarlo: password?: string;
+  activo?: boolean; // ✅ permitir enviar activo
+  // password?: string;
 }
+
 
 export interface Perfil {
   id?: number | string;
@@ -98,51 +131,104 @@ class UsuarioService {
   }
 
   // =========== USUARIOS (CRUD) ===========
-  async getUsuarios(): Promise<Usuario[]> {
-    const response = await fetch(`${API_BASE_URL}/usuarios`, {
-      headers: getAuthHeaders(),
-    });
+ // services/usuarioService.ts
+async getUsuarios(opts?: { includeInactivos?: boolean }): Promise<Usuario[]> {
+  const headers = getAuthHeaders();
 
-    // Esperamos { success: boolean; data: Usuario[] }
-    const json = await this.handleResponse<{ success?: boolean; data?: Usuario[] }>(response);
+  // Si pedimos inactivos, probamos distintas variantes comunes
+  if (opts?.includeInactivos) {
+    // Variante 1: ?includeInactivos=1
+    try {
+      const r1 = await fetch(`${API_BASE_URL}/usuarios?includeInactivos=1`, { headers });
+      const j1 = await this.handleResponse<any>(r1);
+      const arr1 = Array.isArray(j1?.data) ? j1.data : (Array.isArray(j1) ? j1 : []);
+      if (Array.isArray(arr1)) return arr1.map(normalizeUsuario);
+    } catch {}
 
-    if (Array.isArray(json?.data)) {
-      return json.data;
-    } else if (Array.isArray(json)) {
-      // por si el backend devuelve directamente el array
-      return json as unknown as Usuario[];
-    } else {
-      console.warn('Formato inesperado en la respuesta de getUsuarios:', json);
-      return [];
-    }
+    // Variante 2: ?activo=all
+    try {
+      const r2 = await fetch(`${API_BASE_URL}/usuarios?activo=all`, { headers });
+      const j2 = await this.handleResponse<any>(r2);
+      const arr2 = Array.isArray(j2?.data) ? j2.data : (Array.isArray(j2) ? j2 : []);
+      if (Array.isArray(arr2)) return arr2.map(normalizeUsuario);
+    } catch {}
+
+    // Variante 3: ?includeInactive=1 (en inglés)
+    try {
+      const r3 = await fetch(`${API_BASE_URL}/usuarios?includeInactive=1`, { headers });
+      const j3 = await this.handleResponse<any>(r3);
+      const arr3 = Array.isArray(j3?.data) ? j3.data : (Array.isArray(j3) ? j3 : []);
+      if (Array.isArray(arr3)) return arr3.map(normalizeUsuario);
+    } catch {}
   }
 
-  async createUsuario(data: CreateUsuarioData): Promise<Usuario> {
-    const payload = {
-      email: data.email,
-      password: data.password || 'TempPass123!',
-      nombre: `${data.nombre} ${data.apellido}`,
-      rol: data.rol === 'usuario' ? 'user' : 'admin',
-    };
+  // Fallback: endpoint base
+  const r = await fetch(`${API_BASE_URL}/usuarios`, { headers });
+  const j = await this.handleResponse<any>(r);
+  const data = Array.isArray(j?.data) ? j.data : (Array.isArray(j) ? j : []);
+  return data.map(normalizeUsuario);
+}
 
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
 
-    return this.handleResponse<Usuario>(response);
+ async createUsuario(data: CreateUsuarioData): Promise<Usuario> {
+  // ⚠️ EL BACKEND SOLO ACEPTA ESTOS 4 CAMPOS EXACTOS
+  const payload = {
+    email: data.email,
+    password: data.password || 'TempPass123!', // asegúrate que cumpla la policy
+    nombre: `${data.nombre} ${data.apellido}`.trim(),
+    rol: data.rol, // 'usuario' | 'admin' tal cual, SIN mapear a 'user'
+  };
+
+  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: getAuthHeaders(), // no molesta si se envía auth
+    body: JSON.stringify(payload),
+  });
+
+  // Si el backend devuelve error de validación, mostrémoslo tal cual
+  const contentType = res.headers.get('content-type') || '';
+  let json: any = null;
+  if (contentType.includes('application/json')) {
+    try { json = await res.json(); } catch { /* ignore */ }
+  }
+  if (!res.ok) {
+    const msg =
+      json?.message ||
+      json?.error ||
+      `Error ${res.status}: ${res.statusText}`;
+    throw new Error(msg);
   }
 
-  async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  // Algunos backends devuelven el user directo, otros {data: {...}}
+  const raw = json?.data ?? json;
 
-    return this.handleResponse<Usuario>(response);
-  }
+  // Normalizamos por si cambian nombres
+  const created: Usuario = {
+    id: Number(raw.id),
+    nombre: raw.nombre ?? '',
+    email: raw.email ?? payload.email,
+    rol: raw.rol === 'admin' ? 'admin' : 'usuario' === raw.rol ? 'user' as any : (raw.rol ?? 'user'),
+    // si el registro no devuelve activo, asumimos true (o ajusta según tu API)
+    activo: typeof raw.activo === 'boolean' ? raw.activo : true,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+
+  return created;
+}
+
+
+async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
+  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  const json = await this.handleResponse<any>(response);
+  const raw = json?.data ?? json;
+  return normalizeUsuario(raw);
+}
 
   async deleteUsuario(id: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
@@ -153,15 +239,17 @@ class UsuarioService {
     await this.handleResponse<void>(response);
   }
 
-  async toggleUsuarioStatus(id: number, activo: boolean): Promise<Usuario> {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ activo }),
-    });
+ async toggleUsuarioStatus(id: number, activo: boolean): Promise<Usuario> {
+  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ activo }),
+  });
 
-    return this.handleResponse<Usuario>(response);
-  }
+  const json = await this.handleResponse<any>(response);
+  const raw = json?.data ?? json;
+  return normalizeUsuario(raw);
+}
 
   async resetPassword(id: number): Promise<{ temporaryPassword: string }> {
     const response = await fetch(`${API_BASE_URL}/usuarios/${id}/reset-password`, {

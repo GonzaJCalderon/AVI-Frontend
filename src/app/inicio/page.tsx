@@ -29,15 +29,19 @@ import {
   DialogContentText,
   Tooltip,
 } from '@mui/material';
+import PrintIcon from '@mui/icons-material/Print';
+
 import BusquedaAvanzada from '@/components/BusquedaAvanzada';
 import TablaFormularios from '@/components/TablaFormularios';
 import DialogCambiarEstado from '@/components/DialogCambiarEstado';
-import { ESTADOS_UI, estadoColorMap, normalizeEstado, type EstadoUI } from '@/utils/constants';
+import { ESTADOS_UI, estadoColorMap, normalizeEstado, type EstadoUI, delitoKeyMap } from '@/utils/constants';
+
 
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { useEffect, useState, ReactElement } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, ReactElement  } from 'react';
+
 import { useRouter } from 'next/navigation';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
@@ -59,6 +63,7 @@ import {
 // ✅ Importar el tipo desde el archivo de tipos
 import { Formulario } from '@/types/formulario';
 
+
 export default function InicioPage() {
   const router = useRouter();
 
@@ -66,18 +71,46 @@ export default function InicioPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filtro, setFiltro] = useState({
-    coordinador: '',
-    operador: '',
-    victima: '',
-    numero: '',
-    dni: '',
-    fechaDesde: '',
-    fechaHasta: '',
-    estado: 'Todos',
-    delito: '',
-    departamento: '',
-  });
+  // ✅ AÑADIR ESTA LÍNEA AQUÍ
+  const departamentosRef = useRef<Departamento[]>([]);
+
+  // ✅ Filtros
+  type FiltroFormularios = {
+    coordinador: string;
+    operador: string;
+    victima: string;
+    numero: string;
+    dni: string;
+    fechaDesde: string;
+    fechaHasta: string;
+    estado: string;
+    delito: string[];
+    departamento: string;
+    localidad: string;
+  };
+
+  const filtrosIniciales: FiltroFormularios = {
+  coordinador: '',
+  operador: '',
+  victima: '',
+  numero: '',
+  dni: '',
+  fechaDesde: '',
+  fechaHasta: '',
+  estado: 'Todos',
+  delito: [],
+  departamento: '',
+  localidad: '',
+};
+
+const [filtro, setFiltro] = useState<FiltroFormularios>(filtrosIniciales);
+
+const resetFiltros = () => {
+  setFiltro(filtrosIniciales);
+  setPagina(1);
+};
+
+
 
   const [pagina, setPagina] = useState(1);
   const formulariosPorPagina = 5;
@@ -89,62 +122,117 @@ export default function InicioPage() {
 
   // ✅ Estados seleccionables (excluye "Eliminado")
   const ESTADOS_SELECCIONABLES: EstadoUI[] = ['Activo', 'Archivado'];
+  const ESTADO_TODOS = 'Todos';
+  
+interface Departamento {
+  id: string;
+  nombre: string;
+} 
+
+const handleImprimirFormularioPDF = () => {
+  const win = window.open('/formulario.pdf', '_blank');
+  if (win) {
+    win.focus();
+    win.onload = () => {
+      setTimeout(() => {
+        win.print();
+      }, 500);
+    };
+  } else {
+    alert('No se pudo abrir el PDF');
+  }
+};
+
+
+
+
 
   // Carga real desde /api/intervenciones
-  useEffect(() => {
-    const load = async () => {
-      setCargando(true);
-      setError(null);
-      try {
-        const data: IntervencionItem[] = await listarIntervenciones();
+ useEffect(() => {
+  const load = async () => {
+    setCargando(true);
+    setError(null);
 
-        const mapped: Formulario[] = data.map((it) => {
-          const victima = it.victimas?.[0]; // primera víctima si existe
-const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
-  ? Object.entries(it.hechos_delictivos[0].relaciones[0])
-      .filter(([key, val]) => val === true && key !== 'id' && key !== 'hecho_delictivo_id')
-      .map(([key]) => key.replaceAll('_', ' '))
-      .join(', ')
-  : '—';
+    try {
+      const [data, depRes] = await Promise.all([
+        listarIntervenciones(),
+        fetch('/departamentosMendoza.json'),
+      ]);
 
-const departamentoParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.descripcion || '—';
+      const departamentosJson = await depRes.json();
 
-const reseñaParsed = it.resena_hecho?.trim() || '—';
+      // ✅ Guardar el JSON en el useRef
+departamentosRef.current = departamentosJson.departamentos;
 
 
-         return {
-  id: String(it.id),
-  coordinador: it.coordinador || '—',
-  operador: it.operador || '—',
-  victima: victima?.nombre || '—',
-  numero: it.numero_intervencion || '—',
-  numero_intervencion: it.numero_intervencion, // 👈 opcional pero útil
-  dni: victima?.dni || '—',
-  fecha: new Date(it.fecha).toISOString().slice(0, 10),
-  estado: normalizeEstado(it.estado, it.eliminado),
-  eliminado: it.eliminado, // 👈 importante para tabla
- delito: delitoParsed,
-departamento: departamentoParsed,
-reseña_hecho: reseñaParsed,
+      
+      function normalizarTexto(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
-          counts: {
-  derivaciones: it.derivaciones?.length ?? 0,
-  hechos_delictivos: it.hechos_delictivos?.length ?? 0,
-  victimas: it.victimas?.length ?? 0,
-  seguimientos: it.seguimientos?.length ?? 0,
-},
+const mapped: Formulario[] = data.map((it) => {
+  const victima = it.victimas?.[0];
 
-          };
-        });
-        setFormularios(mapped);
-      } catch (e: any) {
-        setError(e?.message || 'No se pudieron cargar las intervenciones');
-      } finally {
-        setCargando(false);
-      }
-    };
-    load();
-  }, []);
+  const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
+    ? Object.entries(it.hechos_delictivos[0].relaciones[0])
+        .filter(([key, val]) => val === true && key !== 'id' && key !== 'hecho_delictivo_id')
+        .map(([key]) => delitoKeyMap[key] || key.replaceAll('_', ' '))
+        .join(', ')
+    : '—';
+
+  const departamentoIdParsed = String(
+    it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id || ''
+  );
+
+  const departamentoNombre = departamentoIdParsed 
+    ? departamentosRef.current.find(d => d.id === departamentoIdParsed)?.nombre || '—'
+    : '—';
+
+  const localidadParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '—';
+  const reseñaParsed = it.resena_hecho?.trim() || '—';
+
+  // ✅ Aquí está el return principal garantizado
+  return {
+    id: String(it.id),
+    coordinador: it.coordinador || '—',
+    operador: it.operador || '—',
+    victima: victima?.nombre || '—',
+    numero: it.numero_intervencion || '—',
+    numero_intervencion: it.numero_intervencion,
+    dni: victima?.dni || '—',
+    fecha: new Date(it.fecha).toISOString().slice(0, 10),
+    estado: normalizeEstado(it.estado, it.eliminado),
+    eliminado: it.eliminado,
+    delito: delitoParsed,
+    departamentoId: departamentoIdParsed,
+    departamento: departamentoNombre,
+    localidad: localidadParsed,
+    reseña_hecho: reseñaParsed,
+    counts: {
+      derivaciones: it.derivaciones?.length ?? 0,
+      hechos_delictivos: it.hechos_delictivos?.length ?? 0,
+      victimas: it.victimas?.length ?? 0,
+      seguimientos: it.seguimientos?.length ?? 0,
+    },
+  };
+});
+
+
+      setFormularios(mapped);
+    } catch (e: any) {
+      setError(e?.message || 'No se pudieron cargar las intervenciones');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  load();
+}, []);
+
 
   function EstadoDot({ estado }: { estado: string }) {
     // Verificación de tipo segura para indexar estadoColorMap
@@ -169,11 +257,47 @@ reseña_hecho: reseñaParsed,
     setPagina(1);
   };
 
-  const handleFiltroSelect = (event: SelectChangeEvent<string>) => {
-    const { name, value } = event.target;
-    setFiltro((prev) => ({ ...prev, [name]: value }));
+const handleFiltroSelect = (
+  event: SelectChangeEvent<string> | { target: { name: string; value: string } }
+) => {
+  const { name, value } = event.target;
+
+  // Valor vacío = "Todos"
+  if (value === '') {
+    setFiltro((prev) => ({
+      ...prev,
+      [name]: '',
+      ...(name === 'departamento' && { localidad: '' }), // Limpia localidad si cambia departamento
+    }));
     setPagina(1);
-  };
+    return;
+  }
+
+  setFiltro((prev) => ({
+    ...prev,
+    [name]: value,
+    ...(name === 'departamento' && { localidad: '' }), // Limpia localidad si cambia departamento
+  }));
+  setPagina(1);
+};
+
+
+const limpiarFiltros = () => {
+  setFiltro({
+    coordinador: '',
+    operador: '',
+    victima: '',
+    numero: '',
+    dni: '',
+    fechaDesde: '',
+    fechaHasta: '',
+    estado: 'Todos',
+    delito: [],
+    departamento: '',
+    localidad: '',
+  });
+};
+
 
   const handleImprimirSeleccionados = () => {
     if (seleccionados.length === 0) return
@@ -280,38 +404,133 @@ reseña_hecho: reseñaParsed,
     router.push('/nuevo-caso');
   };
 
-  const formulariosFiltrados = formularios.filter((f) => {
-    const coincideCoordinador = f.coordinador.toLowerCase().includes(filtro.coordinador.toLowerCase());
-    const coincideOperador = f.operador.toLowerCase().includes(filtro.operador.toLowerCase());
-    const coincideVictima = f.victima.toLowerCase().includes(filtro.victima.toLowerCase());
-    const coincideNumero = f.numero.includes(filtro.numero);
-    const coincideDni = !filtro.dni || f.dni?.includes(filtro.dni);
-    const coincideDelito = !filtro.delito || f.delito === filtro.delito;
-    const coincideDepartamento = !filtro.departamento || f.departamento === filtro.departamento;
-    const coincideEstado = filtro.estado === 'Todos' || f.estado.toLowerCase() === filtro.estado.toLowerCase();
 
-    const fechaForm = new Date(f.fecha);
-    const fechaDesde = filtro.fechaDesde ? new Date(filtro.fechaDesde) : null;
-    const fechaHasta = filtro.fechaHasta ? new Date(filtro.fechaHasta) : null;
-    const coincideFecha = (!fechaDesde || fechaForm >= fechaDesde) && (!fechaHasta || fechaForm <= fechaHasta);
 
-    return (
-      coincideCoordinador &&
-      coincideOperador &&
-      coincideVictima &&
-      coincideNumero &&
-      coincideDni &&
-      coincideDelito &&
-      coincideDepartamento &&
-      coincideEstado &&
-      coincideFecha
-    );
+// Replace your current formulariosFiltrados logic with this optimized version
+const formulariosFiltrados = useMemo(() => {
+  // Only log once when recalculating, not for every item
+  console.log('🔄 Recalculating filtered formularios...', { 
+    totalFormularios: formularios.length,
+    activeFilters: Object.entries(filtro).filter(([key, value]) => {
+      if (Array.isArray(value)) return value.length > 0;
+      return value && value !== 'Todos';
+    }).map(([key]) => key)
   });
 
-  const formulariosPagina = formulariosFiltrados.slice(
-    (pagina - 1) * formulariosPorPagina,
-    pagina * formulariosPorPagina
-  );
+  const startTime = performance.now();
+  
+  // Pre-compile filter conditions for better performance
+  const hasCoordinadorFilter = Boolean(filtro.coordinador);
+  const hasOperadorFilter = Boolean(filtro.operador);
+  const hasVictimaFilter = Boolean(filtro.victima);
+  const hasNumeroFilter = Boolean(filtro.numero);
+  const hasDniFilter = Boolean(filtro.dni);
+  const hasDelitoFilter = filtro.delito.length > 0;
+  const hasDepartamentoFilter = Boolean(filtro.departamento);
+  const hasLocalidadFilter = Boolean(filtro.localidad);
+  const hasEstadoFilter = filtro.estado && filtro.estado !== 'Todos';
+  const hasFechaDesdeFilter = Boolean(filtro.fechaDesde);
+  const hasFechaHastaFilter = Boolean(filtro.fechaHasta);
+  
+  // Pre-compile case-insensitive filter values
+  const coordinadorLower = hasCoordinadorFilter ? filtro.coordinador.toLowerCase() : '';
+  const operadorLower = hasOperadorFilter ? filtro.operador.toLowerCase() : '';
+  const victimaLower = hasVictimaFilter ? filtro.victima.toLowerCase() : '';
+  const numeroLower = hasNumeroFilter ? filtro.numero.toLowerCase() : '';
+  const dniLower = hasDniFilter ? filtro.dni.toLowerCase() : '';
+  const delitosLower = hasDelitoFilter ? filtro.delito.map(d => d.toLowerCase()) : [];
+  
+  // Pre-compile date objects
+  const fechaDesde = hasFechaDesdeFilter ? new Date(filtro.fechaDesde) : null;
+  const fechaHasta = hasFechaHastaFilter ? new Date(filtro.fechaHasta) : null;
+  
+  const filtered = formularios.filter((f) => {
+    // Text-based filters with early returns
+    if (hasCoordinadorFilter && !f.coordinador.toLowerCase().includes(coordinadorLower)) return false;
+    if (hasOperadorFilter && !f.operador.toLowerCase().includes(operadorLower)) return false;
+    if (hasVictimaFilter && !f.victima.toLowerCase().includes(victimaLower)) return false;
+    if (hasNumeroFilter && !f.numero.toLowerCase().includes(numeroLower)) return false;
+    if (hasDniFilter && !f.dni?.toLowerCase().includes(dniLower)) return false;
+    
+    // Delito filtering - optimized to use some() instead of every()
+    if (hasDelitoFilter) {
+      const delitoLower = f.delito?.toLowerCase() || '';
+      if (!delitosLower.some(delitoFiltro => delitoLower.includes(delitoFiltro))) return false;
+    }
+    
+if (hasDepartamentoFilter) {
+  console.log('🧪 Comparando departamento:', {
+    formularioDepartamentoId: f.departamentoId,
+    filtroDepartamento: filtro.departamento,
+    match: String(f.departamentoId) === filtro.departamento
+  });
+
+  if (String(f.departamentoId) !== filtro.departamento) return false;
+}
+
+    // Exact match filters
+
+
+
+    if (hasLocalidadFilter && f.localidad !== filtro.localidad) return false;
+    if (hasEstadoFilter && f.estado !== filtro.estado) return false;
+    
+    // Date filtering - only parse if we have date filters
+    if (hasFechaDesdeFilter || hasFechaHastaFilter) {
+      const fechaFormulario = f.fecha ? new Date(f.fecha) : null;
+      if (!fechaFormulario) return false;
+      
+      if (fechaDesde && fechaFormulario < fechaDesde) return false;
+      if (fechaHasta && fechaFormulario > fechaHasta) return false;
+    }
+    
+    return true;
+  });
+  
+  const endTime = performance.now();
+  console.log(`✅ Filtering completed in ${(endTime - startTime).toFixed(2)}ms. Found ${filtered.length}/${formularios.length} results`);
+  
+  return filtered;
+}, [formularios, filtro]);
+
+// Optimize the paginated results as well
+const formulariosPagina = useMemo(() => {
+  const startIndex = (pagina - 1) * formulariosPorPagina;
+  const endIndex = startIndex + formulariosPorPagina;
+  return formulariosFiltrados.slice(startIndex, endIndex);
+}, [formulariosFiltrados, pagina, formulariosPorPagina]);
+
+// Optimize filter handlers with useCallback
+const handleFiltroInputOptimized = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  setFiltro((prev) => ({ ...prev, [name]: value }));
+  setPagina(1);
+}, []);
+
+const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string> | { target: { name: string; value: string } }) => {
+  const { name, value } = event.target;
+
+  if (value === '__reset__') {
+    setFiltro({
+      coordinador: '',
+      operador: '',
+      victima: '',
+      numero: '',
+      dni: '',
+      fechaDesde: '',
+      fechaHasta: '',
+      estado: 'Todos',
+      delito: [],
+      departamento: '',
+      localidad: '',
+    });
+    setPagina(1);
+    return;
+  }
+
+  setFiltro((prev) => ({ ...prev, [name]: value }));
+  setPagina(1);
+}, []);
 
   const formatearFecha = (fecha: string) => {
     const [a, m, d] = fecha.split('-');
@@ -670,13 +889,16 @@ reseña_hecho: reseñaParsed,
   return (
     <Box sx={{ p: 4 }}>
       {/* BÚSQUEDA AVANZADA */}
-      <BusquedaAvanzada
-        filtro={filtro}
-        handleFiltroInput={handleFiltroInput}
-        handleFiltroSelect={handleFiltroSelect}
-        handleExportarExcel={handleExportarExcel}
-        EstadoDot={EstadoDot}
-      />
+     <BusquedaAvanzada
+  filtro={filtro}
+  handleFiltroInput={handleFiltroInput}
+  handleFiltroSelect={handleFiltroSelect}
+  handleExportarExcel={handleExportarExcel}
+  EstadoDot={EstadoDot}
+  onReset={resetFiltros}   // 👈 NUEVO
+/>
+
+
 
       <Box display="flex" gap={2} mb={2}>
         <Button
@@ -697,14 +919,27 @@ reseña_hecho: reseñaParsed,
           🖨️ Imprimir seleccionados
         </Button>
 
-        <Button
-          variant="outlined"
-          color="error"
-          disabled={seleccionados.length === 0}
-          onClick={handleEliminarSeleccionados}
-        >
-          🗑️ Eliminar seleccionados
-        </Button>
+   <Button
+  variant="contained"
+  color="success"
+  onClick={handleImprimirFormularioPDF}
+  startIcon={<PrintIcon />}
+  sx={{
+    backgroundColor: '#43a047',
+    color: '#fff',
+    fontWeight: 'bold',
+    textTransform: 'none',
+    px: 3,
+    py: 1.5,
+    borderRadius: 2,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    '&:hover': { backgroundColor: '#388e3c' },
+  }}
+>
+  Imprimir Formulario en Blanco
+</Button>
+
+
       </Box>
 
       <Box display="flex" justifyContent="flex-start" mb={2} gap={2}>
