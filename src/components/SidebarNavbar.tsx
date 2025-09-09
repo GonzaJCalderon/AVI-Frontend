@@ -43,11 +43,20 @@ function getInitials(nombre?: string) {
   return nombre.trim().split(/\s+/).map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2)
 }
 
+
+
 export default function SidebarNavbar() {
   const router = useRouter()
   const pathname = usePathname()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+   // ⛔ Rutas donde NO debe mostrarse el sidebar
+  const HIDE_ON = ['/login', '/recuperar-password', '/restablecer-password']
+
+  if (HIDE_ON.some(p => pathname?.startsWith(p))) {
+    return null
+  }
 
   const [user, setUser] = useState<User | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -124,8 +133,9 @@ const navItems = [
       };
     }
   } else if (item.label === 'Nuevo Caso') {
-    window.open('http://10.100.1.80/avd/formulario_asistencia_victimas.html', '_blank', 'noopener,noreferrer');
-  } else if (item.label === 'Formulario Acción') {
+  router.push('/nuevo-caso');
+}
+ else if (item.label === 'Formulario Acción') {
     window.open('/formulario-accion', '_blank');
   } else if (item.path.includes('#')) {
     window.location.href = item.path;

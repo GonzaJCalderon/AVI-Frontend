@@ -325,7 +325,9 @@ export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string)
 
 
 export const activarIntervencion = async (id: number) => {
-  return await cambiarEstadoIntervencion(id, 'activa'); // ← según lo que espera el backend
+  return await apiFetch(`/intervenciones/${id}/activar`, {
+    method: 'PATCH',
+  });
 };
 
 export const archivarIntervencion = async (id: number) => {

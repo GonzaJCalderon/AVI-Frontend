@@ -57,26 +57,24 @@ export default function TablaFormularios({
 }: Props) {
   const formulariosPorPagina = 5;
   const router = useRouter();
-  
+
+  // ---- Normalización de estado y selección actual
+  const norm = (s?: string) => (s || '').toLowerCase();
   const formularioSeleccionado = formulariosPagina.find(f => f.id.toString() === selectedId);
-  const esEliminado = formularioSeleccionado?.eliminado || formularioSeleccionado?.estado === 'eliminada';
-  const esActivo = formularioSeleccionado?.estado === 'activa';
-  const esArchivado = formularioSeleccionado?.estado === 'archivada';
 
-// ✅ Solo retornan directamente los campos del tipo Formulario
+  const esEliminado = !!(formularioSeleccionado?.eliminado || norm(formularioSeleccionado?.estado) === 'eliminada');
+  const esActivo    = norm(formularioSeleccionado?.estado) === 'activa';
+  const esArchivado = norm(formularioSeleccionado?.estado) === 'archivada';
 
-const obtenerDelitos = (formulario: Formulario): string => formulario.delito || '—';
-
-const obtenerDepartamento = (formulario: Formulario): string => formulario.departamento || '—';
-
-const obtenerVictima = (formulario: Formulario): string => formulario.victima || '—';
-
-const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
-
+  // ✅ Helpers que leen directamente del tipo Formulario
+  const obtenerDelitos = (formulario: Formulario): string => formulario.delito || '—';
+  const obtenerDepartamento = (formulario: Formulario): string => formulario.departamento || '—';
+  const obtenerVictima = (formulario: Formulario): string => formulario.victima || '—';
+  const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
 
   return (
     <Paper sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" fontWeight="bold">
           Formularios encontrados
         </Typography>
@@ -146,7 +144,8 @@ const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
                 <TableCell>{formatearFecha(f.fecha)}</TableCell>
                 <TableCell>{renderEstadoChip(f.estado || 'sin estado')}</TableCell>
                 <TableCell>{obtenerDelitos(f)}</TableCell>
-<TableCell>{f.reseña_hecho || '—'}</TableCell>
+                {/* 🔧 Fix: sin tilde */}
+                <TableCell>{(f as any).reseña_hecho || '—'}</TableCell>
                 <TableCell>{obtenerDepartamento(f)}</TableCell>
                 <TableCell align="center">
                   <IconButton
@@ -162,7 +161,7 @@ const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
         </Table>
       </TableContainer>
 
-      <Box display="flex" justifyContent="center" mt={2}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
         <Pagination
           count={Math.ceil(formulariosFiltradosLength / formulariosPorPagina)}
           page={pagina}
@@ -182,10 +181,15 @@ const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
 
           <Divider key="divider-1" />,
 
+          // ✅ Activar: visible si NO está eliminada y NO está activa
+          !esEliminado && !esActivo && (
+            <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
+          ),
+
           !esEliminado && (
             <MenuItem key="estado" onClick={() => handleAccion('estado')}>🔄 Cambiar estado</MenuItem>
           ),
-          
+
           !esEliminado && !esArchivado && (
             <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
           ),
@@ -200,7 +204,7 @@ const obtenerDNI = (formulario: Formulario): string => formulario.dni || '—';
             >
               🗑️ Eliminar
             </MenuItem>
-          )
+          ),
         ].filter(Boolean)}
       </Menu>
     </Paper>

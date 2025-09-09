@@ -118,33 +118,39 @@ export default function BusquedaAvanzada({
           </Grid>
         ))}
 
-        {/* SELECT MULTIPLE DE DELITOS */}
-        <Grid item xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
-            <InputLabel id="delito-label">Delitos</InputLabel>
-            <Select
-              labelId="delito-label"
-              name="delito"
-              multiple
-              value={filtro.delito}
-              onChange={handleFiltroSelect}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {(selected as string[]).map((value) => (
-                    <Chip key={value} label={value} />
-                  ))}
-                </Box>
-              )}
-            >
-              {delitos.map((delito) => (
-                <MenuItem key={delito} value={delito}>
-                  <Checkbox checked={filtro.delito.includes(delito)} />
-                  {delito}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
+        {/* SELECT MULTIPLE DE DELITOS (con label como "Fecha desde") */}
+<Grid item xs={12} sm={6} md={4}>
+  <TextField
+    fullWidth
+    select
+    label="Delitos"
+    name="delito"
+    value={filtro.delito}
+    onChange={handleFiltroSelect}
+    InputLabelProps={{ shrink: true }}                // 👈 fuerza el label arriba
+    SelectProps={{
+      multiple: true,
+      displayEmpty: true,
+      renderValue: (selected) => {
+        const values = selected as string[];
+        if (!values.length) return 'Todos';
+        return (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {values.map((v) => <Chip key={v} label={v} />)}
+          </Box>
+        );
+      },
+    }}
+  >
+    {delitos.map((delito) => (
+      <MenuItem key={delito} value={delito}>
+        <Checkbox checked={filtro.delito.includes(delito)} />
+        {delito}
+      </MenuItem>
+    ))}
+  </TextField>
+</Grid>
+
 
         {/* SELECT DEPARTAMENTO */}
         <Grid item xs={12} sm={6} md={4}>
@@ -188,37 +194,42 @@ export default function BusquedaAvanzada({
           </Grid>
         )} */}
 
-        {/* SELECT ESTADO */}
-        <Grid item xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
-            <InputLabel id="estado-label">Estado</InputLabel>
-            <Select
-              labelId="estado-label"
-              name="estado"
-              value={filtro.estado}
-              onChange={handleFiltroSelect}
-              renderValue={(selected) => {
-                if (selected === 'Todos' || selected === '') return 'Todos';
-                return (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <EstadoDot estado={selected} />
-                    {selected}
-                  </Box>
-                );
-              }}
-            >
-              <MenuItem value="Todos">Todos</MenuItem>
-              {estadosParaFiltro.map((estado) => (
-                <MenuItem key={estado} value={estado}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <EstadoDot estado={estado} />
-                    {estado}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
+{/* SELECT ESTADO (con TextField para que el label se vea como en las fechas) */}
+<Grid item xs={12} sm={6} md={4}>
+  <TextField
+    fullWidth
+    select
+    label="Estado"
+    name="estado"
+    value={filtro.estado}
+    onChange={handleFiltroSelect}
+    InputLabelProps={{ shrink: true }}   // 👈 hace que se vea como "Fecha desde"
+    SelectProps={{
+      renderValue: (selected) => {
+        if (selected === 'Todos' || selected === '') return 'Todos'
+        return (
+          <Box display="flex" alignItems="center" gap={1}>
+            <EstadoDot estado={selected as string} />
+            {selected as string}
+          </Box>
+        )
+      },
+    }}
+  >
+    <MenuItem value="Todos">Todos</MenuItem>
+    {estadosParaFiltro.map((estado) => (
+      <MenuItem key={estado} value={estado}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <EstadoDot estado={estado} />
+          {estado}
+        </Box>
+      </MenuItem>
+    ))}
+  </TextField>
+</Grid>
+
+
+
 
         {/* FECHAS */}
         <Grid item xs={12} sm={6} md={4}>

@@ -57,7 +57,8 @@ import {
   cerrarIntervencion,
   archivarIntervencion,
   cambiarEstadoMultipleConVerificacion, 
-  debugCambioEstado, 
+  debugCambioEstado,
+   activarIntervencion, 
 } from '@/services/intervenciones';
 
 // ✅ Importar el tipo desde el archivo de tipos
@@ -398,6 +399,27 @@ const limpiarFiltros = () => {
           );
           break;
         }
+        case 'activar': {
+  // Evitar activar eliminados
+  const formulario = formularios.find(f => f.id === selectedId);
+  if (formulario?.estado === 'Eliminado') {
+    alert('No se puede activar una intervención eliminada');
+    break;
+  }
+
+  await activarIntervencion(Number(selectedId));
+
+  // Reflejamos en el estado local
+  setFormularios(prev =>
+    prev.map(f => f.id === selectedId ? { ...f, estado: 'Activo' as EstadoUI } : f)
+  );
+
+  // Si usás app router, refresca datos en pantalla (opcional)
+  router.refresh?.();
+
+  break;
+}
+
 
         case 'eliminar': {
           const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
