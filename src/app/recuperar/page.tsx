@@ -18,6 +18,8 @@ import EmailIcon from '@mui/icons-material/Email'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useRouter } from 'next/navigation'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.80:3333/api'
+
 export default function RecuperarPasswordPage() {
   const [email, setEmail] = useState('')
   const [enviado, setEnviado] = useState(false)
@@ -33,30 +35,47 @@ export default function RecuperarPasswordPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('https://TU-BACKEND.COM/send-email.php', {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
-          to: email,
-          subject: 'Recuperación de contraseña',
-          message: `
-            <p>Hola,</p>
-            <p>Recibimos una solicitud para restablecer tu contraseña. Si no fuiste vos, ignorá este correo.</p>
-            <p>Si querés continuar, hacé clic en el siguiente enlace:</p>
-            <p><a href="https://TU-FRONTEND.COM/reset-password?email=${encodeURIComponent(email)}">Restablecer contraseña</a></p>
-          `,
+          email: email.trim().toLowerCase(),
         }),
       })
 
-      const result = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      let result: any = {}
+      
+      if (contentType.includes('application/json')) {
+        try {
+          result = await response.json()
+        } catch {
+          result = {}
+        }
+      }
 
-      if (result.success) {
+      if (response.ok) {
         setEnviado(true)
       } else {
-        setError(result.error || 'Error al enviar el correo')
+        // Manejo de errores más específico
+        let errorMessage = result?.message || result?.error || `Error ${response.status}: ${response.statusText}`
+        
+        if (response.status === 404) {
+          errorMessage = 'No se encontró una cuenta con ese correo electrónico.'
+        } else if (response.status === 429) {
+          errorMessage = 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.'
+        } else if (response.status >= 500) {
+          errorMessage = 'Error del servidor. Intenta nuevamente más tarde.'
+        }
+        
+        setError(errorMessage)
       }
     } catch (err) {
-      setError('No se pudo conectar al servidor')
+      console.error('Error al solicitar recuperación:', err)
+      setError('No se pudo conectar al servidor. Verifica tu conexión e intenta nuevamente.')
     } finally {
       setLoading(false)
     }
@@ -105,9 +124,38 @@ export default function RecuperarPasswordPage() {
           <div>
             {enviado && (
               <Alert severity="success" sx={{ mb: 2 }}>
-                Si el correo está registrado, te enviamos un enlace para recuperar tu contraseña.
+                Si el correo está registrado, te enviamos un enlace para recuperar tu contraseña. 
+                Revisa tu bandeja de entrada y spam.
               </Alert>
             )}
+
+        {enviado && (
+          <Stack spacing={2} sx={{ mt: 3 }}>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                setEnviado(false)
+                setEmail('')
+                setError('')
+              }}
+            >
+              Enviar otro correo
+            </Button>
+            
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => router.push('/login')}
+              sx={{
+                backgroundColor: '#6d44b8',
+                '&:hover': { backgroundColor: '#5934a2' },
+              }}
+            >
+              Ir al Login
+            </Button>
+          </Stack>
+        )}
           </div>
         </Fade>
 
@@ -124,6 +172,7 @@ export default function RecuperarPasswordPage() {
                 startAdornment: <EmailIcon sx={{ mr: 1, color: '#6d44b8' }} />,
               }}
               sx={{ mb: 3 }}
+              disabled={loading}
             />
 
             <Stack spacing={2}>
@@ -131,7 +180,7 @@ export default function RecuperarPasswordPage() {
                 variant="contained"
                 type="submit"
                 fullWidth
-                disabled={loading}
+                disabled={loading || !email.trim()}
                 sx={{
                   backgroundColor: '#6d44b8',
                   '&:hover': { backgroundColor: '#5934a2' },
@@ -146,11 +195,40 @@ export default function RecuperarPasswordPage() {
                 fullWidth
                 onClick={() => router.push('/login')}
                 startIcon={<ArrowBackIcon />}
+                disabled={loading}
               >
                 Volver al inicio
               </Button>
             </Stack>
           </form>
+        )}
+
+        {enviado && (
+          <Stack spacing={2} sx={{ mt: 3 }}>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                setEnviado(false)
+                setEmail('')
+                setError('')
+              }}
+            >
+              Enviar otro correo
+            </Button>
+            
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => router.push('/login')}
+              sx={{
+                backgroundColor: '#6d44b8',
+                '&:hover': { backgroundColor: '#5934a2' },
+              }}
+            >
+              Ir al Login
+            </Button>
+          </Stack>
         )}
       </Paper>
     </Box>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Box,
   Typography,
@@ -37,6 +38,8 @@ import { useUsuarios } from '@/hooks/useUsuarios'
 import { Usuario } from '@/services/usuarioService'
 
 export default function AdminUsuariosPage() {
+  const router = useRouter();
+
   const {
     usuarios,
     fetchUsuarios,
@@ -170,10 +173,22 @@ export default function AdminUsuariosPage() {
     setRefreshTrigger(prev => prev + 1)
   }
 
+  useEffect(() => {
+  const rawUser = localStorage.getItem('user')
+  const user = rawUser ? JSON.parse(rawUser) : null
+
+  if (!user || user.rol !== 'admin') {
+    alert('Acceso denegado. Solo administradores pueden acceder.')
+    router.push('/inicio') // O la ruta segura que uses
+  }
+}, [])
+
+
   // Efecto para detectar cambios en usuarios
   useEffect(() => {
     console.log('Lista de usuarios actualizada:', usuarios.length)
   }, [usuarios, refreshTrigger])
+  
 
   return (
     <Box sx={{ p: 4 }}>

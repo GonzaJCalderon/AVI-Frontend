@@ -312,30 +312,32 @@ export const eliminarIntervencionSoft = async (id: number) => {
   });
 };
 
-export const cerrarIntervencion = async (id: number) => {
-  return await apiFetch(`/intervenciones/${id}/cerrar`, {
-    method: 'PATCH'
+export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string) => {
+  const payload = { estado: nuevoEstado };
+
+  console.log(`📦 Enviando PATCH /intervenciones/${id}`, payload);
+
+  return await apiFetch(`/intervenciones/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
   });
+};
+
+
+export const activarIntervencion = async (id: number) => {
+  return await cambiarEstadoIntervencion(id, 'activa'); // ← según lo que espera el backend
 };
 
 export const archivarIntervencion = async (id: number) => {
-  return await apiFetch(`/intervenciones/${id}/archivar`, {
-    method: 'PATCH'
-  });
+  return await cambiarEstadoIntervencion(id, 'archivada');
 };
 
-export const activarIntervencion = async (id: number) => {
-  return await apiFetch(`/intervenciones/${id}/activar`, {
-    method: 'PATCH'
-  });
+export const cerrarIntervencion = async (id: number) => {
+  return await cambiarEstadoIntervencion(id, 'cerrada');
 };
 
-export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string) => {
-  return await apiFetch(`/intervenciones/${id}/estado`, {
-    method: 'PATCH',
-    body: JSON.stringify({ estado: nuevoEstado })
-  });
-};
+
+
 
 // ===== FUNCIONES DE DEPURACIÓN Y VERIFICACIÓN =====
 

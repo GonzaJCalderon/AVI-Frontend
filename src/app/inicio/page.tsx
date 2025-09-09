@@ -129,6 +129,21 @@ interface Departamento {
   nombre: string;
 } 
 
+const [user, setUser] = useState<any>(null);
+
+useEffect(() => {
+  try {
+    const data = localStorage.getItem('user');
+    if (data) {
+      setUser(JSON.parse(data));
+    }
+  } catch (e) {
+    console.error('❌ Error leyendo el usuario desde localStorage:', e);
+  }
+}, []);
+
+
+
 const handleImprimirFormularioPDF = () => {
   const win = window.open('/formulario.pdf', '_blank');
   if (win) {
@@ -194,6 +209,9 @@ const mapped: Formulario[] = data.map((it) => {
 
   const localidadParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '—';
   const reseñaParsed = it.resena_hecho?.trim() || '—';
+
+  console.log("ROL ACTUAL DEL USUARIO:", user?.rol);
+
 
   // ✅ Aquí está el return principal garantizado
   return {
@@ -943,24 +961,28 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       </Box>
 
       <Box display="flex" justifyContent="flex-start" mb={2} gap={2}>
-        <Button
-          variant="contained"
-          onClick={() => router.push('/admin')}
-          startIcon={<PersonIcon sx={{ color: '#fff' }} />}
-          sx={{
-            backgroundColor: '#00796b',
-            color: '#fff',
-            fontWeight: 'bold',
-            textTransform: 'none',
-            px: 3,
-            py: 1.5,
-            borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            '&:hover': { backgroundColor: '#004d40' },
-          }}
-        >
-          Gestión de Usuarios
-        </Button>
+    {user && user.rol === 'admin' && (
+  <Button
+    variant="contained"
+    onClick={() => router.push('/admin')}
+    startIcon={<PersonIcon sx={{ color: '#fff' }} />}
+    sx={{
+      backgroundColor: '#00796b',
+      color: '#fff',
+      fontWeight: 'bold',
+      textTransform: 'none',
+      px: 3,
+      py: 1.5,
+      borderRadius: 2,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+      '&:hover': { backgroundColor: '#004d40' },
+    }}
+  >
+    Gestión de Usuarios
+  </Button>
+)}
+
+
 
         <Button
           variant="contained"

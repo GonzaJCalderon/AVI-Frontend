@@ -69,20 +69,21 @@ export default function SidebarNavbar() {
     router.push('/login')
   }
 
-  const navItems = [
-    { label: 'Inicio', icon: <HomeIcon />, path: '/inicio' },
-    { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: '/nuevo-caso' },
-    { label: 'Buscar', icon: <SearchIcon />, path: '/inicio#busqueda-avanzada' },
-    { label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' },
+const navItems = [
+  { label: 'Inicio', icon: <HomeIcon />, path: '/inicio' },
+  { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: '/nuevo-caso' },
+  { label: 'Buscar', icon: <SearchIcon />, path: '/inicio#busqueda-avanzada' },
+  ...(user?.rol === 'admin'
+    ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' }]
+    : []),
   {
-  label: 'Formulario para imprimir',
-  icon: <PrintIcon />,
-  path: '/formulario.pdf',
-  action: 'imprimir-pdf'
-}
+    label: 'Formulario para imprimir',
+    icon: <PrintIcon />,
+    path: '/formulario.pdf',
+    action: 'imprimir-pdf'
+  }
+];
 
-
-  ]
 
   const userItems = [
     { label: 'Mi Perfil', icon: <AccountCircleIcon />, path: PROFILE_PATH }, // ✅

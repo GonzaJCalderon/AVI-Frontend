@@ -5,13 +5,17 @@ const withAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // ✅ Desactivar Dev Tools (dev overlay)
-  devIndicators: {
-    buildActivity: false,
-  },
+  // 🔒 Dev Tools solo visibles en desarrollo
+  devIndicators: isDev
+    ? {
+        buildActivity: false, // puedes activarlo si lo deseas
+      }
+    : false, // desactiva completamente en producción
 
   images: {
     remotePatterns: [
