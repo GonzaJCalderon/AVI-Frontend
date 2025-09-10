@@ -106,22 +106,22 @@ export default function AdminUsuariosPage() {
   }
 
   const eliminarUsuario = async (id: number, rol: string) => {
-    if (rol === 'admin') {
-      setNotification({
-        open: true,
-        message: 'No puedes eliminar un usuario administrador',
-        severity: 'error',
-      })
-      return
-    }
-    if (!confirm('¿Eliminar este usuario?')) return
-    
-    const success = await deleteUsuario(id)
-    if (success) {
-      setNotification({ open: true, message: 'Usuario eliminado exitosamente', severity: 'success' })
-      setRefreshTrigger(prev => prev + 1)
-    }
+  if (rol === 'admin') {
+    setNotification({ open: true, message: 'No puedes eliminar un usuario administrador', severity: 'error' });
+    return;
   }
+  if (!confirm('¿Eliminar este usuario definitivamente?')) return;
+
+  const res = await deleteUsuario(id);   // ahora devuelve { ok, message }
+  if (res.ok) {
+    setNotification({ open: true, message: res.message || 'Usuario eliminado correctamente', severity: 'success' });
+    await fetchUsuarios();               // ⬅️ IMPORTANTE: volver a leer del backend
+    setRefreshTrigger(prev => prev + 1);
+  } else {
+    setNotification({ open: true, message: res.message || 'Error al eliminar usuario', severity: 'error' });
+  }
+};
+
 
   const toggleActivo = async (id: number | undefined, activo: boolean) => {
     if (!id) {
@@ -162,16 +162,17 @@ export default function AdminUsuariosPage() {
   const usuariosFiltrados = usuarios.filter((u) =>
     `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase())
   )
-
-  const handleUserCreated = () => {
-    setNotification({
-      open: true,
-      message: 'Usuario creado exitosamente',
-      severity: 'success',
-    })
-    fetchUsuarios() // Refresca la lista
-    setRefreshTrigger(prev => prev + 1)
-  }
+const handleUserCreated = (tempPassword?: string) => {
+  setNotification({
+    open: true,
+    message: tempPassword
+      ? `Usuario creado. Contraseña temporal: ${tempPassword}`
+      : 'Usuario creado exitosamente',
+    severity: 'success',
+  })
+  fetchUsuarios()
+  setRefreshTrigger(prev => prev + 1)
+}
 
   useEffect(() => {
   const rawUser = localStorage.getItem('user')

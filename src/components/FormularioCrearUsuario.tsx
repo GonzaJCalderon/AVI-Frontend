@@ -38,7 +38,7 @@ type FormularioCrearUsuarioState = {
 }
 
 interface FormularioCrearUsuarioProps {
-  onUserCreated?: () => void
+  onUserCreated?: (tempPassword?: string) => void
 }
 
 export default function FormularioCrearUsuario({
@@ -109,47 +109,41 @@ export default function FormularioCrearUsuario({
     clearError()
   }
 
-  const handleSubmit = async () => {
-    const allTouched = Object.keys(form).reduce(
-      (acc, key) => ({
-        ...acc,
-        [key]: true,
-      }),
-      {}
-    )
-    setTouched(allTouched)
+ // dentro de FormularioCrearUsuario.tsx
 
-    const validation = await validateForm(createUsuarioSchema, form)
+const handleSubmit = async () => {
+  const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), {});
+  setTouched(allTouched);
 
-    if (!validation.isValid) {
-      setFieldErrors(validation.errors)
-      setFeedback({
-        open: true,
-        success: false,
-        message: 'Por favor, corrige los errores en el formulario',
-      })
-      return
-    }
-
-    const success = await createUsuario(form)
-
-    if (success) {
-      setFeedback({
-        open: true,
-        success: true,
-        message:
-          'Usuario creado correctamente. Se ha asignado una contraseña temporal.',
-      })
-      resetForm()
-      onUserCreated?.()
-    } else {
-      setFeedback({
-        open: true,
-        success: false,
-        message: error || 'Error al crear el usuario',
-      })
-    }
+  const validation = await validateForm(createUsuarioSchema, form);
+  if (!validation.isValid) {
+    setFieldErrors(validation.errors);
+    setFeedback({ open: true, success: false, message: 'Por favor, corrige los errores en el formulario' });
+    return;
   }
+
+  // ⬇️ ahora esperamos un objeto { ok, temporaryPassword? }
+ const result = await createUsuario(form);
+
+if (result?.ok) {
+  const msgBase = 'Usuario creado correctamente.';
+  const msgPwd  = result.temporaryPassword
+    ? ` Contraseña temporal: ${result.temporaryPassword}`
+    : ' Se ha asignado una contraseña temporal.';
+  setFeedback({ open: true, success: true, message: msgBase + msgPwd });
+
+  resetForm();
+  onUserCreated?.(result.temporaryPassword); // 👈 importante
+} else {
+  setFeedback({
+    open: true,
+    success: false,
+    message: error || 'Error al crear el usuario',
+  });
+}
+
+};
+
 
   const closeFeedback = () => {
     setFeedback((prev) => ({ ...prev, open: false }))
@@ -279,6 +273,27 @@ export default function FormularioCrearUsuario({
           {feedback.message}
         </Alert>
       </Snackbar>
+      {feedback.success && feedback.message.includes('Contraseña temporal:') && (
+  <Alert severity="info" sx={{ mt: 2 }}>
+    {
+      // Extraemos la contraseña temporal del mensaje
+      feedback.message.match(/Contraseña temporal: (\S+)/)?.[1]
+    }
+    <Button
+      size="small"
+      sx={{ ml: 2 }}
+      onClick={() => {
+        const password = feedback.message.match(/Contraseña temporal: (\S+)/)?.[1]
+        if (password) {
+          navigator.clipboard.writeText(password)
+        }
+      }}
+    >
+      Copiar
+    </Button>
+  </Alert>
+)}
+
     </Paper>
   )
 }

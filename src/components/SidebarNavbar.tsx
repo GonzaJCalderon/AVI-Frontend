@@ -22,6 +22,8 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import GroupIcon from '@mui/icons-material/Group'
 import MenuIcon from '@mui/icons-material/Menu'
 import PrintIcon from '@mui/icons-material/Print'
+import DescriptionIcon from '@mui/icons-material/Description'
+
 
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import { useRouter, usePathname } from 'next/navigation'
@@ -90,7 +92,14 @@ const navItems = [
     icon: <PrintIcon />,
     path: '/formulario.pdf',
     action: 'imprimir-pdf'
-  }
+  },
+  {
+  label: 'Listar Formularios',
+  icon: <DescriptionIcon />,
+  path: '/listar-formularios',
+},
+
+
 ];
 
 

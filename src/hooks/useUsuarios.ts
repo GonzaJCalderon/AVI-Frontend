@@ -40,6 +40,8 @@ export const useUsuarioActual = () => {
 };
 
 // ---- Hook existente para la lista de usuarios ----
+// hooks/useUsuarios.ts
+// interface UseUsuariosReturn {
 interface UseUsuariosReturn {
   usuarios: Usuario[];
   loading: boolean;
@@ -48,13 +50,26 @@ interface UseUsuariosReturn {
   updating: boolean;
   deleting: boolean;
   fetchUsuarios: () => Promise<void>;
-  createUsuario: (data: CreateUsuarioData) => Promise<boolean>;
+
+  // ⬇️ antes: Promise<boolean>
+  createUsuario: (
+    data: CreateUsuarioData
+  ) => Promise<{ ok: boolean; temporaryPassword?: string }>;
+
+  // ⬇️ antes: Promise<boolean>
   updateUsuario: (id: number, data: UpdateUsuarioData) => Promise<boolean>;
-  deleteUsuario: (id: number) => Promise<boolean>;
+
+  // ⬇️ antes: Promise<boolean>
+  deleteUsuario: (id: number) => Promise<{ ok: boolean; message?: string }>;
+
+  // ⬇️ antes: Promise<boolean>
   toggleUsuarioStatus: (id: number, activo: boolean) => Promise<boolean>;
+
   resetPassword: (id: number) => Promise<{ temporaryPassword: string } | null>;
   clearError: () => void;
 }
+
+
 
 export const useUsuarios = (): UseUsuariosReturn => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -73,38 +88,56 @@ const fetchUsuarios = useCallback(async () => {
   setLoading(true);
   setError(null);
   try {
-    const data = await usuarioService.getUsuarios({ includeInactivos: true }); // 👈 acá
-    setUsuarios(Array.isArray(data) ? data : []);
+    // fetchUsuarios
+const data = await usuarioService.getUsuarios({ includeInactivos: true });
+const visibles = (Array.isArray(data) ? data : []).filter((u) => {
+  const eliminado = u.deleted === true || u.eliminado === true || !!u.deletedAt;
+  const nombreVacio = String(u.nombre ?? '').trim() === '';
+  const emailVacio = String(u.email ?? '').trim() === '';
+  return !eliminado && !nombreVacio && !emailVacio;
+});
+
+
+
+    setUsuarios(visibles);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Error desconocido al cargar usuarios';
     setError(errorMessage);
-    setUsuarios([]); // opcional
+    setUsuarios([]);
     console.error('Error fetching usuarios:', err);
   } finally {
     setLoading(false);
   }
 }, []);
 
-const createUsuario = useCallback(async (data: CreateUsuarioData): Promise<boolean> => {
+
+
+// hooks/useUsuarios.ts
+// hooks/useUsuarios.ts
+
+const createUsuario = useCallback(async (
+  data: CreateUsuarioData
+): Promise<{ ok: boolean; temporaryPassword?: string }> => {
   setCreating(true);
   setError(null);
   try {
-    const newUsuario = await usuarioService.createUsuario(data);
-    // agregamos optimistamente y refrescamos para sincronizar
-    if (newUsuario && typeof newUsuario.id === 'number') {
-      setUsuarios(prev => [...prev, newUsuario]);
+    const res = await usuarioService.createUsuario(data);
+    if (res?.user && typeof res.user.id === 'number') {
+      setUsuarios(prev => [...prev, res.user]);
     }
     await fetchUsuarios();
-    return true;
+    return { ok: true, temporaryPassword: res.temporaryPassword };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido al crear usuario';
-    setError(msg);
+    setError(msg);                      // 👈 esto alimenta tu <Alert/ Snackbar/>
     console.error('Error creating usuario:', err);
-    return false;
+    return { ok: false };
   } finally {
     setCreating(false);
   }
 }, [fetchUsuarios]);
+
+
 
 
 
@@ -131,22 +164,29 @@ const createUsuario = useCallback(async (data: CreateUsuarioData): Promise<boole
     }
   }, [fetchUsuarios]);
 
-  const deleteUsuario = useCallback(async (id: number): Promise<boolean> => {
-    setDeleting(true);
-    setError(null);
-    try {
-      await usuarioService.deleteUsuario(id);
+// hooks/useUsuarios.ts
+const deleteUsuario = useCallback(async (
+  id: number
+): Promise<{ ok: boolean; message?: string }> => {
+  setDeleting(true);
+  setError(null);
+  try {
+    const { success, message } = await usuarioService.deleteUsuario(id);
+    if (success) {
       setUsuarios(prev => prev.filter(u => u.id !== id));
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al eliminar usuario';
-      setError(errorMessage);
-      console.error('Error deleting usuario:', err);
-      return false;
-    } finally {
-      setDeleting(false);
     }
-  }, []);
+    return { ok: success, message };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error desconocido al eliminar usuario';
+    setError(msg);
+    console.error('Error deleting usuario:', err);
+    return { ok: false, message: msg };
+  } finally {
+    setDeleting(false);
+  }
+}, []);
+
+
 
   const toggleUsuarioStatus = useCallback(async (id: number, activo: boolean): Promise<boolean> => {
   setUpdating(true);

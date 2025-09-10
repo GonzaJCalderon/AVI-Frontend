@@ -2,6 +2,35 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.80:3333/api';
 
+// --- helpers de seguridad ---
+const generateStrongTempPassword = (): string => {
+  const length = 14; // ajustá a tu policy
+  const sets = [
+    'ABCDEFGHJKLMNPQRSTUVWXYZ',    // sin I/O para evitar confusiones
+    'abcdefghijkmnpqrstuvwxyz',    // sin l
+    '23456789',                    // sin 0/1
+    '!@#$%^&*?-_'
+  ];
+
+  
+
+  const getRand = (n: number) =>
+    (typeof crypto !== 'undefined' && 'getRandomValues' in crypto)
+      ? crypto.getRandomValues(new Uint32Array(1))[0] % n
+      : Math.floor(Math.random() * n);
+
+  // asegurar al menos 1 de cada set
+  let pwd = sets.map(s => s[getRand(s.length)]).join('');
+
+  // completar hasta el largo con cualquier char permitido
+  const all = sets.join('');
+  for (let i = pwd.length; i < length; i++) pwd += all[getRand(all.length)];
+
+  // mezclar
+  return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+};
+
+
 // services/usuarioService.ts (arriba del todo o dentro de la clase como métodos estáticos)
 const toBool = (v: any): boolean => {
   if (typeof v === 'boolean') return v;
@@ -21,16 +50,48 @@ const toRol = (v: any): 'admin' | 'user' => {
 };
 
 // services/usuarioService.ts
-
 const normalizeUsuario = (raw: any): Usuario => ({
   id: Number(raw.id),
   nombre: raw.nombre ?? raw.name ?? '',
   email: raw.email ?? '',
   rol: toRol(raw.rol),
   activo: toBool(raw.activo ?? raw.enabled ?? raw.isActive),
+  eliminado: toBool(raw.eliminado) || !!raw.deleted || !!raw.deletedAt, // ⬅️ clave
+  deletedAt: raw.deletedAt,
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt,
 });
+
+// ⬇️ PONER cerca de la clase, en el mismo archivo
+const normalizaListaUsuarios = (json: any) =>
+  Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+
+export async function emailExiste(email: string): Promise<boolean> {
+  const headers = getAuthHeaders();
+
+  // Intento 1: endpoint con query
+  try {
+    const r = await fetch(`${API_BASE_URL}/usuarios?email=${encodeURIComponent(email)}`, { headers });
+    if (r.ok) {
+      const j = await r.json().catch(() => null);
+      const arr = normalizaListaUsuarios(j);
+      return arr.some((u: any) => String(u.email || '').toLowerCase() === email.toLowerCase());
+    }
+  } catch {}
+
+  // Fallback: traer todos y filtrar (si son pocos usuarios está ok)
+  try {
+    const r2 = await fetch(`${API_BASE_URL}/usuarios`, { headers });
+    if (r2.ok) {
+      const j2 = await r2.json().catch(() => null);
+      const arr2 = normalizaListaUsuarios(j2);
+      return arr2.some((u: any) => String(u.email || '').toLowerCase() === email.toLowerCase());
+    }
+  } catch {}
+
+  return false;
+}
+
 
 
 // ✅ Lee token desde varias claves comunes
@@ -61,6 +122,8 @@ export interface Usuario {
   email: string;
   rol: 'admin' | 'user';
   activo: boolean;
+  eliminado?: boolean;     // ⬅️ nuevo
+  deletedAt?: string;      // ⬅️ opcional (soft delete)
   createdAt?: string;
   updatedAt?: string;
   [k: string]: any;
@@ -170,52 +233,69 @@ async getUsuarios(opts?: { includeInactivos?: boolean }): Promise<Usuario[]> {
 }
 
 
- async createUsuario(data: CreateUsuarioData): Promise<Usuario> {
-  // ⚠️ EL BACKEND SOLO ACEPTA ESTOS 4 CAMPOS EXACTOS
-  const payload = {
-    email: data.email,
-    password: data.password || 'TempPass123!', // asegúrate que cumpla la policy
-    nombre: `${data.nombre} ${data.apellido}`.trim(),
-    rol: data.rol, // 'usuario' | 'admin' tal cual, SIN mapear a 'user'
-  };
+// services/usuarioService.ts
+async createUsuario(
+  data: CreateUsuarioData
+): Promise<{ user: Usuario; temporaryPassword?: string }> {
+  // ⬅️ Corta acá si ya existe
+  if (await emailExiste(data.email)) {
+    throw new Error('El correo ya está registrado');
+  }
+
+  const password = data.password || 'Temp#' + Math.random().toString(36).slice(2) + '9A!';
+  const payload = { email: data.email, password, nombre: `${data.nombre} ${data.apellido}`.trim(), rol: data.rol };
 
   const res = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
-    headers: getAuthHeaders(), // no molesta si se envía auth
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
-  // Si el backend devuelve error de validación, mostrémoslo tal cual
-  const contentType = res.headers.get('content-type') || '';
-  let json: any = null;
-  if (contentType.includes('application/json')) {
-    try { json = await res.json(); } catch { /* ignore */ }
-  }
+  const ct = res.headers.get('content-type') || '';
+  const isJson = ct.includes('application/json');
+  const raw = isJson ? await res.json().catch(() => null) : await res.text().catch(() => '');
+
   if (!res.ok) {
-    const msg =
-      json?.message ||
-      json?.error ||
-      `Error ${res.status}: ${res.statusText}`;
-    throw new Error(msg);
+    const txt = (typeof raw === 'string' ? raw : (raw?.message || raw?.error || '')).toString();
+
+    // pistas de duplicado
+    const duplicateHints = [
+      /duplicate/i, /unique/i, /ya\s+existe/i, /existe\s+un\s+registro/i, /email.*existe/i,
+      /E11000 duplicate key/i, /UNIQUE constraint/i,
+    ];
+
+    if (res.status === 409 || res.status === 422 || duplicateHints.some(r => r.test(txt))) {
+      throw new Error('El correo ya está registrado');
+    }
+
+    // Si es 500 pero el mail efectivamente existe, mostrá el mensaje claro
+    if (res.status === 500 && await emailExiste(data.email)) {
+      throw new Error('El correo ya está registrado');
+    }
+
+    throw new Error(txt || 'No se pudo crear el usuario');
   }
 
-  // Algunos backends devuelven el user directo, otros {data: {...}}
-  const raw = json?.data ?? json;
-
-  // Normalizamos por si cambian nombres
-  const created: Usuario = {
-    id: Number(raw.id),
-    nombre: raw.nombre ?? '',
-    email: raw.email ?? payload.email,
-    rol: raw.rol === 'admin' ? 'admin' : 'usuario' === raw.rol ? 'user' as any : (raw.rol ?? 'user'),
-    // si el registro no devuelve activo, asumimos true (o ajusta según tu API)
-    activo: typeof raw.activo === 'boolean' ? raw.activo : true,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt,
+  const userRaw = (raw as any)?.data ?? raw;
+  return {
+    user: {
+      id: Number(userRaw.id),
+      nombre: userRaw.nombre ?? payload.nombre,
+      email: userRaw.email ?? payload.email,
+      rol: userRaw.rol === 'admin' ? 'admin' : 'user',
+      activo: typeof userRaw.activo === 'boolean' ? userRaw.activo : true,
+      createdAt: userRaw.createdAt,
+      updatedAt: userRaw.updatedAt,
+    },
+    temporaryPassword: data.password ? undefined : password,
   };
-
-  return created;
 }
+
+
+
+
+
+
 
 
 async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
@@ -230,14 +310,101 @@ async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
   return normalizeUsuario(raw);
 }
 
-  async deleteUsuario(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+  // services/usuarioService.ts
+// services/usuarioService.ts
+async deleteUsuario(id: number): Promise<{ success: boolean; message?: string }> {
+  const headers = getAuthHeaders();
 
-    await this.handleResponse<void>(response);
+  const tryDelete = async (url: string) => {
+    const res = await fetch(url, { method: 'DELETE', headers });
+    if (res.status === 204) return { success: true, message: 'Usuario eliminado correctamente' };
+    const ct = res.headers.get('content-type') || '';
+    const isJson = ct.includes('application/json');
+    const body = isJson ? await res.json().catch(() => null) : await res.text().catch(() => '');
+    if (!res.ok) {
+      const msg = (body && (body.message || body.error)) || (typeof body === 'string' ? body : `Error ${res.status}`);
+      return { success: false, message: msg };
+    }
+    const success = typeof (body as any)?.success === 'boolean' ? (body as any).success : true;
+    const message = (body as any)?.message || 'Usuario eliminado correctamente';
+    return { success, message };
+  };
+
+  const verifyGone = async (): Promise<boolean> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/usuarios/${id}`, { headers });
+    if (r.status === 404) return true; // ✅ hard delete exitoso
+
+    const ct = r.headers.get('content-type') || '';
+    const isJson = ct.includes('application/json');
+    const body = isJson ? await r.json().catch(() => null) : await r.text().catch(() => '');
+
+    const raw = isJson ? (body?.data ?? body) : {};
+
+    // ✅ consideramos eliminado si alguna de estas condiciones se cumple
+    const eliminado = raw?.eliminado === true || !!raw?.deleted || !!raw?.deletedAt;
+
+    // 🔒 NUEVO: también consideramos eliminado si ya no está activo (opcional)
+    const inactivo = raw?.activo === false;
+
+    return eliminado || inactivo;
+  } catch {
+    return true; // si falla la consulta, asumimos eliminado
   }
+};
+
+
+  // 1) intentos DELETE
+  let res =
+    await tryDelete(`${API_BASE_URL}/usuarios/${id}`) ??
+    { success: false as const };
+
+  if (!res.success) {
+    const candidates = [
+      `${API_BASE_URL}/usuarios/${id}?hard=1`,
+      `${API_BASE_URL}/usuarios/${id}?force=true`,
+      `${API_BASE_URL}/usuarios/${id}?permanent=1`,
+    ];
+    for (const url of candidates) {
+      const r2 = await tryDelete(url);
+      if (r2.success) { res = r2; break; }
+    }
+  }
+
+  // 2) si DELETE falló, fallback a SOFT-DELETE por PATCH
+  if (!res.success) {
+    try {
+      const r = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          eliminado: true,
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+          activo: false,
+        }),
+      });
+      if (!r.ok && r.status !== 204) {
+        const ct = r.headers.get('content-type') || '';
+        const isJson = ct.includes('application/json');
+        const body = isJson ? await r.json().catch(() => null) : await r.text().catch(() => '');
+        const msg = (body && (body.message || body.error)) || (typeof body === 'string' ? body : `Error ${r.status}`);
+        return { success: false, message: msg };
+      }
+      res = { success: true, message: 'Usuario eliminado (soft-delete)' };
+    } catch (e: any) {
+      return { success: false, message: e?.message || 'No se pudo eliminar' };
+    }
+  }
+
+  // 3) verificación final
+  const gone = await verifyGone();
+  if (!gone) return { success: false, message: 'No se pudo eliminar definitivamente (el usuario sigue existiendo)' };
+  return res;
+}
+
+
+
 
  async toggleUsuarioStatus(id: number, activo: boolean): Promise<Usuario> {
   const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
