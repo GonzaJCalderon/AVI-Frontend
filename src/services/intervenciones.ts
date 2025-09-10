@@ -312,16 +312,25 @@ export const eliminarIntervencionSoft = async (id: number) => {
   });
 };
 
+// ✅ Usa los endpoints correctos del backend
 export const cambiarEstadoIntervencion = async (id: number, nuevoEstado: string) => {
-  const payload = { estado: nuevoEstado };
+  const estado = nuevoEstado.toLowerCase();
 
-  console.log(`📦 Enviando PATCH /intervenciones/${id}`, payload);
+  if (estado === 'archivada' || estado === 'archivado') {
+    return await apiFetch(`/intervenciones/${id}/archivar`, {
+      method: 'PATCH',
+    });
+  }
 
-  return await apiFetch(`/intervenciones/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload)
-  });
+  if (estado === 'activa' || estado === 'activo') {
+    return await apiFetch(`/intervenciones/${id}/activar`, {
+      method: 'PATCH',
+    });
+  }
+
+  throw new Error(`❌ No hay un endpoint definido para cambiar el estado a "${nuevoEstado}"`);
 };
+
 
 
 export const activarIntervencion = async (id: number) => {

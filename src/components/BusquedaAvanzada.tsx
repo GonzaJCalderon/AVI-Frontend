@@ -229,32 +229,30 @@ export default function BusquedaAvanzada({
 </Grid>
 
 
+{/* FECHAS: Fecha desde y hasta en un solo bloque */}
+<Grid item xs={12} sm={12} md={4}>
+  <Box display="flex" gap={1}>
+    <TextField
+      fullWidth
+      type="date"
+      label="Desde"
+      name="fechaDesde"
+      value={filtro.fechaDesde}
+      onChange={handleFiltroInput}
+      InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
+    />
+    <TextField
+      fullWidth
+      type="date"
+      label="Hasta"
+      name="fechaHasta"
+      value={filtro.fechaHasta}
+      onChange={handleFiltroInput}
+      InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
+    />
+  </Box>
+</Grid>
 
-
-        {/* FECHAS */}
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField
-            fullWidth
-            type="date"
-            label="Fecha desde"
-            name="fechaDesde"
-            value={filtro.fechaDesde}
-            onChange={handleFiltroInput}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <TextField
-            fullWidth
-            type="date"
-            label="Fecha hasta"
-            name="fechaHasta"
-            value={filtro.fechaHasta}
-            onChange={handleFiltroInput}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
 
         {/* BOTONES: Exportar / Limpiar */}
         <Grid item xs={12} sm={12} md={4}>

@@ -186,9 +186,9 @@ export default function TablaFormularios({
             <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
           ),
 
-          !esEliminado && (
-            <MenuItem key="estado" onClick={() => handleAccion('estado')}>🔄 Cambiar estado</MenuItem>
-          ),
+          // !esEliminado && (
+          //   <MenuItem key="estado" onClick={() => handleAccion('estado')}>🔄 Cambiar estado</MenuItem>
+          // ),
 
           !esEliminado && !esArchivado && (
             <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
