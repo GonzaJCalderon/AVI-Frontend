@@ -1,4 +1,3 @@
-// utils/constants.ts
 export const departments = [
   'Capital', 'Godoy Cruz', 'Junín', 'Las Heras', 'Maipú', 'Guaymallén', 'Rivadavia',
   'San Martín', 'La Paz', 'Santa Rosa', 'General Alvear', 'Malargüe', 'San Carlos',
@@ -30,6 +29,25 @@ export const delitoKeyMap: Record<string, string> = {
 };
 
 /**
+ * Lista de géneros disponibles para formularios
+ */
+export const generos = [
+  'Masculino',
+  'Femenino',
+  'No binario',
+  'Agénero',
+  'Género fluido',
+  'Bigénero',
+  'Transgénero',
+  'Mujer trans',
+  'Hombre trans',
+  'Intergénero',
+  'Intersex',
+  'Otro',
+  'Prefiero no decirlo',
+];
+
+/**
  * Estados válidos de la UI (normalizados desde el backend)
  * Backend: "activo" | "archivado" | "eliminado"
  * UI:      "Activo" | "Archivado" | "Eliminado"
@@ -37,7 +55,6 @@ export const delitoKeyMap: Record<string, string> = {
 export const ESTADOS_UI = ['Activo', 'Archivado', 'Eliminado'] as const;
 export type EstadoUI = (typeof ESTADOS_UI)[number];
 
-// Mapa de colores centralizado (usalo en chips y en dots)
 export const estadoColorMap: Record<EstadoUI, string> = {
   Activo: '#4CAF50',
   Archivado: '#2196F3',

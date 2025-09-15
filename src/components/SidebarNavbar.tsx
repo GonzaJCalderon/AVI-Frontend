@@ -88,19 +88,18 @@ const navItems = [
     ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' }]
     : []),
   {
-    label: 'Formulario para imprimir',
+    label: 'Formulario en blanco',
     icon: <PrintIcon />,
-    path: '/formulario.pdf',
+    path: '/formulario_vacio.html', // ✅ apunta al formulario vacío
     action: 'imprimir-pdf'
   },
   {
-  label: 'Listar Formularios',
-  icon: <DescriptionIcon />,
-  path: '/listar-formularios',
-},
-
-
+    label: 'Listar Formularios',
+    icon: <DescriptionIcon />,
+    path: '/listar-formularios',
+  },
 ];
+
 
 
   const userItems = [

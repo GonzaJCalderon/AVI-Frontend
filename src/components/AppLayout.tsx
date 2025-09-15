@@ -15,7 +15,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <Box display="flex">
-      {!shouldHideSidebar && <SidebarNavbar />}
+      {!shouldHideSidebar && (
+        <div className="no-print">
+          <SidebarNavbar />
+        </div>
+      )}
       <Box component="main" flexGrow={1} p={0} sx={{ minHeight: '100vh' }}>
         {children}
       </Box>

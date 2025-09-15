@@ -15,43 +15,54 @@ export type IntervencionItem = {
   eliminado?: boolean;
   resena_hecho?: string;
 
-  derivaciones?: Array<{
+derivaciones?: Array<{
+  id: number;
+  tipo_derivacion_id: number;
+  derivador?: string;
+  fecha_derivacion?: string;
+
+  // ✅ Estas son las propiedades que tu componente espera
+  municipio?: string;       // Para {{MUNICIPIO_NOMBRE}}
+  otro_texto?: string;      // Para {{OTRO_DERIVACION_TEXTO}}
+
+  tipo_derivaciones?: {
     id: number;
-    tipo_derivacion_id: number;
-    derivador?: string;
-    fecha_derivacion?: string;
-    tipo_derivaciones?: {
-      id: number;
-      descripcion: string;
-    };
-  }>;
+    descripcion: string;
+  };
+}>;
+
 
   hechos_delictivos?: Array<{
     id: number;
     expediente?: string;
     num_agresores?: number;
 
-    relaciones?: Array<{
-      id: number;
-      hecho_delictivo_id: number;
-      robo: boolean;
-      robo_arma_fuego: boolean;
-      robo_arma_blanca: boolean;
-      amenazas: boolean;
-      lesiones: boolean;
-      lesiones_arma_fuego: boolean;
-      lesiones_arma_blanca: boolean;
-      homicidio_delito: boolean;
-      homicidio_accidente_vial: boolean;
-      homicidio_av_hecho: boolean;
-      femicidio: boolean;
-      travestisidio_transfemicidio: boolean;
-      violencia_genero: boolean;
-      otros: boolean;
-    }>;
+  relaciones?: Array<{
+  id: number;
+  hecho_delictivo_id: number;
+  robo: boolean;
+  robo_arma_fuego: boolean;
+  robo_arma_blanca: boolean;
+  amenazas: boolean;
+  lesiones: boolean;
+  lesiones_arma_fuego: boolean;
+  lesiones_arma_blanca: boolean;
+  homicidio: boolean;                 // ✅
+  homicidio_accidente_vial: boolean;  // ✅
+  homicidio_av_hecho: boolean;        // ✅
+  homicidio_delito: boolean;          // ✅
+  violencia_genero: boolean;          // ✅
+  femicidio: boolean;                 // ✅
+  transfemicidio: boolean;            // ✅
+  abuso_sexual_simple: boolean;       // ✅
+  abuso_sexual_agravado: boolean;     // ✅
+  otros: boolean;
+}>;
+
 
     geo?: Array<{
       domicilio?: string;
+         fecha?: string; 
       departamentos?: {
         id?: number;
         descripcion?: string;
@@ -64,10 +75,12 @@ export type IntervencionItem = {
     id?: number;
     dni?: string;
     nombre?: string;
-    genero?: number;
+genero?: number;
+genero_id?: number;
     fecha_nacimiento?: string;
     telefono?: string;
     ocupacion?: string;
+     cantidad_victima_por_hecho?: number; 
     direccion_id?: number;
     direccion?: {
       id: number;
@@ -159,109 +172,79 @@ type IntervencionesListResponse = {
  * Payload EXACTO que espera el backend para POST/PATCH /api/intervenciones
  */
 export type CreateIntervencionPayload = {
-  intervencion: {
-    coordinador: string
-    operador: string
-    fecha: string
-    resena_hecho: string
-  }
+  intervencion: { coordinador: string; operador: string; fecha: string; resena_hecho: string; }
 
-derivacion: {
-  motivos: number
-  derivador: string
-  fecha_derivacion: string  // ✅ CORRECTO
-}
-  
+  derivacion: { motivos: number; derivador: string; fecha_derivacion: string }
+
   hechoDelictivo: {
     expediente: string
     numAgresores: number
+    fecha: string            // ✅ nuevo
+    hora: string             // ✅ nuevo (ej "14:30")
     ubicacion: {
       calleBarrio: string
-      departamento: number
+      departamento: number   // ✅ sin "localidad" aquí
     }
     tipoHecho: {
-      robo: boolean
-      roboArmaFuego: boolean
-      roboArmaBlanca: boolean
-      amenazas: boolean
-      lesiones: boolean
-      lesionesArmaFuego: boolean
-      lesionesArmaBlanca: boolean
-      homicidioDelito: boolean
-      homicidioAccidenteVial: boolean
-      homicidioAvHecho: boolean
-      femicidio: boolean
- travestisidioTransfemicidio: boolean; 
-      violenciaGenero: boolean
-      otros: boolean
+      robo: boolean; roboArmaFuego: boolean; roboArmaBlanca: boolean;
+      amenazas: boolean; lesiones: boolean; lesionesArmaFuego: boolean; lesionesArmaBlanca: boolean;
+      homicidioDelito: boolean; homicidioAccidenteVial: boolean; homicidioAvHecho: boolean;
+      femicidio: boolean; travestisidioTransfemicidio: boolean; violenciaGenero: boolean; otros: boolean;
     }
   }
-  
+
   accionesPrimeraLinea: string
-  
-  abusoSexual: {
+
+  abusoSexual: {               // ✅ sigue igual pero ahora la UI permitirá dejar ambos en false
     simple: boolean
     agravado: boolean
   }
-  
+
   datosAbusoSexual: {
-    kit: string
-    relacion: string
+    kit: string               // "SI" | "NO" | "" (vacío si no aplica)
+    relacion: string          // "Conocido" | "Desconocido" | "Familiar" | "Pareja" | "Otro"
     relacionOtro: string
-    lugarHecho: string
+    lugarHecho: string        // "Institución" | "Vía pública" | "Domicilio" | "Lugar de trabajo" | "Otro"
     lugarOtro: string
   }
-  
-  victima: {
-    dni: string
-    nombre: string
-    genero: number
-    fechaNacimiento: string
-    telefono: string
-    ocupacion: string
-    direccion: {
-      calleNro: string
-      barrio: string
-      departamento: number
-      localidad: number
-    }
-  }
-  
+
+victima: {
+  dni: string;
+  nombre: string;
+  genero: number;
+  fechaNacimiento: string;     // ✅ usar este, NO cantidad_victima_por_hecho
+  telefono: string;
+  ocupacion: string;
+  cantidadVictimas: number;    // ✅ este es el que pide el backend
+direccion: {
+  calleNro: string;
+  barrio: string;
+  departamento: number; // <--- 👈 espera number
+  localidad: number;    // <--- 👈 espera number
+};
+}
+
+
+
   personaEntrevistada: {
     nombre: string
     relacionVictima: string
-    direccion: {
-      calleNro: string
-      barrio: string
-      departamento: number
-      localidad: number
-    }
+    direccion: { calleNro: string; barrio: string; departamento: number; localidad: number; }
   }
-  
+
   tipoIntervencion: {
-    crisis: boolean
-    telefonica: boolean
-    domiciliaria: boolean
-    psicologica: boolean
-    medica: boolean
-    social: boolean
-    legal: boolean
-    sinIntervencion: boolean
-    archivoCaso: boolean
+    crisis: boolean; telefonica: boolean; domiciliaria: boolean; psicologica: boolean;
+    medica: boolean; social: boolean; legal: boolean; sinIntervencion: boolean; archivoCaso: boolean;
   }
-  
+
   seguimiento: {
     realizado: boolean
-    tipo: {
-      asesoramientoLegal: boolean
-      tratamientoPsicologico: boolean
-      seguimientoLegal: boolean
-      archivoCaso: boolean
-    }
+    tipo: { asesoramientoLegal: boolean; tratamientoPsicologico: boolean; seguimientoLegal: boolean; archivoCaso: boolean; }
   }
-  
+
   detalleSeguimiento: string
 }
+
 
 export type IntervencionCreated = {
   id: number

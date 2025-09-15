@@ -59,10 +59,13 @@ import {
   cambiarEstadoMultipleConVerificacion, 
   debugCambioEstado,
    activarIntervencion, 
+    obtenerIntervencionPorId,
 } from '@/services/intervenciones';
 
 // ✅ Importar el tipo desde el archivo de tipos
 import { Formulario } from '@/types/formulario';
+import html2pdf from 'html2pdf.js';
+
 
 
 export default function InicioPage() {
@@ -358,86 +361,89 @@ const limpiarFiltros = () => {
     setSelectedId(null);
   };
 
-  const handleAccion = async (accion: string) => {
-    if (!selectedId) return;
+ const handleAccion = async (accion: string) => {
+  if (!selectedId) return;
 
-    try {
-      switch (accion) {
-        case 'ver':
-          router.push(`/ver-formularios?id=${selectedId}`);
-          break;
-
-        case 'editar':
-          router.push(`/editar-formulario?id=${selectedId}`);
-          break;
-
-        case 'imprimir':
-          window.open(`/imprimir-formulario?id=${selectedId}`, '_blank');
-          break;
-
-        case 'listar':
-          router.push(`/listar-formularios`);
-          break;
-
-        case 'estado':
-          // ✅ Solo permitir cambio de estado si NO está eliminado
-          const formulario = formularios.find(f => f.id === selectedId);
-          if (formulario?.estado === 'Eliminado') {
-            alert('No se puede cambiar el estado de una intervención eliminada');
-            break;
-          }
-          setSeleccionados([selectedId]);
-          setOpenEstadoDialog(true);
-          break;
-
-        case 'archivar': {
-          // ✅ Archivar: mueve directamente a archivo (cualquier estado -> Archivado) 
-          // Esta acción es administrativa, no implica resolución del caso
-          await archivarIntervencion(Number(selectedId));
-          setFormularios(prev =>
-            prev.map(f => f.id === selectedId ? { ...f, estado: 'Archivado' as EstadoUI } : f)
-          );
-          break;
-        }
-        case 'activar': {
-  // Evitar activar eliminados
-  const formulario = formularios.find(f => f.id === selectedId);
-  if (formulario?.estado === 'Eliminado') {
-    alert('No se puede activar una intervención eliminada');
-    break;
-  }
-
-  await activarIntervencion(Number(selectedId));
-
-  // Reflejamos en el estado local
-  setFormularios(prev =>
-    prev.map(f => f.id === selectedId ? { ...f, estado: 'Activo' as EstadoUI } : f)
-  );
-
-  // Si usás app router, refresca datos en pantalla (opcional)
-  router.refresh?.();
-
+  try {
+    switch (accion) {
+     case 'ver':
+  router.push(`/imprimir-formulario?id=${selectedId}&modo=ver`);
   break;
-}
+
+case 'imprimir':
+  router.push(`/imprimir-formulario?id=${selectedId}&modo=imprimir`);
+  break;
+
+case 'descargar':
+  router.push(`/imprimir-formulario?id=${selectedId}&modo=descargar`);
+  break;
 
 
-        case 'eliminar': {
-          const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
-          if (!ok) break;
-          await eliminarIntervencionSoft(Number(selectedId));
-          // ✅ Cambiar estado a "Eliminado" en lugar de remover
-          setFormularios(prev => 
-            prev.map(f => f.id === selectedId ? { ...f, estado: 'Eliminado' as EstadoUI } : f)
-          );
+      case 'editar':
+        router.push(`/editar-formulario?id=${selectedId}`);
+        break;
+
+      case 'listar':
+        router.push(`/listar-formularios`);
+        break;
+
+      case 'estado': {
+        const formulario = formularios.find(f => f.id === selectedId);
+        if (formulario?.estado === 'Eliminado') {
+          alert('No se puede cambiar el estado de una intervención eliminada');
           break;
         }
+        setSeleccionados([selectedId]);
+        setOpenEstadoDialog(true);
+        break;
       }
-    } catch (err: any) {
-      alert(err?.message || 'Ocurrió un error realizando la acción');
-    } finally {
-      handleCloseMenu();
+
+      case 'archivar': {
+        await archivarIntervencion(Number(selectedId));
+        setFormularios(prev =>
+          prev.map(f =>
+            f.id === selectedId ? { ...f, estado: 'Archivado' as EstadoUI } : f
+          )
+        );
+        break;
+      }
+
+      case 'activar': {
+        const formulario = formularios.find(f => f.id === selectedId);
+        if (formulario?.estado === 'Eliminado') {
+          alert('No se puede activar una intervención eliminada');
+          break;
+        }
+        await activarIntervencion(Number(selectedId));
+        setFormularios(prev =>
+          prev.map(f =>
+            f.id === selectedId ? { ...f, estado: 'Activo' as EstadoUI } : f
+          )
+        );
+        router.refresh?.();
+        break;
+      }
+
+      case 'eliminar': {
+        const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
+        if (!ok) break;
+        await eliminarIntervencionSoft(Number(selectedId));
+        setFormularios(prev =>
+          prev.map(f =>
+            f.id === selectedId ? { ...f, estado: 'Eliminado' as EstadoUI } : f
+          )
+        );
+        break;
+      }
     }
-  };
+  } catch (err: any) {
+    alert(err?.message || 'Ocurrió un error realizando la acción');
+  } finally {
+    handleCloseMenu();
+  }
+};
+
+
 
   // Navega a creación de caso
   const handleNuevoCaso = () => {

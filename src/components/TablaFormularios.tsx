@@ -144,7 +144,6 @@ export default function TablaFormularios({
                 <TableCell>{formatearFecha(f.fecha)}</TableCell>
                 <TableCell>{renderEstadoChip(f.estado || 'sin estado')}</TableCell>
                 <TableCell>{obtenerDelitos(f)}</TableCell>
-                {/* 🔧 Fix: sin tilde */}
                 <TableCell>{(f as any).reseña_hecho || '—'}</TableCell>
                 <TableCell>{obtenerDepartamento(f)}</TableCell>
                 <TableCell align="center">
@@ -172,40 +171,36 @@ export default function TablaFormularios({
 
       {/* Menú contextual por fila */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-        {[
-          <MenuItem key="ver" onClick={() => handleAccion('ver')}>👁️ Ver</MenuItem>,
-          !esEliminado && (
-            <MenuItem key="editar" onClick={() => handleAccion('editar')}>✏️ Editar</MenuItem>
-          ),
-          <MenuItem key="imprimir" onClick={() => handleAccion('imprimir')}>🖨️ Imprimir</MenuItem>,
+        {!esEliminado && (
+          <MenuItem key="editar" onClick={() => handleAccion('editar')}>✏️ Editar</MenuItem>
+        )}
 
-          <Divider key="divider-1" />,
+        {/* ✅ Acciones directas sobre el documento */}
+        <MenuItem key="ver" onClick={() => handleAccion('ver')}>👁️ Ver</MenuItem>
+        <MenuItem key="imprimir" onClick={() => handleAccion('imprimir')}>🖨️ Imprimir</MenuItem>
+        <MenuItem key="descargar" onClick={() => handleAccion('descargar')}>⬇️ Descargar</MenuItem>
 
-          // ✅ Activar: visible si NO está eliminada y NO está activa
-          !esEliminado && !esActivo && (
-            <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
-          ),
+        <Divider />
 
-          // !esEliminado && (
-          //   <MenuItem key="estado" onClick={() => handleAccion('estado')}>🔄 Cambiar estado</MenuItem>
-          // ),
+        {!esEliminado && !esActivo && (
+          <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
+        )}
 
-          !esEliminado && !esArchivado && (
-            <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
-          ),
+        {!esEliminado && !esArchivado && (
+          <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
+        )}
 
-          !esEliminado && <Divider key="divider-2" />,
+        {!esEliminado && <Divider />}
 
-          !esEliminado && (
-            <MenuItem
-              key="eliminar"
-              onClick={() => handleAccion('eliminar')}
-              sx={{ color: 'error.main' }}
-            >
-              🗑️ Eliminar
-            </MenuItem>
-          ),
-        ].filter(Boolean)}
+        {!esEliminado && (
+          <MenuItem
+            key="eliminar"
+            onClick={() => handleAccion('eliminar')}
+            sx={{ color: 'error.main' }}
+          >
+            🗑️ Eliminar
+          </MenuItem>
+        )}
       </Menu>
     </Paper>
   );

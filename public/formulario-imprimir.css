@@ -1,0 +1,144 @@
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  body { 
+    -webkit-print-color-adjust: exact; 
+    print-color-adjust: exact; 
+  }
+  .no-print { display:none !important; }
+  .sheet { box-shadow: none !important; margin: 0 !important; }
+}
+
+:root {
+  --text:#111;
+  --muted:#555;
+  --line:#222;
+  --accent:#000;
+  --font: "Arial", "Helvetica Neue", Helvetica, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  background: #f3f3f3;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+/* Contenedor principal */
+.sheet {
+  width: 210mm; 
+  min-height: 297mm;
+  background: #fff;
+  margin: auto;
+  padding: 10mm;
+  box-shadow: 0 8px 28px rgba(0,0,0,.10);
+  position: relative;
+}
+
+/* Encabezado */
+.header {
+  display: grid;
+  grid-template-columns: 1fr 35mm;
+  align-items: center;
+  gap: 4mm;
+  margin-bottom: 4mm;
+  margin-top: -4mm; /* Reduce espacio superior */
+}
+.logo {
+  width: 55mm;
+  height: 55mm;
+  object-fit: contain;
+  justify-self: end;
+}
+.header-center { text-align: center; }
+.header-center .org { font-weight: 700; font-size: 12pt; margin-bottom: 1mm; }
+.header-center .proto {
+  display: inline-block;
+  padding: 1.5mm 3.5mm;
+  border: 1.2px solid var(--line);
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+/* Secciones */
+.section {
+  margin-top: 4mm;
+  border: 1.2px solid var(--line);
+  padding: 3.5mm;
+  page-break-inside: avoid; /* evita cortes feos dentro */
+}
+
+/* Solo la sección 4 fuerza nueva hoja */
+.section.break-before {
+  page-break-before: always;
+}
+
+.section-header {
+  display: flex; 
+  align-items: baseline; 
+  gap: 4mm; 
+  margin-bottom: 3mm;
+}
+.section-number { font-weight: 700; font-size: 11pt; }
+.section-title { font-size: 11pt; font-weight: 700; letter-spacing: .2px; }
+
+/* Campos con línea */
+.field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2mm 3mm;
+  align-items: end;
+  margin-bottom: 2.5mm;
+}
+.field .label { white-space: nowrap; font-weight: 600; }
+.field .line {
+  border-bottom: 1px solid var(--line);
+  height: 5mm;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+.field.inline { grid-template-columns: auto 50mm auto 1fr; }
+
+/* Checkboxes */
+.options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4mm;
+  font-size: 10pt;
+}
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  white-space: nowrap;
+}
+.box {
+  width: 4mm;
+  height: 4mm;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10pt;
+  font-weight: bold;
+}
+
+/* Multi-línea */
+.multiline {
+  border: 1px solid var(--line);
+  height: 22mm; /* optimizado para que todo entre */
+  margin-top: 2mm;
+}
+.multiline.tall { height: 35mm; }
+
+/* Grillas */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 8mm; }

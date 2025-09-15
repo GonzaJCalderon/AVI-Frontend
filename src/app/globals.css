@@ -10,6 +10,10 @@
   /* Ya ocultás botones y .no-print */
   button, .no-print {
     display: none !important;
+  
+  }
+   .no-print {
+    display: none !important;
   }
 
   html, body {
@@ -50,3 +54,10 @@ html, body {
 nextjs-portal > div[data-nextjs-toast="true"] {
   display: none !important;
 }
+
+.mover-bloque-superior {
+  position: relative !important;
+  top: -20mm !important; /* 2 cm hacia arriba */
+}
+
+
