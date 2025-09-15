@@ -639,7 +639,8 @@ export default function ListarFormulariosPage() {
         <Tooltip title="Ver detalle" arrow>
           <IconButton 
             color="primary" 
-         onClick={() => router.push(`/ver-formularios?id=${formulario.id}`)}
+      onClick={() => router.push(`/imprimir-formulario?id=${formulario.id}`)}
+
 
           >
             <VisibilityIcon />
