@@ -272,12 +272,20 @@ const mapped: Formulario[] = data.map((it) => {
       />
     );
   }
-
-  const handleFiltroInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+const handleFiltroInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  
+  // Validar que DNI solo contenga números
+  if (name === 'dni') {
+    // Permitir solo números (0-9)
+    const soloNumeros = value.replace(/[^0-9]/g, '');
+    setFiltro((prev) => ({ ...prev, [name]: soloNumeros }));
+  } else {
     setFiltro((prev) => ({ ...prev, [name]: value }));
-    setPagina(1);
-  };
+  }
+  
+  setPagina(1);
+};
 
 const handleFiltroSelect = (
   event: SelectChangeEvent<string> | { target: { name: string; value: string } }

@@ -51,7 +51,7 @@ interface Props {
   handleExportarExcel: () => void;
   EstadoDot: ({ estado }: { estado: string }) => React.ReactElement;
   estadosParaFiltro?: string[];
-  onReset: () => void; // 👈 nuevo
+  onReset: () => void;
 }
 
 export default function BusquedaAvanzada({
@@ -61,7 +61,7 @@ export default function BusquedaAvanzada({
   handleExportarExcel,
   EstadoDot,
   estadosParaFiltro = [...ESTADOS_UI],
-  onReset, // 👈 nuevo
+  onReset,
 }: Props) {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
@@ -92,6 +92,17 @@ export default function BusquedaAvanzada({
     ? localidades.filter((l) => l.departamento_id === departamentoSeleccionado.id)
     : [];
 
+  const handleDniChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onlyNumbers = e.target.value.replace(/\D/g, '').slice(0, 8);
+    handleFiltroInput({
+      ...e,
+      target: {
+        ...e.target,
+        value: onlyNumbers,
+      },
+    });
+  };
+
   return (
     <Paper id="busqueda-avanzada" sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -99,13 +110,12 @@ export default function BusquedaAvanzada({
       </Typography>
 
       <Grid container spacing={2}>
-        {/* CAMPOS DE TEXTO */}
+        {/* CAMPOS DE TEXTO COMUNES */}
         {[
           ['Coordinador', 'coordinador'],
           ['Operador', 'operador'],
           ['Víctima', 'victima'],
           ['Número', 'numero'],
-          ['DNI', 'dni'],
         ].map(([label, name]) => (
           <Grid item xs={12} sm={6} md={4} key={name}>
             <TextField
@@ -118,39 +128,65 @@ export default function BusquedaAvanzada({
           </Grid>
         ))}
 
-        {/* SELECT MULTIPLE DE DELITOS (con label como "Fecha desde") */}
-<Grid item xs={12} sm={6} md={4}>
-  <TextField
-    fullWidth
-    select
-    label="Delitos"
-    name="delito"
-    value={filtro.delito}
-    onChange={handleFiltroSelect}
-    InputLabelProps={{ shrink: true }}                // 👈 fuerza el label arriba
-    SelectProps={{
-      multiple: true,
-      displayEmpty: true,
-      renderValue: (selected) => {
-        const values = selected as string[];
-        if (!values.length) return 'Todos';
-        return (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {values.map((v) => <Chip key={v} label={v} />)}
-          </Box>
-        );
-      },
-    }}
-  >
-    {delitos.map((delito) => (
-      <MenuItem key={delito} value={delito}>
-        <Checkbox checked={filtro.delito.includes(delito)} />
-        {delito}
-      </MenuItem>
-    ))}
-  </TextField>
+        {/* CAMPO DNI NUMÉRICO */}
+     <Grid item xs={12} sm={6} md={4}>
+<TextField
+  label="DNI"
+  name="dni"
+  value={filtro.dni}
+  onChange={handleFiltroInput}
+  onKeyPress={(e) => {
+    // Prevenir entrada de caracteres que no sean números
+    if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+      e.preventDefault();
+    }
+  }}
+  placeholder="Solo números"
+  inputProps={{
+    maxLength: 8, // Opcional: limitar a 8 dígitos típicos del DNI argentino
+    pattern: '[0-9]*', // Patrón HTML5 para solo números
+    inputMode: 'numeric' // Mostrar teclado numérico en móviles
+  }}
+  size="small"
+  sx={{ minWidth: 120 }}
+/>
 </Grid>
 
+
+        {/* SELECT MULTIPLE DE DELITOS */}
+        <Grid item xs={12} sm={6} md={4}>
+          <TextField
+            fullWidth
+            select
+            label="Delitos"
+            name="delito"
+            value={filtro.delito}
+            onChange={handleFiltroSelect}
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{
+              multiple: true,
+              displayEmpty: true,
+              renderValue: (selected) => {
+                const values = selected as string[];
+                if (!values.length) return 'Todos';
+                return (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {values.map((v) => (
+                      <Chip key={v} label={v} />
+                    ))}
+                  </Box>
+                );
+              },
+            }}
+          >
+            {delitos.map((delito) => (
+              <MenuItem key={delito} value={delito}>
+                <Checkbox checked={filtro.delito.includes(delito)} />
+                {delito}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
 
         {/* SELECT DEPARTAMENTO */}
         <Grid item xs={12} sm={6} md={4}>
@@ -172,89 +208,65 @@ export default function BusquedaAvanzada({
           </FormControl>
         </Grid>
 
-        {/* SELECT LOCALIDAD (si lo querés visible, descomenta)
-        {filtro.departamento && (
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth>
-              <InputLabel id="localidad-label">Localidad</InputLabel>
-              <Select
-                labelId="localidad-label"
-                name="localidad"
-                value={filtro.localidad || ''}
-                onChange={handleFiltroSelect}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {localidadesFiltradas.map((loc) => (
-                  <MenuItem key={loc.id} value={loc.nombre}>
-                    {loc.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-        )} */}
+        {/* SELECT ESTADO */}
+        <Grid item xs={12} sm={6} md={4}>
+          <TextField
+            fullWidth
+            select
+            label="Estado"
+            name="estado"
+            value={filtro.estado}
+            onChange={handleFiltroSelect}
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{
+              renderValue: (selected) => {
+                if (selected === 'Todos' || selected === '') return 'Todos';
+                return (
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <EstadoDot estado={selected as string} />
+                    {selected as string}
+                  </Box>
+                );
+              },
+            }}
+          >
+            <MenuItem value="Todos">Todos</MenuItem>
+            {estadosParaFiltro.map((estado) => (
+              <MenuItem key={estado} value={estado}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <EstadoDot estado={estado} />
+                  {estado}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
 
-{/* SELECT ESTADO (con TextField para que el label se vea como en las fechas) */}
-<Grid item xs={12} sm={6} md={4}>
-  <TextField
-    fullWidth
-    select
-    label="Estado"
-    name="estado"
-    value={filtro.estado}
-    onChange={handleFiltroSelect}
-    InputLabelProps={{ shrink: true }}   // 👈 hace que se vea como "Fecha desde"
-    SelectProps={{
-      renderValue: (selected) => {
-        if (selected === 'Todos' || selected === '') return 'Todos'
-        return (
-          <Box display="flex" alignItems="center" gap={1}>
-            <EstadoDot estado={selected as string} />
-            {selected as string}
+        {/* FECHAS */}
+        <Grid item xs={12} sm={12} md={4}>
+          <Box display="flex" gap={1}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Desde"
+              name="fechaDesde"
+              value={filtro.fechaDesde}
+              onChange={handleFiltroInput}
+              InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
+            />
+            <TextField
+              fullWidth
+              type="date"
+              label="Hasta"
+              name="fechaHasta"
+              value={filtro.fechaHasta}
+              onChange={handleFiltroInput}
+              InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
+            />
           </Box>
-        )
-      },
-    }}
-  >
-    <MenuItem value="Todos">Todos</MenuItem>
-    {estadosParaFiltro.map((estado) => (
-      <MenuItem key={estado} value={estado}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <EstadoDot estado={estado} />
-          {estado}
-        </Box>
-      </MenuItem>
-    ))}
-  </TextField>
-</Grid>
+        </Grid>
 
-
-{/* FECHAS: Fecha desde y hasta en un solo bloque */}
-<Grid item xs={12} sm={12} md={4}>
-  <Box display="flex" gap={1}>
-    <TextField
-      fullWidth
-      type="date"
-      label="Desde"
-      name="fechaDesde"
-      value={filtro.fechaDesde}
-      onChange={handleFiltroInput}
-      InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
-    />
-    <TextField
-      fullWidth
-      type="date"
-      label="Hasta"
-      name="fechaHasta"
-      value={filtro.fechaHasta}
-      onChange={handleFiltroInput}
-      InputLabelProps={{ shrink: true, sx: { fontSize: '0.8rem' } }}
-    />
-  </Box>
-</Grid>
-
-
-        {/* BOTONES: Exportar / Limpiar */}
+        {/* BOTONES */}
         <Grid item xs={12} sm={12} md={4}>
           <Box display="flex" gap={1} width="100%">
             <Button
