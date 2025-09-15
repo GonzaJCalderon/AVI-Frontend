@@ -403,6 +403,20 @@ async deleteUsuario(id: number): Promise<{ success: boolean; message?: string }>
   return res;
 }
 
+async enviarResetPasswordEmail(email: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Error desconocido');
+    throw new Error(error || 'Error al enviar correo de reinicio');
+  }
+
+  return true;
+}
 
 
 
@@ -479,5 +493,7 @@ async deleteUsuario(id: number): Promise<{ success: boolean; message?: string }>
     }
   }
 }
+
+
 
 export const usuarioService = new UsuarioService();

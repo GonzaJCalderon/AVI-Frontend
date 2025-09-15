@@ -36,6 +36,9 @@ import LockOpenIcon from '@mui/icons-material/LockOpen'
 import FormularioCrearUsuario from '@/components/FormularioCrearUsuario'
 import { useUsuarios } from '@/hooks/useUsuarios'
 import { Usuario } from '@/services/usuarioService'
+import TablaUsuarios from '@/components/TablaUsuarios'
+import { usuarioService } from '@/services/usuarioService'
+
 
 export default function AdminUsuariosPage() {
   const router = useRouter();
@@ -69,6 +72,11 @@ export default function AdminUsuariosPage() {
 
   // Forzar re-render cuando usuarios cambie
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [pagina, setPagina] = useState(1);
+const USUARIOS_POR_PAGINA = 10;
+
+const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloqueados'>('todos');
+
 
   const handleEditar = (user: Usuario) => {
     setEditandoId(user.id)
@@ -140,28 +148,39 @@ export default function AdminUsuariosPage() {
     }
   }
 
-  const reiniciarPassword = async (user: Usuario) => {
-    try {
-      const result = await resetPassword(user.id)
-      if (result?.temporaryPassword) {
-        alert(`Nueva contraseña para ${user.email}: ${result.temporaryPassword}`)
-        setNotification({ 
-          open: true, 
-          message: 'Contraseña reiniciada exitosamente', 
-          severity: 'success' 
-        })
-      } else {
-        setNotification({ open: true, message: 'Error al reiniciar contraseña', severity: 'error' })
-      }
-    } catch (error) {
-      console.error('Error reiniciando contraseña:', error)
-      setNotification({ open: true, message: 'Error al reiniciar contraseña', severity: 'error' })
-    }
+ const reiniciarPassword = async (user: Usuario) => {
+  try {
+    await usuarioService.enviarResetPasswordEmail(user.email)
+    setNotification({
+      open: true,
+      message: `Se envió un email de restablecimiento a ${user.email}`,
+      severity: 'success',
+    })
+  } catch (error: any) {
+    console.error('Error al enviar email de restablecimiento:', error)
+    setNotification({
+      open: true,
+      message: error.message || 'Error al enviar el correo',
+      severity: 'error',
+    })
   }
+}
 
-  const usuariosFiltrados = usuarios.filter((u) =>
-    `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase())
-  )
+ const usuariosFiltrados = usuarios
+  .filter(u => `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase()))
+  .filter(u => {
+    if (filtroEstado === 'activos') return u.activo;
+    if (filtroEstado === 'bloqueados') return !u.activo;
+    return true; // todos
+  });
+
+const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA);
+
+const usuariosPaginados = usuariosFiltrados.slice(
+  (pagina - 1) * USUARIOS_POR_PAGINA,
+  pagina * USUARIOS_POR_PAGINA
+);
+
 const handleUserCreated = (tempPassword?: string) => {
   setNotification({
     open: true,
@@ -234,166 +253,41 @@ const handleUserCreated = (tempPassword?: string) => {
               ),
             }}
           />
-        </Box>
+          <Box display="flex" alignItems="center" gap={2} mt={2}>
+  <Typography variant="body2">Filtrar por estado:</Typography>
+  <Select
+    size="small"
+    value={filtroEstado}
+    onChange={(e) => {
+      setFiltroEstado(e.target.value as 'todos' | 'activos' | 'bloqueados');
+      setPagina(1); // volver a página 1 cuando se aplica un filtro
+    }}
+  >
+    <MenuItem value="todos">Todos</MenuItem>
+    <MenuItem value="activos">Activos</MenuItem>
+    <MenuItem value="bloqueados">Bloqueados</MenuItem>
+  </Select>
+</Box>
 
-        <TableContainer>
-          <Table key={refreshTrigger}>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Rol</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell align="right">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {usuariosFiltrados
-                .filter((user) => typeof user.id === 'number' && !isNaN(user.id))
-                .map((user) => (
-                  <TableRow key={`${user.id}-${refreshTrigger}`}>
-                    <TableCell>{user.id}</TableCell>
-                    <TableCell>
-                      {editandoId === user.id ? (
-                        <TextField
-                          size="small"
-                          value={editForm.nombre}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm, nombre: e.target.value })
-                          }
-                          autoFocus
-                        />
-                      ) : (
-                        user.nombre
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editandoId === user.id ? (
-                        <TextField
-                          size="small"
-                          type="email"
-                          value={editForm.email}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm, email: e.target.value })
-                          }
-                        />
-                      ) : (
-                        user.email
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editandoId === user.id ? (
-                        <Select
-                          size="small"
-                          value={editForm.rol}
-                          onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              rol: e.target.value as 'admin' | 'user',
-                            })
-                          }
-                        >
-                          <MenuItem value="admin">Admin</MenuItem>
-                          <MenuItem value="user">Usuario</MenuItem>
-                        </Select>
-                      ) : (
-                        <Chip 
-                          label={user.rol === 'admin' ? 'Admin' : 'Usuario'}
-                          color={user.rol === 'admin' ? 'secondary' : 'default'}
-                          size="small"
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {user.activo ? (
-                        <Chip label="Activo" color="success" size="small" />
-                      ) : (
-                        <Chip label="Bloqueado" color="error" size="small" />
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      {editandoId === user.id ? (
-                        <>
-                          <Tooltip title="Guardar cambios">
-                            <IconButton 
-                              onClick={() => guardarCambios(user.id)}
-                              disabled={updating}
-                              color="success"
-                            >
-                              {updating ? (
-                                <CircularProgress size={20} />
-                              ) : (
-                                <SaveIcon />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Cancelar edición">
-                            <IconButton 
-                              onClick={cancelarEdicion}
-                              disabled={updating}
-                              color="warning"
-                            >
-                              <CancelIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <>
-                          <Tooltip title="Editar usuario">
-                            <IconButton onClick={() => handleEditar(user)}>
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={user.activo ? 'Bloquear usuario' : 'Activar usuario'}>
-                            <IconButton
-                              onClick={() => toggleActivo(user.id, user.activo)}
-                              disabled={updating}
-                            >
-                              {user.activo ? (
-                                <LockIcon color="warning" />
-                              ) : (
-                                <LockOpenIcon color="success" />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Reiniciar contraseña">
-                            <IconButton 
-                              onClick={() => reiniciarPassword(user)}
-                              disabled={updating}
-                            >
-                              <LockResetIcon color="primary" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip
-                            title={
-                              user.rol === 'admin'
-                                ? 'No puedes eliminar a un admin'
-                                : 'Eliminar usuario'
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                onClick={() => eliminarUsuario(user.id, user.rol)}
-                                disabled={user.rol === 'admin' || deleting}
-                                color="error"
-                              >
-                                {deleting ? (
-                                  <CircularProgress size={20} />
-                                ) : (
-                                  <DeleteIcon />
-                                )}
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        </Box>
+<TablaUsuarios
+  usuarios={usuariosPaginados}
+  busqueda={busqueda}
+  editandoId={editandoId}
+  editForm={editForm}
+  onEdit={handleEditar}
+  onCancel={cancelarEdicion}
+  onSave={guardarCambios}
+  onDelete={(id) => eliminarUsuario(id, 'user')}
+  onToggleActivo={(id) => {
+    const user = usuarios.find(u => u.id === id)
+    if (user) toggleActivo(id, user.activo)
+  }}
+  onResetPassword={reiniciarPassword}
+  onBusquedaChange={setBusqueda}
+  onEditFormChange={setEditForm}
+/>
+
 
         {usuariosFiltrados.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
