@@ -118,6 +118,7 @@ export default function ImprimirFormularioExacto() {
     return {
       // === DATOS INTERVENCIÓN ===
       '{{FECHA}}': formatDate(d?.fecha),
+      '{{HORA}}': d?.fecha?.split('T')[1]?.slice(0,5) || '',
       '{{COORDINADOR}}': d?.coordinador || '',
       '{{NRO_FICHA}}': d?.numero_intervencion || id || '',
       '{{OPERADOR}}': d?.operador || '',
@@ -156,7 +157,9 @@ export default function ImprimirFormularioExacto() {
       '{{DELITO_ABUSO_SIMPLE}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.abuso_sexual_simple ? 'X' : '',
       '{{DELITO_ABUSO_AGRAVADO}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.abuso_sexual_agravado ? 'X' : '',
       '{{DELITO_VIOLENCIA_GENERO}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.violencia_genero ? 'X' : '',
+      '{{DELITO_OTROS}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.otros ? 'X' : '',
 
+      
       '{{UBICACION}}': d?.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '',
       '{{DEPTO_HECHO}}': getDepartamentoNombre(d?.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id),
       '{{FECHA_HECHO}}': formatDate(d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha),
@@ -165,7 +168,10 @@ export default function ImprimirFormularioExacto() {
       // === ACCIONES PRIMERA LÍNEA ===
       '{{ACCIONES_1L}}': d?.acciones_primera_linea?.[0]?.acciones || '',
 
-      // === ABUSO SEXUAL ===
+      // === ABUSO SEXUAL =
+'{{ABUSO_SIMPLE}}': d?.abusos_sexuales?.[0]?.tipo_abuso === 1 ? 'X' : '',
+'{{ABUSO_AGRAVADO}}': d?.abusos_sexuales?.[0]?.tipo_abuso === 2 ? 'X' : '',
+
       '{{KIT_SI}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.kit?.toUpperCase() === 'SI' ? 'X' : '',
       '{{KIT_NO}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.kit?.toUpperCase() === 'NO' ? 'X' : '',
       '{{REL_CONOCIDO}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.relacion === 'Conocido' ? 'X' : '',
@@ -207,6 +213,18 @@ export default function ImprimirFormularioExacto() {
       '{{DEPTO_VICTIMA}}': getDepartamentoNombre(d?.victimas?.[0]?.direccion?.departamento),
       '{{OCUPACION}}': d?.victimas?.[0]?.ocupacion || '',
 
+ '{{ENTREV_NOMBRE}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.nombre || '',
+'{{ENTREV_RELACION}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.relacion_victima || '',
+'{{ENTREV_CALLE}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion
+  ? `${d.victimas[0].personas_entrevistadas[0].direccion.calle_nro || ''}, ${d.victimas[0].personas_entrevistadas[0].direccion.barrio || ''}`
+  : '',
+
+
+'{{ENTREV_DEPTO}}': getDepartamentoNombre(d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.departamento),
+'{{ENTREV_LOCALIDAD}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.localidad || '',
+
+
+
       // === TIPO DE INTERVENCIÓN ===
       '{{TIPO_CRISIS}}': d?.intervenciones_tipo?.[0]?.crisis ? 'X' : '',
       '{{TIPO_SOCIAL}}': d?.intervenciones_tipo?.[0]?.social ? 'X' : '',
@@ -214,11 +232,23 @@ export default function ImprimirFormularioExacto() {
       '{{TIPO_TELEFONICA}}': d?.intervenciones_tipo?.[0]?.telefonica ? 'X' : '',
       '{{TIPO_PSICOLOGICA}}': d?.intervenciones_tipo?.[0]?.psicologica ? 'X' : '',
       '{{TIPO_MEDICA}}': d?.intervenciones_tipo?.[0]?.medica ? 'X' : '',
+      '{{TIPO_DOMICILIARIA}}': d?.intervenciones_tipo?.[0]?.domiciliaria ? 'X' : '',
+'{{TIPO_SIN_INTERV}}': d?.intervenciones_tipo?.[0]?.sin_intervencion ? 'X' : '',
+'{{TIPO_ARCHIVO_CASO}}': d?.intervenciones_tipo?.[0]?.archivo_caso ? 'X' : '',
+
 
       // === SEGUIMIENTO ===
       '{{DETALLE_INTERV}}': d?.seguimientos?.[0]?.detalles?.[0]?.detalle || '',
       '{{SEGUIM_SI}}': d?.seguimientos?.[0]?.hubo === true ? 'X' : '',
-      '{{SEGUIM_NO}}': d?.seguimientos?.[0]?.hubo === false ? 'X' : ''
+      '{{SEGUIM_NO}}': d?.seguimientos?.[0]?.hubo === false ? 'X' : '',
+'{{SEG_AS_LEGAL}}': d?.seguimientos?.[0]?.tipo?.[0]?.asesoramientolegal ? 'X' : '',
+'{{SEG_TRAT_PSICO}}': d?.seguimientos?.[0]?.tipo?.[0]?.tratamientopsicologico ? 'X' : '',
+'{{SEG_SEGUIMIENTO_LEGAL}}': d?.seguimientos?.[0]?.tipo?.[0]?.seguimientolegal ? 'X' : '',
+'{{SEG_ARCHIVO_CASO}}': d?.seguimientos?.[0]?.tipo?.[0]?.archivocaso ? 'X' : '',
+
+
+
+
     }
   }, [data, id, departamentos])
 

@@ -79,21 +79,22 @@ export default function InicioPage() {
   const departamentosRef = useRef<Departamento[]>([]);
 
   // ✅ Filtros
-  type FiltroFormularios = {
-    coordinador: string;
-    operador: string;
-    victima: string;
-    numero: string;
-    dni: string;
-    fechaDesde: string;
-    fechaHasta: string;
-    estado: string;
-    delito: string[];
-    departamento: string;
-    localidad: string;
-  };
+type FiltroFormularios = {
+  coordinador: string;
+  operador: string;
+  victima: string;
+  numero: string;
+  dni: string;
+  fechaDesde: string;
+  fechaHasta: string;
+  estado: string;
+  delito: string[];
+  departamento: string[]; // ⬅️ Antes era string
+  localidad: string;
+};
 
-  const filtrosIniciales: FiltroFormularios = {
+
+const filtrosIniciales: FiltroFormularios = {
   coordinador: '',
   operador: '',
   victima: '',
@@ -103,9 +104,10 @@ export default function InicioPage() {
   fechaHasta: '',
   estado: 'Todos',
   delito: [],
-  departamento: '',
+  departamento: [], // ⬅️ Array vacío
   localidad: '',
 };
+
 
 const [filtro, setFiltro] = useState<FiltroFormularios>(filtrosIniciales);
 
@@ -323,10 +325,11 @@ const limpiarFiltros = () => {
     fechaHasta: '',
     estado: 'Todos',
     delito: [],
-    departamento: '',
+    departamento: [], // ⬅️ Array vacío
     localidad: '',
   });
 };
+
 
 
   const handleImprimirSeleccionados = () => {
@@ -480,7 +483,8 @@ const formulariosFiltrados = useMemo(() => {
   const hasNumeroFilter = Boolean(filtro.numero);
   const hasDniFilter = Boolean(filtro.dni);
   const hasDelitoFilter = filtro.delito.length > 0;
-  const hasDepartamentoFilter = Boolean(filtro.departamento);
+ const hasDepartamentoFilter = filtro.departamento.length > 0;
+
   const hasLocalidadFilter = Boolean(filtro.localidad);
   const hasEstadoFilter = filtro.estado && filtro.estado !== 'Todos';
   const hasFechaDesdeFilter = Boolean(filtro.fechaDesde);
@@ -512,15 +516,12 @@ const formulariosFiltrados = useMemo(() => {
       if (!delitosLower.some(delitoFiltro => delitoLower.includes(delitoFiltro))) return false;
     }
     
-if (hasDepartamentoFilter) {
-  console.log('🧪 Comparando departamento:', {
-    formularioDepartamentoId: f.departamentoId,
-    filtroDepartamento: filtro.departamento,
-    match: String(f.departamentoId) === filtro.departamento
-  });
+const hasDepartamentoFilter = filtro.departamento.length > 0;
 
-  if (String(f.departamentoId) !== filtro.departamento) return false;
+if (hasDepartamentoFilter) {
+  if (!filtro.departamento.includes(String(f.departamentoId))) return false;
 }
+
 
     // Exact match filters
 
@@ -575,7 +576,7 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       fechaHasta: '',
       estado: 'Todos',
       delito: [],
-      departamento: '',
+     departamento: [],
       localidad: '',
     });
     setPagina(1);

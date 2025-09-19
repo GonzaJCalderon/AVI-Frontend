@@ -1,31 +1,45 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { 
+  useState, 
+  useEffect, 
+  useRef, 
+  useCallback 
+} from 'react';
+import { useRouter } from 'next/navigation';
+
+// Material UI
 import {
   Box,
-  Typography,
-  TextField,
-  FormControlLabel,
-  Checkbox,
-  FormGroup,
-  Divider,
-  RadioGroup,
-  Radio,
-  FormLabel,
   Button,
-  Grid,
-  MenuItem,
-  Select,
-  InputLabel,
+  Checkbox,
+  Divider,
   FormControl,
+  FormControlLabel,
+  FormGroup,
+  FormHelperText,
+  FormLabel,
+  Grid,
+  InputLabel,
+  MenuItem,
   Paper,
-  Snackbar,
-  Alert,
-  CircularProgress,
+  Radio,
+  RadioGroup,
+  Select,
+  TextField,
+  Typography,
+  Snackbar
 } from '@mui/material';
 
-import { useRouter } from 'next/navigation';
-import { actualizarIntervencion, type IntervencionItem } from '@/services/intervenciones';
+import MuiAlert from '@mui/material/Alert';
+
+// Servicios
+import { actualizarIntervencion } from '@/services/intervenciones';
+
+// Tipado que te está faltando
+import type { IntervencionItem } from '@/types/intervencion'; // 🔁 Asegurate de tener este tipo definido
+
+
 
 /** ========================
  *  Tipos flexibles (API)
@@ -160,6 +174,19 @@ const toOptionalPositiveNumber = (v: string | number | ''): number | null => {
   return !isNaN(n) && n > 0 ? n : null;
 };
 
+// 🔍 Buscar nombre de un departamento por su ID
+function getNombreDepartamento(id: string | number, departamentos: { id: string; nombre: string }[]): string {
+  const dep = departamentos.find((d) => String(d.id) === String(id));
+  return dep?.nombre ?? '';
+}
+
+// 🔍 Buscar nombre de una localidad por su ID
+function getNombreLocalidad(id: string | number, localidades: { id: string; nombre: string; departamento_id: string }[]): string {
+  const loc = localidades.find((l) => String(l.id) === String(id));
+  return loc?.nombre ?? '';
+}
+
+
 const sanitizeNumber = (v: any): number | null => {
   if (v === '' || v == null) return null;
   const n = Number(v);
@@ -215,6 +242,7 @@ type FormState = {
   violenciaGenero: boolean;
   otros: boolean;
   departamentoHecho: string | number | '';
+   localidadHecho: string | number | ''; 
   calleBarrioHecho: string;
   fechaHecho: string;
   horaHecho: string;
@@ -222,9 +250,9 @@ type FormState = {
   abusoSexualSimple: boolean;
   abusoSexualAgravado: boolean;
   kitAplicado: 'si' | 'no' | '';
-  relacionAgresor: 'conocido' | 'familiar' | 'desconocido' | '';
+relacionAgresor: 'Conocido' | 'Desconocido' | 'Familiar' | 'Pareja' | 'Otro' | '';
   otroRelacion: string;
-  tipoLugar: 'institucion' | 'viaPublica' | 'domParticular' | '';
+tipoLugar: 'Institución' | 'Vía Pública' | 'Domicilio Particular' | 'Lugar de Trabajo' | 'Otro' | '';
   otroLugar: string;
   dni: string;
   nombreVictima: string;
@@ -293,7 +321,12 @@ const FastTextField: React.FC<FastTextFieldProps> = ({ name, value, onCommit, ve
 /** ========================
  *  Mapeo de datos API -> FormState
  *  ======================== */
-const mapearDatosAPI = (api: IntervencionDetalle): FormState => {
+const mapearDatosAPI = (
+  api: IntervencionDetalle,
+  departamentos: Array<{ id: string; nombre: string }>,
+  localidades: Array<{ id: string; nombre: string; departamento_id: string }>
+): FormState => {
+
   // Datos básicos
   const fechaIntervencion = toDateInput(api.fecha);
   const coordinador = api.coordinador ?? '';
@@ -313,7 +346,12 @@ const mapearDatosAPI = (api: IntervencionDetalle): FormState => {
   const nroAgresores = String(hd.numAgresores ?? hd.num_agresores ?? '');
   const geo0 = hd.geo?.[0];
   const calleBarrioHecho = hd.ubicacion?.calleBarrio ?? geo0?.domicilio ?? '';
-  const departamentoHecho = hd.ubicacion?.departamento ?? geo0?.departamento_id ?? '';
+  const departamentoHechoID = hd.ubicacion?.departamento ?? geo0?.departamento_id ?? '';
+const departamentoHechoNombre = getNombreDepartamento(departamentoHechoID, departamentos);
+const localidadHechoID = hd.ubicacion?.localidad ?? geo0?.localidad_id ?? '';
+const localidadHechoNombre = getNombreLocalidad(localidadHechoID, localidades);
+
+
   const fechaHecho = toDateInput(geo0?.fecha);
   const horaHecho = toTimeInput(geo0?.fecha);
 
@@ -353,32 +391,43 @@ const transfemicidio = !!(
   if (rel === 'conocido' || rel === 'familiar' || rel === 'desconocido') relacionAgresor = rel as any;
   const otroRelacion = relacionAgresor ? '' : abusoDatos?.relacion_otro ?? '';
 
-  let tipoLugar: FormState['tipoLugar'] = '';
-  const lugar = (abusoDatos?.lugar_hecho || '').toLowerCase();
-  if (lugar === 'institucion') tipoLugar = 'institucion';
-  else if (['vía pública', 'via publica', 'viapublica'].includes(lugar)) tipoLugar = 'viaPublica';
-  else if (['domicilio particular', 'dom particular', 'domparticular'].includes(lugar)) tipoLugar = 'domParticular';
-  const otroLugar = tipoLugar ? '' : abusoDatos?.lugar_otro ?? '';
+let tipoLugar: FormState['tipoLugar'] = '';
+const lugar = (abusoDatos?.lugar_hecho || '').toLowerCase();
 
-  // Víctima
-  const vict = api.victimas?.[0];
-  const dni = vict?.dni ?? '';
-  const nombreVictima = vict?.nombre ?? '';
-  const genero = (vict?.genero ?? vict?.genero_id) ?? '';
-  const fechaNacimiento = toDateInput(vict?.fecha_nacimiento);
-  const telefono = vict?.telefono ?? '';
-  const calleNro = vict?.direccion?.calle_nro ?? '';
-  const barrio = vict?.direccion?.barrio ?? '';
-  const departamento = vict?.direccion?.departamento ?? '';
-  const localidad = vict?.direccion?.localidad ?? '';
+if (lugar === 'institucion') tipoLugar = 'Institución';
+else if (['vía pública', 'via publica', 'viapublica'].includes(lugar)) tipoLugar = 'Vía Pública';
+else if (['domicilio particular', 'dom particular', 'domparticular'].includes(lugar)) tipoLugar = 'Domicilio Particular';
+else if (['lugar de trabajo', 'trabajo', 'lugar trabajo'].includes(lugar)) tipoLugar = 'Lugar de Trabajo';
+else if (lugar === 'otro') tipoLugar = 'Otro';
+
+const otroLugar = tipoLugar ? '' : (abusoDatos?.lugar_otro ?? '');
+// Víctima
+const vict = api.victimas?.[0];
+const dni = vict?.dni ?? '';
+const nombreVictima = vict?.nombre ?? '';
+const genero = (vict?.genero ?? vict?.genero_id) ?? '';
+const fechaNacimiento = toDateInput(vict?.fecha_nacimiento);
+const telefono = vict?.telefono ?? '';
+const calleNro = vict?.direccion?.calle_nro ?? '';
+const barrio = vict?.direccion?.barrio ?? '';
+const departamentoID = vict?.direccion?.departamento ?? '';
+const localidadID = vict?.direccion?.localidad ?? '';
+const departamentoNombre = getNombreDepartamento(departamentoID, departamentos);
+const localidadNombre = getNombreLocalidad(localidadID, localidades);
+
+
   const ocupacion = vict?.ocupacion ?? '';
 
   const ent = vict?.personas_entrevistadas?.[0];
   const entrevistadoNombre = ent?.nombre ?? '';
   const entrevistadoCalle = ent?.direccion?.calle_nro ?? '';
   const entrevistadoBarrio = ent?.direccion?.barrio ?? '';
-  const entrevistadoDepartamento = ent?.direccion?.departamento ?? '';
-  const entrevistadoLocalidad = ent?.direccion?.localidad ?? '';
+const entrevistadoDepartamentoID = ent?.direccion?.departamento ?? '';
+const entrevistadoDepartamentoNombre = getNombreDepartamento(entrevistadoDepartamentoID, departamentos);
+
+const entrevistadoLocalidadID = ent?.direccion?.localidad ?? '';
+const entrevistadoLocalidadNombre = getNombreLocalidad(entrevistadoLocalidadID, localidades);
+
   const entrevistadoRelacion = ent?.relacion_victima ?? '';
 
   // Intervenciones
@@ -427,7 +476,9 @@ const transfemicidio = !!(
     transfemicidio,
     violenciaGenero,
     otros,
-    departamentoHecho: departamentoHecho ?? '',
+  departamentoHecho: departamentoHechoNombre || departamentoHechoID || '',
+   localidadHecho: localidadHechoNombre || localidadHechoID || '',
+
     calleBarrioHecho,
     fechaHecho,
     horaHecho,
@@ -446,14 +497,16 @@ const transfemicidio = !!(
     telefono,
     calleNro,
     barrio,
-    departamento,
-    localidad,
+departamento: departamentoID || '',  // ✅ SOLO ID
+  localidad: localidadID || '', 
+
     ocupacion,
     entrevistadoNombre,
     entrevistadoCalle,
     entrevistadoBarrio,
-    entrevistadoDepartamento,
-    entrevistadoLocalidad,
+   entrevistadoDepartamento: entrevistadoDepartamentoNombre || entrevistadoDepartamentoID || '',
+entrevistadoLocalidad: entrevistadoLocalidadNombre || entrevistadoLocalidadID || '',
+
     entrevistadoRelacion,
     crisis,
     telefonica,
@@ -484,6 +537,14 @@ type Props = {
  *  Componente principal (controlado)
  *  ======================== */
 const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
+  if (!selected) {
+  return (
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h6">Cargando intervención...</Typography>
+    </Box>
+  );
+}
+
   const router = useRouter();
 
   // Estado para UI
@@ -501,6 +562,24 @@ const [localidades, setLocalidades] = useState<Array<{
   nombre: string;
   departamento_id: string;
 }>>([]);
+
+// ✅ Estados para manejo de errores y alertas
+const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+const [mostrarErrores, setMostrarErrores] = useState(false);
+const [errores, setErrores] = useState<string[]>([]);
+const [snackbarOpen, setSnackbarOpen] = useState(false);
+const [snackbarMessage, setSnackbarMessage] = useState('');
+const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
+const showNotification = (message: string, severity: 'success' | 'error') => {
+  setSnackbarMessage(message);
+  setSnackbarSeverity(severity);
+  setSnackbarOpen(true);
+};
+
+const handleCloseSnackbar = () => {
+  setSnackbarOpen(false);
+};
 
 
 useEffect(() => {
@@ -520,81 +599,90 @@ useEffect(() => {
 
 
   // Buffer mutable (no re-render por tecla en FastTextField)
-  const bufferRef = useRef<FormState>({
-    fechaIntervencion: '',
-    coordinador: '',
-    operador: '',
-    observaciones: '',
-    derivadorNombre: '',
-    horaDerivacion: '',
-    motivoDerivacion: '',
-    nroExpediente: '',
-    nroAgresores: '',
-    robo: false,
-    roboArmaFuego: false,
-    roboArmaBlanca: false,
-    amenazas: false,
-    lesiones: false,
-    lesionesArmaFuego: false,
-    lesionesArmaBlanca: false,
-    homicidioDelito: false,
-    homicidioAccidenteVial: false,
-    homicidioAvHecho: false,
-    femicidio: false,
-    transfemicidio: false,
-    violenciaGenero: false,
-    otros: false,
-    departamentoHecho: '',
-    calleBarrioHecho: '',
-    fechaHecho: '',
-    horaHecho: '',
-    accionesPrimeraLinea: '',
-    abusoSexualSimple: false,
-    abusoSexualAgravado: false,
-    kitAplicado: '',
-    relacionAgresor: '',
-    otroRelacion: '',
-    tipoLugar: '',
-    otroLugar: '',
-    dni: '',
-    nombreVictima: '',
-    genero: '',
-    fechaNacimiento: '',
-    telefono: '',
-    calleNro: '',
-    barrio: '',
-    departamento: '',
-    localidad: '',
-    ocupacion: '',
-    entrevistadoNombre: '',
-    entrevistadoCalle: '',
-    entrevistadoBarrio: '',
-    entrevistadoDepartamento: '',
-    entrevistadoLocalidad: '',
-    entrevistadoRelacion: '',
-    crisis: false,
-    telefonica: false,
-    domiciliaria: false,
-    psicologica: false,
-    medica: false,
-    social: false,
-    legal: false,
-    sinIntervencion: false,
-    archivoCaso: false,
-    seguimientoRealizado: '',
-    segAsesoramientoLegal: false,
-    segTratamientoPsicologico: false,
-    segSeguimientoLegal: false,
-    segArchivoCaso: false,
-    detalleSeguimiento: '',
-  });
+const bufferRef = useRef<FormState>({
+  fechaIntervencion: '',
+  coordinador: '',
+  operador: '',
+  observaciones: '',
+  derivadorNombre: '',
+  horaDerivacion: '',
+  motivoDerivacion: '',
+  nroExpediente: '',
+  nroAgresores: '',
+  robo: false,
+  roboArmaFuego: false,
+  roboArmaBlanca: false,
+  amenazas: false,
+  lesiones: false,
+  lesionesArmaFuego: false,
+  lesionesArmaBlanca: false,
+  homicidioDelito: false,
+  homicidioAccidenteVial: false,
+  homicidioAvHecho: false,
+  femicidio: false,
+  transfemicidio: false,
+  violenciaGenero: false,
+  otros: false,
+  departamentoHecho: '',
+  localidadHecho: '', // ✅ AGREGADO AQUÍ
+  calleBarrioHecho: '',
+  fechaHecho: '',
+  horaHecho: '',
+  accionesPrimeraLinea: '',
+  abusoSexualSimple: false,
+  abusoSexualAgravado: false,
+  kitAplicado: '',
+  relacionAgresor: '',
+  otroRelacion: '',
+  tipoLugar: '',
+  otroLugar: '',
+  dni: '',
+  nombreVictima: '',
+  genero: '',
+  fechaNacimiento: '',
+  telefono: '',
+  calleNro: '',
+  barrio: '',
+  departamento: '',
+  localidad: '',
+  ocupacion: '',
+  entrevistadoNombre: '',
+  entrevistadoCalle: '',
+  entrevistadoBarrio: '',
+  entrevistadoDepartamento: '',
+  entrevistadoLocalidad: '',
+  entrevistadoRelacion: '',
+  crisis: false,
+  telefonica: false,
+  domiciliaria: false,
+  psicologica: false,
+  medica: false,
+  social: false,
+  legal: false,
+  sinIntervencion: false,
+  archivoCaso: false,
+  seguimientoRealizado: '',
+  segAsesoramientoLegal: false,
+  segTratamientoPsicologico: false,
+  segSeguimientoLegal: false,
+  segArchivoCaso: false,
+  detalleSeguimiento: '',
+});
 
   // Inicialización desde selected (una sola vez y cuando cambie)
-  useEffect(() => {
-    const formData = mapearDatosAPI(selected as unknown as IntervencionDetalle);
-    bufferRef.current = formData;
-    setVersion((v) => v + 1);
-  }, [selected]);
+useEffect(() => {
+  if (!selected || departamentos.length === 0 || localidades.length === 0) return;
+
+  const formData = mapearDatosAPI(
+    selected as unknown as IntervencionDetalle,
+    departamentos,
+    localidades
+  );
+
+  bufferRef.current = formData;
+  setVersion((v) => v + 1);
+}, [selected, departamentos, localidades]);
+
 
   // Commit genérico (no forza re-render por defecto para no laggear textos)
   const commit = useCallback((name: keyof FormState, next: string | number | boolean) => {
@@ -621,6 +709,59 @@ useEffect(() => {
     [forceCommit]
   );
 
+  const validarFormulario = (): string[] => {
+  const nuevosErrores: string[] = [];
+
+  // 1️⃣ Coordinador obligatorio
+  if (!f.coordinador.trim()) {
+    nuevosErrores.push("El nombre y apellido del coordinador es obligatorio");
+  }
+
+  // 2️⃣ Tipo de delito
+  if (
+    !f.robo && !f.roboArmaFuego && !f.roboArmaBlanca &&
+    !f.amenazas && !f.lesiones && !f.lesionesArmaFuego &&
+    !f.lesionesArmaBlanca && !f.homicidioDelito && !f.homicidioAccidenteVial &&
+    !f.homicidioAvHecho && !f.femicidio && !f.transfemicidio &&
+    !f.violenciaGenero && !f.otros
+  ) {
+    nuevosErrores.push("Debe marcar al menos un tipo de delito");
+  }
+
+  // 3️⃣ Ubicación geográfica
+  if (!f.calleBarrioHecho.trim()) {
+    nuevosErrores.push("La ubicación geográfica del hecho es obligatoria");
+  }
+
+  // 4️⃣ Departamento de la ubicación
+  if (!f.departamentoHecho || Number(f.departamentoHecho) === 0) {
+    nuevosErrores.push("Debe seleccionar un departamento para el hecho");
+  }
+
+  // 5️⃣ Fecha del hecho
+  if (!f.fechaHecho) {
+    nuevosErrores.push("La fecha del hecho es obligatoria");
+  }
+
+  // 6️⃣ Acciones en primera línea
+  if (!f.accionesPrimeraLinea.trim()) {
+    nuevosErrores.push("Debe detallar las acciones realizadas en primera línea");
+  }
+
+  // 7️⃣ Nombre víctima
+  if (!f.nombreVictima.trim()) {
+    nuevosErrores.push("El nombre de la víctima es obligatorio");
+  }
+
+  // 8️⃣ Nombre entrevistado
+  if (!f.entrevistadoNombre.trim()) {
+    nuevosErrores.push("El nombre y apellido de la persona entrevistada es obligatorio");
+  }
+
+  return nuevosErrores;
+};
+
+
   // Guardar cambios
   const handleGuardarCambios = async () => {
   console.log('✅ Entró a handleGuardarCambios');
@@ -628,6 +769,15 @@ useEffect(() => {
       setGuardando(true);
       setMensaje(null);
       setError(null);
+
+      const erroresValidados = validarFormulario();
+setErrores(erroresValidados);
+
+if (erroresValidados.length > 0) {
+  showNotification(`Errores en el formulario:\n${erroresValidados.join('\n')}`, 'error');
+  return;
+}
+
 
       const f = bufferRef.current;
 
@@ -641,11 +791,14 @@ useEffect(() => {
       const simple   = !!f.abusoSexualSimple;
       const agravado = !!f.abusoSexualAgravado;
       const relacion = f.relacionAgresor ? f.relacionAgresor : (f.otroRelacion ? 'otro' : '');
-      const lugarHecho =
-        f.tipoLugar === 'institucion'   ? 'institucion' :
-        f.tipoLugar === 'viaPublica'    ? 'via pública' :
-        f.tipoLugar === 'domParticular' ? 'domicilio particular' :
-        (f.otroLugar ? 'otro' : '');
+  const lugarHecho =
+  f.tipoLugar === 'Institución'         ? 'institucion' :
+  f.tipoLugar === 'Vía Pública'         ? 'vía pública' :
+  f.tipoLugar === 'Domicilio Particular'? 'domicilio particular' :
+  f.tipoLugar === 'Lugar de Trabajo'    ? 'lugar de trabajo' :
+  f.tipoLugar === 'Otro'                ? 'otro' :
+  '';
+
 
     const payload = {
   intervencion: {
@@ -677,10 +830,13 @@ derivacion: {
     numAgresores: parseInt(f.nroAgresores || '0', 10) || 0,
     fecha: hechoFechaISO || '',
     hora: hechoHoraStr || '',
-   ubicacion: {
+ubicacion: {
   calleBarrio: f.calleBarrioHecho,
-    departamento: toValidPositiveNumber(f.departamentoHecho) || 0,
+  departamento: toOptionalPositiveNumber(f.departamentoHecho) ?? 0,
+  localidad: toOptionalPositiveNumber(f.localidad) ?? 0,
 },
+
+
 
 tipoHecho: {
     robo: f.robo,
@@ -754,7 +910,8 @@ personaEntrevistada: {
       archivoCaso: f.segArchivoCaso,
     },
   },
-  detalleSeguimiento: f.detalleSeguimiento,
+detalleIntervencion: f.detalleSeguimiento,
+
 };
 
 try {
@@ -806,14 +963,54 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
         <Typography variant="h6" gutterBottom>1. Datos de la Intervención</Typography>
         <Grid container spacing={2}>
           <Grid item xs={12} md={4}>
-            <TextField
-              label="Fecha de Intervención"
-              type="date"
-              fullWidth
-              value={f.fechaIntervencion}
-              onChange={(e) => forceCommit('fechaIntervencion', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
+        <TextField
+  type="date"
+  label="Fecha de Intervención *"
+  fullWidth
+  value={f.fechaIntervencion}
+  onChange={(e) => {
+    const value = e.target.value;
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const currentYear = new Date().getFullYear();
+      if (year > currentYear) {
+        const fixedDate = `${currentYear}-${match[2]}-${match[3]}`;
+        forceCommit('fechaIntervencion', fixedDate);
+        return;
+      }
+    }
+    forceCommit('fechaIntervencion', value);
+  }}
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    max: new Date().toISOString().split('T')[0],
+    min: '1900-01-01',
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const allowedKeys = [
+        'Backspace', 'Delete', 'Tab',
+        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'
+      ];
+      const isNumber = /\d/.test(e.key);
+      const isDash = e.key === '-';
+      if (!allowedKeys.includes(e.key) && !isNumber && !isDash) {
+        e.preventDefault();
+      }
+    },
+    onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+      const pasted = e.clipboardData.getData('text');
+      const match = pasted.match(/^(\d{4})/);
+      if (match) {
+        const year = parseInt(match[1], 10);
+        const currentYear = new Date().getFullYear();
+        if (year > currentYear || year < 1900) {
+          e.preventDefault();
+        }
+      }
+    }
+  }}
+/>
+
           </Grid>
           <Grid item xs={12} md={4}>
             <FastTextField
@@ -850,154 +1047,260 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
         </Grid>
       </Paper>
 
-      {/* 2. Derivación */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>2. Derivación</Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <FastTextField
-              name="derivadorNombre"
-              label="Nombre y Apellido del Derivador"
-              fullWidth
-              value={f.derivadorNombre}
-              onCommit={commit}
-              version={version}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Fecha y Hora de Derivación"
-              type="datetime-local"
-              fullWidth
-              value={f.horaDerivacion}
-              onChange={(e) => forceCommit('horaDerivacion', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth>
-              <InputLabel id="motivo-derivacion">Motivo</InputLabel>
-              <Select
-                labelId="motivo-derivacion"
-                label="Motivo"
-                value={f.motivoDerivacion === '' ? '' : Number(f.motivoDerivacion)}
-                onChange={(e) =>
-                  forceCommit('motivoDerivacion', e.target.value === '' ? '' : Number(e.target.value))
-                }
-              >
-                {motivosDerivacion.map((m) => (
-                  <MenuItem key={m.value} value={m.value}>
-                    {m.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-      </Paper>
 
-      {/* 3. Hecho delictivo */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>3. Datos del Hecho Delictivo</Typography>
-        <Grid container spacing={2} sx={{ mb: 1 }}>
-          <Grid item xs={12} md={10}>
-            <FastTextField
-              name="nroExpediente"
-              label="Número de Expediente"
-              fullWidth
-              value={f.nroExpediente}
-              onCommit={commit}
-              version={version}
+   {/* 2. Derivación */}
+<Paper sx={{ p: 3, mb: 3 }}>
+  <Typography variant="h6" gutterBottom>2. Derivación</Typography>
+
+  <Grid container spacing={2}>
+    {/* Derivador */}
+    <Grid item xs={12} md={6}>
+      <FastTextField
+        name="derivadorNombre"
+        label="Nombre y Apellido del Derivador"
+        fullWidth
+        value={f.derivadorNombre}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+
+    {/* Fecha/Hora */}
+    <Grid item xs={12} md={6}>
+      <TextField
+        type="datetime-local"
+        label="Fecha/Hora"
+        value={f.horaDerivacion}
+        onChange={(e) => forceCommit('horaDerivacion', e.target.value)}
+        InputLabelProps={{ shrink: true }}
+        inputProps={{
+          min: '1900-01-01T00:00',
+          max: new Date().toISOString().slice(0, 16), // ahora
+        }}
+        fullWidth
+      />
+    </Grid>
+
+    {/* Número de Expediente */}
+    <Grid item xs={12} md={6}>
+      <FastTextField
+        name="nroExpediente"
+        label="Número de Expediente"
+        placeholder="Ej. 1234/2023"
+        fullWidth
+        value={f.nroExpediente}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+
+    {/* Cantidad de Agresores */}
+    <Grid item xs={12} md={1}>
+      <TextField
+        fullWidth
+        type="number"
+        label="Cantidad de agresores"
+        value={f.nroAgresores}
+        onChange={(e) => forceCommit('nroAgresores', e.target.value)}
+        inputProps={{ min: 0 }}
+      />
+    </Grid>
+  </Grid>
+
+  {/* Motivos de Derivación */}
+  <Grid container spacing={2} sx={{ mt: 2 }}>
+    {motivosDerivacion.map(({ value, label }) => (
+      <Grid item xs={12} md={6} key={value}>
+        <FormControlLabel
+          control={
+            <Radio
+              checked={f.motivoDerivacion === value}
+              onChange={() => forceCommit('motivoDerivacion', value)}
             />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <TextField
-              label="Nro Agresores"
-              type="number"
-              fullWidth
-              value={f.nroAgresores}
-              onChange={(e) => forceCommit('nroAgresores', e.target.value)}
-              inputProps={{ min: 0, step: 1 }}
-            />
-          </Grid>
-        </Grid>
-        <Divider sx={{ my: 2 }} />
-        <FormLabel>Hecho delictivo</FormLabel>
-        <Grid container spacing={1} sx={{ mt: 1 }}>
-          {([
-            ['robo', 'Robo'],
-            ['roboArmaFuego', 'Robo con arma de fuego'],
-            ['roboArmaBlanca', 'Robo con arma blanca'],
-            ['amenazas', 'Amenazas'],
-            ['lesiones', 'Lesiones'],
-            ['lesionesArmaFuego', 'Lesiones con arma de fuego'],
-            ['lesionesArmaBlanca', 'Lesiones con arma blanca'],
-            ['homicidioDelito', 'Homicidio por Delito'],
-            ['homicidioAccidenteVial', 'Homicidio por Accidente Vial'],
-            ['homicidioAvHecho', 'Homicidio / Av. Hecho'],
-            ['femicidio', 'Femicidio'],
-            ['transfemicidio', 'Travestisidio / Transfemicidio'],
-            ['violenciaGenero', 'Violencia de género'],
-            ['otros', 'Otros'],
-          ] as const).map(([key, label]) => (
-            <Grid item xs={12} md={6} key={key}>
-              <FormControlLabel
-                control={
-                  // ✅ CONTROLADO (sin defaultChecked)
-                  <Checkbox
-                    checked={Boolean((f as any)[key])}
-                    onChange={onCheck(key)}
-                  />
-                }
-                label={label}
+          }
+          label={label}
+        />
+        {(value === 7 || value === 8) && f.motivoDerivacion === value && (
+          <FastTextField
+            name="derivadorNombre"
+            label={label === "Municipio" ? "Ingrese Municipio" : "Especifique Otro"}
+            fullWidth
+            sx={{ mt: 1 }}
+            value={f.derivadorNombre}
+            onCommit={commit}
+            version={version}
+          />
+        )}
+      </Grid>
+    ))}
+  </Grid>
+
+  <Divider sx={{ my: 3 }} />
+</Paper>
+
+
+     {/* 3. Hecho Delictivo */}
+<Paper sx={{ p: 3, mb: 3 }}>
+  <Typography variant="h6">3. Datos del Hecho Delictivo</Typography>
+
+  {/* Fecha y Hora del Hecho */}
+  <Grid container spacing={2} sx={{ mt: 1 }}>
+    {/* Fecha */}
+    <Grid item xs="auto">
+      <TextField
+        type="date"
+        label="Fecha del Hecho"
+        value={f.fechaHecho}
+        onChange={(e) => {
+          const value = e.target.value;
+          const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (match) {
+            const year = parseInt(match[1], 10);
+            const currentYear = new Date().getFullYear();
+            if (year > currentYear) {
+              const fixedDate = `${currentYear}-${match[2]}-${match[3]}`;
+              forceCommit('fechaHecho', fixedDate);
+              return;
+            }
+          }
+          forceCommit('fechaHecho', value);
+        }}
+        InputLabelProps={{ shrink: true }}
+        inputProps={{
+          max: new Date().toISOString().split('T')[0],
+          min: '1900-01-01',
+          onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+            const allowedKeys = [
+              'Backspace', 'Delete', 'Tab',
+              'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'
+            ];
+            const isNumber = /\d/.test(e.key);
+            const isDash = e.key === '-';
+            if (!allowedKeys.includes(e.key) && !isNumber && !isDash) {
+              e.preventDefault();
+            }
+          },
+          onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+            const pasted = e.clipboardData.getData('text');
+            const match = pasted.match(/^(\d{4})/);
+            if (match) {
+              const year = parseInt(match[1], 10);
+              const currentYear = new Date().getFullYear();
+              if (year > currentYear || year < 1900) {
+                e.preventDefault();
+              }
+            }
+          }
+        }}
+        sx={{ width: 180 }}
+      />
+    </Grid>
+
+    {/* Hora */}
+    <Grid item xs="auto">
+      <TextField
+        type="time"
+        label="Hora del Hecho *"
+        value={f.horaHecho}
+        onChange={(e) => forceCommit('horaHecho', e.target.value)}
+        InputLabelProps={{ shrink: true }}
+        inputProps={{ step: 60 }}
+        sx={{ width: 120 }}
+      />
+    </Grid>
+  </Grid>
+
+  {/* Ubicación */}
+  <Typography variant="subtitle1" sx={{ mt: 2 }}>
+    Ubicación del Hecho
+  </Typography>
+
+  <Grid container spacing={2}>
+    {/* Calle y Barrio */}
+    <Grid item xs={12} md={6}>
+      <FastTextField
+        name="calleBarrioHecho"
+        label="Calle y Barrio *"
+        placeholder="Ingrese la calle y barrio donde ocurrió el hecho"
+        fullWidth
+        value={f.calleBarrioHecho}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+
+    {/* Departamento */}
+    <Grid item xs={12} md={6}>
+      <FastTextField
+        name="departamentoHecho"
+        label="Departamento (ID / nombre)"
+        placeholder="Ej. 10 - Capital"
+        fullWidth
+        value={String(f.departamentoHecho ?? '')}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+  </Grid>
+
+  {/* Localidad */}
+<Grid item xs={12} md={6}>
+  <FastTextField
+    name="localidadHecho"
+    label="Localidad (ID / nombre)"
+    placeholder="Ej. 112 - Godoy Cruz"
+    fullWidth
+    value={String(f.localidadHecho ?? '')}
+    onCommit={commit}
+    version={version}
+  />
+</Grid>
+
+
+  {/* Tipo de Hecho */}
+  <FormControl
+    component="fieldset"
+    sx={{ width: '100%', mt: 3 }}
+  >
+    <Typography variant="subtitle1">
+      Tipo de Hecho <span style={{ color: 'red' }}>*</span>
+    </Typography>
+
+    <Grid container spacing={2} sx={{ mt: 1 }}>
+      {([
+        ['robo', 'Robo'],
+        ['roboArmaFuego', 'Robo con arma de fuego'],
+        ['roboArmaBlanca', 'Robo con arma blanca'],
+        ['amenazas', 'Amenazas'],
+        ['lesiones', 'Lesiones'],
+        ['lesionesArmaFuego', 'Lesiones con arma de fuego'],
+        ['lesionesArmaBlanca', 'Lesiones con arma blanca'],
+        ['homicidioDelito', 'Homicidio por Delito'],
+        ['homicidioAccidenteVial', 'Homicidio por Accidente Vial'],
+        ['homicidioAvHecho', 'Homicidio / Av. Hecho'],
+        ['femicidio', 'Femicidio'],
+        ['transfemicidio', 'Travestisidio / Transfemicidio'],
+        ['violenciaGenero', 'Violencia de género'],
+        ['otros', 'Otros'],
+      ] as const).map(([key, label]) => (
+        <Grid item xs={6} md={4} key={key}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={Boolean((f as any)[key])}
+                onChange={() => forceCommit(key, !(f as any)[key])}
               />
-            </Grid>
-          ))}
+            }
+            label={label}
+          />
         </Grid>
-        <Divider sx={{ my: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <FastTextField
-              name="calleBarrioHecho"
-              label="Calle y Nro / Barrio / Lugar"
-              fullWidth
-              value={f.calleBarrioHecho}
-              onCommit={commit}
-              version={version}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FastTextField
-              name="departamentoHecho"
-              label="Departamento (ID / nombre)"
-              fullWidth
-              value={String(f.departamentoHecho ?? '')}
-              onCommit={commit}
-              version={version}
-            />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="Fecha del hecho"
-              type="date"
-              fullWidth
-              value={f.fechaHecho}
-              onChange={(e) => forceCommit('fechaHecho', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="Hora del hecho"
-              type="time"
-              fullWidth
-              value={f.horaHecho}
-              onChange={(e) => forceCommit('horaHecho', e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-        </Grid>
-      </Paper>
+      ))}
+    </Grid>
+  </FormControl>
+
+  <Divider sx={{ my: 3 }} />
+</Paper>
+
 
       {/* 4. Acciones primera línea */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -1014,84 +1317,125 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
         />
       </Paper>
 
-      {/* 5. Abuso sexual */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>5. ¿Hubo Abuso Sexual?</Typography>
-        <FormGroup>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.abusoSexualSimple}
-                onChange={onCheck('abusoSexualSimple')}
-              />
-            }
-            label="Abuso Sexual Simple"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.abusoSexualAgravado}
-                onChange={onCheck('abusoSexualAgravado')}
-              />
-            }
-            label="Abuso Sexual Agravado"
-          />
-        </FormGroup>
-      </Paper>
 
-      {/* 5.1 Datos del abuso sexual */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>5.1 Datos del Abuso Sexual</Typography>
-        <FormLabel>¿Se aplicó el kit?</FormLabel>
-        <RadioGroup
-          row
+{/* 5. Abuso Sexual */}
+<Typography variant="h6">5. Abuso Sexual</Typography>
+
+<Grid container spacing={2} sx={{ mt: 2 }}>
+  {/* Abuso sexual simple */}
+  <Grid item xs={12} md={6}>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={f.abusoSexualSimple}
+          onChange={() => forceCommit('abusoSexualSimple', !f.abusoSexualSimple)}
+        />
+      }
+      label="Abuso sexual simple"
+    />
+  </Grid>
+
+  {/* Abuso sexual agravado */}
+  <Grid item xs={12} md={6}>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={f.abusoSexualAgravado}
+          onChange={() => forceCommit('abusoSexualAgravado', !f.abusoSexualAgravado)}
+        />
+      }
+      label="Abuso sexual agravado"
+    />
+  </Grid>
+
+  {/* Kit aplicado */}
+  {(f.abusoSexualSimple || f.abusoSexualAgravado) && (
+    <Grid item xs={12} md={6}>
+      <FormControl fullWidth>
+        <InputLabel>Kit aplicado *</InputLabel>
+        <Select
           value={f.kitAplicado}
-          onChange={(e) => onRadio('kitAplicado')(e as any)}
-          sx={{ mb: 2 }}
+          onChange={(e) => forceCommit('kitAplicado', e.target.value)}
         >
-          <FormControlLabel value="si" control={<Radio />} label="Sí" />
-          <FormControlLabel value="no" control={<Radio />} label="No" />
-        </RadioGroup>
-        <FormLabel>Relación entre la víctima y el presunto agresor</FormLabel>
-        <RadioGroup
-          row
-          value={f.relacionAgresor}
-          onChange={(e) => onRadio('relacionAgresor')(e as any)}
-        >
-          <FormControlLabel value="conocido" control={<Radio />} label="Conocido" />
-          <FormControlLabel value="familiar" control={<Radio />} label="Familiar" />
-          <FormControlLabel value="desconocido" control={<Radio />} label="Desconocido" />
-        </RadioGroup>
-        <FastTextField
-          sx={{ mt: 2 }}
-          name="otroRelacion"
-          label="Otro (especificar)"
-          fullWidth
-          value={f.otroRelacion}
-          onCommit={commit}
-          version={version}
-        />
-        <Divider sx={{ my: 2 }} />
-        <FormLabel>Tipo de lugar del hecho</FormLabel>
-        <RadioGroup
-          row
-          value={f.tipoLugar}
-          onChange={(e) => onRadio('tipoLugar')(e as any)}
-        >
-          <FormControlLabel value="institucion" control={<Radio />} label="Institución" />
-          <FormControlLabel value="viaPublica" control={<Radio />} label="Vía Pública" />
-          <FormControlLabel value="domParticular" control={<Radio />} label="Domicilio Particular" />
-        </RadioGroup>
-        <FastTextField
-          sx={{ mt: 2 }}
-          name="otroLugar"
-          label="Otro lugar (especificar)"
-          fullWidth
-          value={f.otroLugar}
-          onCommit={commit}
-          version={version}
-        />
-      </Paper>
+          <MenuItem value="">Seleccione...</MenuItem>
+          <MenuItem value="SI">SI</MenuItem>
+          <MenuItem value="NO">NO</MenuItem>
+        </Select>
+      </FormControl>
+    </Grid>
+  )}
+
+  {/* Relación con el agresor */}
+  <Grid item xs={12}>
+    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+      Relación entre la víctima y el presunto agresor:
+    </Typography>
+    <FormControl fullWidth>
+      <InputLabel>Relación</InputLabel>
+      <Select
+        value={f.relacionAgresor}
+        onChange={(e) => forceCommit('relacionAgresor', e.target.value)}
+      >
+        <MenuItem value="">Seleccione...</MenuItem>
+        <MenuItem value="Conocido">Conocido</MenuItem>
+        <MenuItem value="Desconocido">Desconocido</MenuItem>
+        <MenuItem value="Familiar">Familiar</MenuItem>
+        <MenuItem value="Pareja">Pareja</MenuItem>
+        <MenuItem value="Otro">Otro</MenuItem>
+      </Select>
+    </FormControl>
+  </Grid>
+
+  {/* Campo adicional cuando elige "Otro" */}
+  {f.relacionAgresor === 'Otro' && (
+    <Grid item xs={12}>
+      <FastTextField
+        name="otroRelacion"
+        label="Especifique relación"
+        fullWidth
+        value={f.otroRelacion}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+  )}
+
+  {/* Tipo del lugar del hecho */}
+  <Grid item xs={12}>
+    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+      Tipo del lugar del hecho:
+    </Typography>
+    <FormControl fullWidth>
+      <InputLabel>Seleccione lugar</InputLabel>
+      <Select
+        value={f.tipoLugar}
+        onChange={(e) => forceCommit('tipoLugar', e.target.value)}
+      >
+        <MenuItem value="">Seleccione...</MenuItem>
+        <MenuItem value="Institución">Institución</MenuItem>
+        <MenuItem value="Vía pública">Vía Pública</MenuItem>
+        <MenuItem value="Domicilio particular">Domicilio Particular</MenuItem>
+        <MenuItem value="Lugar de trabajo">Lugar de trabajo</MenuItem>
+        <MenuItem value="Otro">Otro</MenuItem>
+      </Select>
+    </FormControl>
+  </Grid>
+
+  {/* Campo adicional cuando elige "Otro" en lugar */}
+  {f.tipoLugar === 'Otro' && (
+    <Grid item xs={12}>
+      <FastTextField
+        name="otroLugar"
+        label="Especifique lugar"
+        fullWidth
+        value={f.otroLugar}
+        onCommit={commit}
+        version={version}
+      />
+    </Grid>
+  )}
+</Grid>
+
 
       {/* 6. Víctima */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -1221,19 +1565,20 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
   <Grid item xs={12} md={4}>
     <FormControl fullWidth>
       <InputLabel>--Seleccione Departamento--</InputLabel>
-      <Select
-        label="--Seleccione Departamento--"
-        value={f.departamento === '' ? '' : Number(f.departamento)}
-        onChange={(e) => {
-          forceCommit('departamento', e.target.value);
-          forceCommit('localidad', ''); // limpiamos localidad si cambia departamento
-        }}
-      >
-        <MenuItem value="">--Seleccione Departamento--</MenuItem>
-        {departamentos.map((d) => (
-          <MenuItem key={d.id} value={d.id}>{d.nombre}</MenuItem>
-        ))}
-      </Select>
+   <Select
+  label="--Seleccione Departamento--"
+  value={f.departamento?.toString() ?? ''}
+  onChange={(e) => {
+    forceCommit('departamento', e.target.value);
+    forceCommit('localidad', ''); // limpiamos localidad si cambia departamento
+  }}
+>
+  <MenuItem value="">--Seleccione Departamento--</MenuItem>
+  {departamentos.map((d) => (
+    <MenuItem key={d.id} value={d.id}>{d.nombre}</MenuItem>
+  ))}
+</Select>
+
     </FormControl>
   </Grid>
 
@@ -1241,15 +1586,18 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
     <FormControl fullWidth>
       <InputLabel>--Seleccione Localidad--</InputLabel>
       <Select
-        label="--Seleccione Localidad--"
-        value={f.localidad === '' ? '' : Number(f.localidad)}
-        onChange={(e) => forceCommit('localidad', e.target.value)}
-      >
-        <MenuItem value="">--Seleccione Localidad--</MenuItem>
-        {localidadesVictima.map((l) => (
-          <MenuItem key={l.id} value={l.id}>{l.nombre}</MenuItem>
-        ))}
-      </Select>
+  label="--Seleccione Localidad--"
+  value={String(f.localidad)} // ✅ siempre en String
+  onChange={(e) => forceCommit('localidad', e.target.value)}
+>
+  <MenuItem value="">--Seleccione Localidad--</MenuItem>
+  {localidadesVictima.map((l) => (
+    <MenuItem key={l.id} value={l.id}>
+      {l.nombre}
+    </MenuItem>
+  ))}
+</Select>
+
     </FormControl>
   </Grid>
 </Grid>
@@ -1311,7 +1659,8 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
       <InputLabel>--Seleccione Departamento--</InputLabel>
       <Select
         label="--Seleccione Departamento--"
-        value={f.entrevistadoDepartamento === '' ? '' : Number(f.entrevistadoDepartamento)}
+value={f.entrevistadoDepartamento?.toString() ?? ''}
+
         onChange={(e) => {
           forceCommit('entrevistadoDepartamento', e.target.value);
           forceCommit('entrevistadoLocalidad', ''); // Limpia localidad al cambiar depto
@@ -1330,7 +1679,8 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
       <InputLabel>--Seleccione Localidad--</InputLabel>
       <Select
         label="--Seleccione Localidad--"
-        value={f.entrevistadoLocalidad === '' ? '' : Number(f.entrevistadoLocalidad)}
+       value={f.entrevistadoLocalidad?.toString() ?? ''}
+
         onChange={(e) => forceCommit('entrevistadoLocalidad', e.target.value)}
       >
         <MenuItem value="">--Seleccione Localidad--</MenuItem>
@@ -1474,11 +1824,34 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
       </Box>
 
       <Snackbar open={!!mensaje} autoHideDuration={5000} onClose={() => setMensaje(null)}>
-        <Alert severity="success" onClose={() => setMensaje(null)}>{mensaje}</Alert>
+       <MuiAlert  severity="success" onClose={() => setMensaje(null)}>{mensaje}</MuiAlert>
       </Snackbar>
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
-        <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
+        <MuiAlert  severity="error" onClose={() => setError(null)}>{error}</MuiAlert>
       </Snackbar>
+      <Snackbar
+  open={snackbarOpen}
+  autoHideDuration={6000}
+  onClose={handleCloseSnackbar}
+  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+>
+  <MuiAlert
+    onClose={handleCloseSnackbar}
+    severity={snackbarSeverity}
+    elevation={6}
+    variant="filled"
+    sx={{
+      width: '100%',
+      fontSize: '1rem',
+      fontWeight: 500,
+    }}
+  >
+    {snackbarMessage.split('\n').map((line, idx) => (
+      <div key={idx}>{line}</div>
+    ))}
+  </MuiAlert>
+</Snackbar>
+
     </Box>
   );
 };

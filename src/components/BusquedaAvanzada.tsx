@@ -43,7 +43,8 @@ interface Props {
     fechaHasta: string;
     estado: string;
     delito: string[];
-    departamento: string;
+departamento: string[]; // ✅ Array de strings
+
     localidad?: string;
   };
   handleFiltroInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -84,13 +85,12 @@ export default function BusquedaAvanzada({
     fetchData();
   }, []);
 
-  const departamentoSeleccionado = departamentos.find(
-    (dep) => dep.id === filtro.departamento
-  );
+// ✅ NUEVO (si vas a usar localidades)
+const localidadesFiltradas = filtro.departamento.length
+  ? localidades.filter((l) => filtro.departamento.includes(l.departamento_id))
+  : [];
 
-  const localidadesFiltradas = departamentoSeleccionado
-    ? localidades.filter((l) => l.departamento_id === departamentoSeleccionado.id)
-    : [];
+
 
   const handleDniChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const onlyNumbers = e.target.value.replace(/\D/g, '').slice(0, 8);
@@ -190,22 +190,36 @@ export default function BusquedaAvanzada({
 
         {/* SELECT DEPARTAMENTO */}
         <Grid item xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
-            <InputLabel id="departamento-label">Departamento</InputLabel>
-            <Select
-              labelId="departamento-label"
-              name="departamento"
-              value={filtro.departamento}
-              onChange={handleFiltroSelect}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {departamentos.map((dep) => (
-                <MenuItem key={dep.id} value={dep.id.toString()}>
-                  {dep.nombre}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+      <FormControl fullWidth>
+  <InputLabel id="departamento-label">Departamento</InputLabel>
+  <Select
+    labelId="departamento-label"
+    name="departamento"
+    multiple // ✅ Permitir múltiples selecciones
+    value={filtro.departamento}
+    onChange={handleFiltroSelect}
+    renderValue={(selected) => (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        {(selected as string[]).map((value) => (
+          <Chip
+            key={value}
+            label={
+              departamentos.find((d) => d.id === value)?.nombre || value
+            }
+          />
+        ))}
+      </Box>
+    )}
+  >
+    {departamentos.map((dep) => (
+      <MenuItem key={dep.id} value={dep.id.toString()}>
+        <Checkbox checked={filtro.departamento.includes(dep.id.toString())} />
+        {dep.nombre}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+
         </Grid>
 
         {/* SELECT ESTADO */}

@@ -1,238 +1,254 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PROTOCOLO DE ASISTENCIA – Centro de Asistencia a Víctimas del Delito</title>
-<link rel="stylesheet" href="/formulario-imprimir.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOCOLO DE ASISTENCIA – Centro de Asistencia a Víctimas del Delito</title>
+  <link rel="stylesheet" href="/formulario-imprimir.css" />
 </head>
 <body>
-<div class="sheet">
-  <div class="header">
-    <div class="header-center">
-      <div class="org">CENTRO DE ASISTENCIA A VÍCTIMAS DEL DELITO</div>
-      <div class="proto">PROTOCOLO DE ASISTENCIA</div>
+  <div class="sheet">
+    <!-- ENCABEZADO -->
+    <div class="header">
+      <div class="header-center">
+        <div class="org">CENTRO DE ASISTENCIA A VÍCTIMAS DEL DELITO</div>
+        <div class="proto">PROTOCOLO DE ASISTENCIA</div>
+      </div>
+      <img class="logo" id="logo" src="/logo_izquierdo.png" alt="Logo Ministerio de Seguridad y Justicia">
     </div>
-    <img class="logo" id="logo" src="/logo_izquierdo.png" alt="Logo Ministerio de Seguridad y Justicia">
 
+    <!-- BLOQUE SUPERIOR: Secciones 1 a 3 -->
+    <div id="bloque-superior">
+      <!-- 1. DATOS DE LA INTERVENCIÓN -->
+      <section class="section">
+        <div class="section-header">
+          <div class="section-number">1.</div>
+          <div class="section-title">DATOS DE LA INTERVENCIÓN</div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><div class="label">Fecha:</div><div class="line">{{FECHA}}</div></div>
+          <div class="field"><div class="label">Hora:</div><div class="line">{{HORA}}</div></div>
+          <div class="field"><div class="label">Coordinador:</div><div class="line">{{COORDINADOR}}</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><div class="label">Nro de Ficha:</div><div class="line">{{NRO_FICHA}}</div></div>
+          <div class="field"><div class="label">Operador:</div><div class="line">{{OPERADOR}}</div></div>
+        </div>
+        <div>
+          <div class="label" style="font-weight:600;">Breve reseña del hecho:</div>
+          <div class="multiline">{{RESENA}}</div>
+        </div>
+      </section>
+
+      <!-- 2. DERIVACIÓN -->
+      <section class="section">
+        <div class="section-header">
+          <div class="section-number">2.</div>
+          <div class="section-title">DERIVACIÓN</div>
+        </div>
+        <div class="field inline">
+          <div class="label">Nombre y Apellido del Derivador:</div>
+          <div class="line">{{DERIVADOR}}</div>
+          <div class="label">Hora</div>
+          <div class="line">{{HORA_DERIV}}</div>
+        </div>
+        <div class="options">
+          <label class="opt"><span class="box">{{CEO_911}}</span> CEO 911</label>
+          <label class="opt"><span class="box">{{MIN_SEGURIDAD}}</span> Min. Seguridad</label>
+          <label class="opt"><span class="box">{{MIN_PUBLICO_FISCAL}}</span> Min. Público Fiscal</label>
+          <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
+            <span class="box">{{MUNICIPIO}}</span> Municipio: <div class="line">{{MUNICIPIO_NOMBRE}}</div>
+          </div>
+          <label class="opt"><span class="box">{{HOSPITAL}}</span> Hospital</label>
+          <label class="opt"><span class="box">{{CENTRO_SALUD}}</span> Centro de Salud</label>
+          <label class="opt"><span class="box">{{DEMANDA_ESPONTANEA}}</span> Demanda espontánea</label>
+          <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
+            <span class="box">{{OTRO_DERIVACION}}</span> Otro: <div class="line">{{OTRO_DERIVACION_TEXTO}}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. DATOS DEL HECHO DELICTIVO -->
+      <section class="section">
+        <div class="section-header">
+          <div class="section-number">3.</div>
+          <div class="section-title">DATOS DEL HECHO DELICTIVO</div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><div class="label">Número de Expediente:</div><div class="line">{{EXPEDIENTE}}</div></div>
+          <div class="field"><div class="label">Nros de Agresores:</div><div class="line">{{NRO_AGRESORES}}</div></div>
+        </div>
+        <div class="options">
+          <label class="opt"><span class="box">{{DELITO_ROBO}}</span> Robo</label>
+          <label class="opt"><span class="box">{{DELITO_ROBO_AF}}</span> Robo con arma de fuego</label>
+          <label class="opt"><span class="box">{{DELITO_ROBO_AB}}</span> Robo con arma blanca</label>
+          <label class="opt"><span class="box">{{DELITO_AMENAZAS}}</span> Amenazas</label>
+          <label class="opt"><span class="box">{{DELITO_LESIONES}}</span> Lesiones</label>
+          <label class="opt"><span class="box">{{DELITO_LESIONES_AF}}</span> Lesiones con arma de fuego</label>
+          <label class="opt"><span class="box">{{DELITO_LESIONES_AB}}</span> Lesiones con arma blanca</label>
+          <label class="opt"><span class="box">{{DELITO_HOMICIDIO_DELITO}}</span> Homicidio por delito</label>
+          <label class="opt"><span class="box">{{DELITO_HOMICIDIO_ACCIDENTE}}</span> Homicidio por accidente vial</label>
+          <label class="opt"><span class="box">{{DELITO_HOMICIDIO_AV}}</span> Homicidio/ Av. Hecho</label>
+          <label class="opt"><span class="box">{{DELITO_FEMICIDIO}}</span> Femicidio</label>
+          <label class="opt"><span class="box">{{DELITO_TRANSFEMICIDIO}}</span> Travestisidio/ transfemicidio</label>
+          <label class="opt"><span class="box">{{DELITO_VIOLENCIA_GENERO}}</span> Violencia de género</label>
+          <label class="opt"><span class="box">{{DELITO_OTROS}}</span> Otros</label>
+        </div>
+
+        <div style="margin-top: 5mm;">
+          <div class="label" style="font-weight:600;">Ubicación geográfica del hecho:</div>
+          <!-- 👇 lo que pediste en 3 -->
+          <div class="field">
+            <div class="label">CALLE Y NRO / BARRIO / LUGAR:</div>
+            <div class="line">{{UBICACION}}</div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><div class="label">Departamento:</div><div class="line">{{DEPTO_HECHO}}</div></div>
+            <div class="field"><div class="label">Fecha del hecho:</div><div class="line">{{FECHA_HECHO}}</div></div>
+            <div class="field"><div class="label">Hora del hecho:</div><div class="line">{{HORA_HECHO}}</div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 4. ACCIONES REALIZADAS -->
+    <section class="section break-before">
+      <div class="section-header">
+        <div class="section-number">4.</div>
+        <div class="section-title">ACCIONES REALIZADAS EN PRIMERA LÍNEA</div>
+      </div>
+      <div class="multiline tall">{{ACCIONES_1L}}</div>
+    </section>
+
+    <!-- 5. ABUSO SEXUAL -->
+ <!-- 5. ABUSO SEXUAL -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">5.</div>
+    <div class="section-title">ABUSO SEXUAL</div>
   </div>
-<!-- BLOQUE SUPERIOR: Secciones 1 a 3 -->
-<div id="bloque-superior">
-  <!-- 1. DATOS DE LA INTERVENCIÓN -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">1.</div>
-      <div class="section-title">DATOS DE LA INTERVENCIÓN</div>
-    </div>
-    <div class="grid-2">
-      <div class="field"><div class="label">Fecha:</div><div class="line">{{FECHA}}</div></div>
-      <div class="field"><div class="label">Coordinador:</div><div class="line">{{COORDINADOR}}</div></div>
-    </div>
-    <div class="grid-2">
-      <div class="field"><div class="label">Nro de Ficha:</div><div class="line">{{NRO_FICHA}}</div></div>
-      <div class="field"><div class="label">Operador:</div><div class="line">{{OPERADOR}}</div></div>
-    </div>
-    <div>
-      <div class="label" style="font-weight:600;">Breve reseña del hecho:</div>
-      <div class="multiline">{{RESENA}}</div>
-    </div>
-  </section>
 
-  <!-- 2. DERIVACIÓN -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">2.</div>
-      <div class="section-title">DERIVACIÓN</div>
-    </div>
-    <div class="field inline">
-      <div class="label">Nombre y Apellido del Derivador:</div>
-      <div class="line">{{DERIVADOR}}</div>
-      <div class="label">Hora</div>
-      <div class="line">{{HORA_DERIV}}</div>
-    </div>
-    <div class="options">
-      <label class="opt"><span class="box">{{CEO_911}}</span> CEO 911</label>
-      <label class="opt"><span class="box">{{MIN_SEGURIDAD}}</span> Min. Seguridad</label>
-      <label class="opt"><span class="box">{{MIN_PUBLICO_FISCAL}}</span> Min. Público Fiscal</label>
-      <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
-        <span class="box">{{MUNICIPIO}}</span> Municipio: <div class="line">{{MUNICIPIO_NOMBRE}}</div>
-      </div>
-      <label class="opt"><span class="box">{{HOSPITAL}}</span> Hospital</label>
-      <label class="opt"><span class="box">{{CENTRO_SALUD}}</span> Centro de Salud</label>
-      <label class="opt"><span class="box">{{DEMANDA_ESPONTANEA}}</span> Demanda espontánea</label>
-      <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
-        <span class="box">{{OTRO_DERIVACION}}</span> Otro: <div class="line">{{OTRO_DERIVACION_TEXTO}}</div>
-      </div>
-    </div>
-  </section>
+  <!-- 🔹 Tipo de abuso sexual -->
+  <div class="title h2" style="margin-top: 4mm;">Tipo de abuso sexual:</div>
+  <div class="options">
+    <label class="opt"><span class="box">{{ABUSO_SIMPLE}}</span> Simple</label>
+    <label class="opt"><span class="box">{{ABUSO_AGRAVADO}}</span> Agravado</label>
+  </div>
 
-  <!-- 3. DATOS DEL HECHO DELICTIVO -->
-<!-- 3. DATOS DEL HECHO DELICTIVO -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">3.</div>
-      <div class="section-title">DATOS DEL HECHO DELICTIVO</div>
+  <!-- Kit aplicado -->
+  <div class="title h2" style="margin-top: 4mm;">Kit de abuso sexual:</div>
+  <div class="options">
+    <label class="opt"><span class="box">{{KIT_SI}}</span> Kit aplicado</label>
+    <label class="opt"><span class="box">{{KIT_NO}}</span> No aplicado</label>
+  </div>
+
+  <!-- Relación víctima y agresor -->
+  <div class="title h2" style="margin-top: 4mm;">Relación entre la víctima y el presunto agresor:</div>
+  <div class="options">
+    <label class="opt"><span class="box">{{REL_CONOCIDO}}</span> Conocido</label>
+    <label class="opt"><span class="box">{{REL_DESCONOCIDO}}</span> Desconocido</label>
+    <label class="opt"><span class="box">{{REL_FAMILIAR}}</span> Familiar</label>
+    <label class="opt"><span class="box">{{REL_PAREJA}}</span> Pareja</label>
+    <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
+      <span class="box"></span> Otro: <div class="line">{{RELACION_OTRO}}</div>
     </div>
-    <div class="grid-2">
-      <div class="field"><div class="label">Número de Expediente:</div><div class="line">{{EXPEDIENTE}}</div></div>
-      <div class="field"><div class="label">Nros de Agresores:</div><div class="line">{{NRO_AGRESORES}}</div></div>
+  </div>
+
+  <!-- Tipo de lugar del hecho -->
+  <div class="title h2" style="margin-top: 4mm;">Tipo del lugar del hecho:</div>
+  <div class="options">
+    <label class="opt"><span class="box">{{LUGAR_INST}}</span> Institución</label>
+    <label class="opt"><span class="box">{{LUGAR_PUBLICA}}</span> Vía pública</label>
+    <label class="opt"><span class="box">{{LUGAR_DOM}}</span> Dom. particular</label>
+    <label class="opt"><span class="box">{{LUGAR_TRABAJO}}</span> Lugar de trabajo</label>
+    <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
+      <span class="box"></span> Otro: <div class="line">{{LUGAR_OTRO}}</div>
     </div>
-    <div class="options">
-      <label class="opt"><span class="box">{{DELITO_ROBO}}</span> Robo</label>
-      <label class="opt"><span class="box">{{DELITO_HOMICIDIO}}</span> Homicidio</label>
-      <label class="opt"><span class="box">{{DELITO_VIOLENCIA_GENERO}}</span> Violencia de género</label>
-      <label class="opt"><span class="box">{{DELITO_ROBO_AF}}</span> Robo con arma de fuego</label>
-      <label class="opt"><span class="box">{{DELITO_HOMICIDIO_ACCIDENTE}}</span> Homicidio por accidente vial</label>
-      <label class="opt"><span class="box">{{DELITO_ABUSO_SIMPLE}}</span> Abuso sexual simple</label>
-      <label class="opt"><span class="box">{{DELITO_ROBO_AB}}</span> Robo con arma blanca</label>
-      <label class="opt"><span class="box">{{DELITO_HOMICIDIO_AV}}</span> Homicidio/ Av. Hecho</label>
-      <label class="opt"><span class="box">{{DELITO_ABUSO_AGRAVADO}}</span> Abuso sexual agravado</label>
-      <label class="opt"><span class="box">{{DELITO_LESIONES}}</span> Lesiones</label>
-      <label class="opt"><span class="box">{{DELITO_HOMICIDIO_DELITO}}</span> Homicidio por delito</label>
-      <label class="opt"><span class="box">{{DELITO_TRANSFEMICIDIO}}</span> Travestisidio/ transfemicidio</label>
-      <label class="opt"><span class="box">{{DELITO_LESIONES_AF}}</span> Lesiones con arma de fuego</label>
-      <label class="opt"><span class="box">{{DELITO_AMENAZAS}}</span> Amenazas</label>
-      <label class="opt"><span class="box">{{DELITO_LESIONES_AB}}</span> Lesiones con arma blanca</label>
-      <label class="opt"><span class="box">{{DELITO_FEMICIDIO}}</span> Femicidio</label>
-    </div>
-    <div style="margin-top: 5mm;">
-      <div class="label" style="font-weight:600;">Ubicación geográfica del hecho:</div>
-      <div class="field"><div class="label">Calle y nro / Barrio / Lugar:</div><div class="line">{{UBICACION}}</div></div>
+  </div>
+</section>
+
+
+    <!-- 6. VÍCTIMA -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">6.</div>
+        <div class="section-title">VÍCTIMA</div>
+      </div>
+      <div class="field"><div class="label">Cantidad de víctimas:</div><div class="line">{{CANT_VICTIMAS}}</div></div>
+      <div class="grid-3">
+        <div class="field"><div class="label">DNI:</div><div class="line">{{DNI}}</div></div>
+        <div class="field"><div class="label">Apellido:</div><div class="line">{{APELLIDO}}</div></div>
+        <div class="field"><div class="label">Nombre:</div><div class="line">{{NOMBRES}}</div></div>
+      </div>
       <div class="grid-2">
-        <div class="field"><div class="label">Departamento:</div><div class="line">{{DEPTO_HECHO}}</div></div>
-        <div class="field"><div class="label">Fecha del hecho:</div><div class="line">{{FECHA_HECHO}}</div></div>
+        <div class="field"><div class="label">Fecha de nacimiento:</div><div class="line">{{NACIMIENTO}}</div></div>
+        <div class="field"><div class="label">Teléfono:</div><div class="line">{{TELEFONO}}</div></div>
       </div>
-      <div class="field"><div class="label">Hora del hecho:</div><div class="line">{{HORA_HECHO}}</div></div>
-    </div>
-  </section>
-</div>
-
-
-  <!-- 4. ACCIONES REALIZADAS - Con clase break-before para nueva página -->
-  <section class="section break-before">
-    <div class="section-header">
-      <div class="section-number">4.</div>
-      <div class="section-title">ACCIONES REALIZADAS EN PRIMERA LÍNEA</div>
-    </div>
-    <div class="multiline tall">{{ACCIONES_1L}}</div>
-  </section>
-
-  <!-- 5. ABUSO SEXUAL -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">5.</div>
-      <div class="section-title">ABUSO SEXUAL</div>
-    </div>
-    <div class="options">
-      <label class="opt"><span class="box">{{KIT_SI}}</span> Kit aplicado</label>
-      <label class="opt"><span class="box">{{KIT_NO}}</span> No aplicado</label>
-    </div>
-    <div class="title h2">Relación entre la víctima y presunto agresor:</div>
-    <div class="options">
-      <label class="opt"><span class="box">{{REL_CONOCIDO}}</span> Conocido</label>
-      <label class="opt"><span class="box">{{REL_DESCONOCIDO}}</span> Desconocido</label>
-      <label class="opt"><span class="box">{{REL_FAMILIAR}}</span> Familiar</label>
-      <label class="opt"><span class="box">{{REL_PAREJA}}</span> Pareja</label>
-      <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
-        <span class="box"></span> Otro: <div class="line">{{RELACION_OTRO}}</div>
+      <div class="grid-2">
+        <div class="field"><div class="label">Calle y Nro / Barrio:</div><div class="line">{{DIR_VICTIMA}}</div></div>
+        <div class="field"><div class="label">Departamento:</div><div class="line">{{DEPTO_VICTIMA}}</div></div>
       </div>
-    </div>
-    <div class="title h2" style="margin-top: 4mm;">Tipo del lugar del hecho:</div>
-    <div class="options">
-      <label class="opt"><span class="box">{{LUGAR_INST}}</span> Institución</label>
-      <label class="opt"><span class="box">{{LUGAR_PUBLICA}}</span> Vía Pública</label>
-      <label class="opt"><span class="box">{{LUGAR_DOM}}</span> Dom. particular</label>
-      <label class="opt"><span class="box">{{LUGAR_TRABAJO}}</span> Lugar de trab.</label>
-      <div class="opt" style="grid-column: span 3; display:grid; grid-template-columns:auto auto 1fr; gap:3mm;">
-        <span class="box"></span> Otro: <div class="line">{{LUGAR_OTRO}}</div>
+      <div class="field"><div class="label">Ocupación:</div><div class="line">{{OCUPACION}}</div></div>
+    </section>
+
+    <!-- 7. PERSONA ENTREVISTADA -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">7.</div>
+        <div class="section-title">PERSONA ENTREVISTADA</div>
       </div>
-    </div>
-  </section>
-
-  <!-- 6. VÍCTIMA -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">6.</div>
-      <div class="section-title">VÍCTIMA</div>
-    </div>
-
-    <div class="field">
-      <div class="label">Cantidad de víctimas:</div>
-      <div class="line">{{CANT_VICTIMAS}}</div>
-    </div>
-
-    <div class="grid-3">
-      <div class="field"><div class="label">DNI:</div><div class="line">{{DNI}}</div></div>
-      <div class="field"><div class="label">Apellido:</div><div class="line">{{APELLIDO}}</div></div>
-      <div class="field"><div class="label">Nombre:</div><div class="line">{{NOMBRES}}</div></div>
-    </div>
-
-    <!-- Género dinámico con opciones optimizadas -->
-    <div class="field">
-      <div class="label" style="font-weight:600; margin-bottom:4px;">Género:</div>
-      <div class="options" style="grid-template-columns: repeat(3, 1fr); gap:6mm;">
-        <label class="opt"><span class="box">{{GEN_MASCULINO}}</span> Masculino</label>
-        <label class="opt"><span class="box">{{GEN_FEMENINO}}</span> Femenino</label>
-        <label class="opt"><span class="box">{{GEN_NO_BINARIO}}</span> No binario</label>
-        <label class="opt"><span class="box">{{GEN_AGENERO}}</span> Agénero</label>
-        <label class="opt"><span class="box">{{GEN_FLUIDO}}</span> Género fluido</label>
-        <label class="opt"><span class="box">{{GEN_BIGENERO}}</span> Bigénero</label>
-        <label class="opt"><span class="box">{{GEN_TRANSGENERO}}</span> Transgénero</label>
-        <label class="opt"><span class="box">{{GEN_MUJER_TRANS}}</span> Mujer trans</label>
-        <label class="opt"><span class="box">{{GEN_HOMBRE_TRANS}}</span> Hombre trans</label>
-        <label class="opt"><span class="box">{{GEN_INTERGENERO}}</span> Intergénero</label>
-        <label class="opt"><span class="box">{{GEN_INTERSEX}}</span> Intersex</label>
-        <label class="opt"><span class="box">{{GEN_OTRO}}</span> Otro</label>
-        <label class="opt"><span class="box">{{GEN_PREFIERO_NO_DECIRLO}}</span> Prefiero no decirlo</label>
+      <div class="grid-2">
+        <div class="field"><div class="label">Nombre y Apellido:</div><div class="line">{{ENTREV_NOMBRE}}</div></div>
+        <div class="field"><div class="label">Relación con la víctima:</div><div class="line">{{ENTREV_RELACION}}</div></div>
       </div>
-    </div>
-
-    <div class="grid-3">
-      <div class="field" style="grid-column: span 2;">
-        <div class="label">Fecha de nacimiento:</div>
-        <div class="line">{{NACIMIENTO}}</div>
+      <div class="grid-3">
+        <div class="field"><div class="label">Calle y Nro / Barrio:</div><div class="line">{{ENTREV_CALLE}}</div></div>
+        <div class="field"><div class="label">Departamento:</div><div class="line">{{ENTREV_DEPTO}}</div></div>
+        <div class="field"><div class="label">Localidad:</div><div class="line">{{ENTREV_LOCALIDAD}}</div></div>
       </div>
-      <div class="field">
-        <div class="label">Teléfono:</div>
-        <div class="line">{{TELEFONO}}</div>
+    </section>
+
+    <!-- 8. TIPO DE INTERVENCIÓN -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">8.</div>
+        <div class="section-title">TIPO DE INTERVENCIÓN</div>
       </div>
-    </div>
+      <div class="options">
+        <label class="opt"><span class="box">{{TIPO_CRISIS}}</span> Intervención en crisis</label>
+        <label class="opt"><span class="box">{{TIPO_TELEFONICA}}</span> Intervención telefónica</label>
+        <label class="opt"><span class="box">{{TIPO_DOMICILIARIA}}</span> Intervención domiciliaria</label>
+        <label class="opt"><span class="box">{{TIPO_PSICOLOGICA}}</span> Intervención psicológica</label>
+        <label class="opt"><span class="box">{{TIPO_MEDICA}}</span> Intervención médica</label>
+        <label class="opt"><span class="box">{{TIPO_SOCIAL}}</span> Intervención social</label>
+        <label class="opt"><span class="box">{{TIPO_LEGAL}}</span> Intervención legal</label>
+        <label class="opt"><span class="box">{{TIPO_SIN_INTERV}}</span> Sin intervención</label>
+        <label class="opt"><span class="box">{{TIPO_ARCHIVO_CASO}}</span> Archivo del caso</label>
+      </div>
+      <div style="margin-top: 4mm;">
+        <div class="label" style="font-weight:600;">Detalle de la intervención:</div>
+        <div class="multiline tall">{{DETALLE_INTERV}}</div>
+      </div>
+    </section>
 
-    <div class="grid-2">
-      <div class="field"><div class="label">Calle y Nro / Barrio:</div><div class="line">{{DIR_VICTIMA}}</div></div>
-      <div class="field"><div class="label">Departamento:</div><div class="line">{{DEPTO_VICTIMA}}</div></div>
-    </div>
-
-    <div class="field">
-      <div class="label">Ocupación:</div>
-      <div class="line">{{OCUPACION}}</div>
-    </div>
-  </section>
-
-  <!-- 7. TIPO DE INTERVENCIÓN -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-number">7.</div>
-      <div class="section-title">TIPO DE INTERVENCIÓN</div>
-    </div>
-    <div class="options">
-      <label class="opt"><span class="box">{{TIPO_CRISIS}}</span> Intervención en crisis</label>
-      <label class="opt"><span class="box">{{TIPO_SOCIAL}}</span> Intervención social</label>
-      <label class="opt"><span class="box">{{TIPO_LEGAL}}</span> Intervención legal</label>
-      <label class="opt"><span class="box">{{TIPO_TELEFONICA}}</span> Intervención telefónica</label>
-      <label class="opt"><span class="box">{{TIPO_PSICOLOGICA}}</span> Intervención psicológica</label>
-      <label class="opt"><span class="box">{{TIPO_MEDICA}}</span> Intervención médica</label>
-    </div>
-    <div style="margin-top: 4mm;">
-      <div class="label" style="font-weight:600;">Detalle de la intervención:</div>
-      <div class="multiline tall">{{DETALLE_INTERV}}</div>
-    </div>
-    <div class="title h2" style="margin-top: 4mm;">Se realizó seguimiento:</div>
-    <div class="options" style="grid-template-columns:repeat(2,auto); column-gap:10mm; margin-top:1mm;">
-      <label class="opt"><span class="box">{{SEGUIM_SI}}</span> SI</label>
-      <label class="opt"><span class="box">{{SEGUIM_NO}}</span> NO</label>
-    </div>
-  </section>
-</div>
+    <!-- 9. SEGUIMIENTO -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">9.</div>
+        <div class="section-title">SEGUIMIENTO</div>
+      </div>
+      <div class="options">
+        <label class="opt"><span class="box">{{SEGUIM_SI}}</span> Sí se realizó seguimiento</label>
+        <label class="opt"><span class="box">{{SEGUIM_NO}}</span> No se realizó seguimiento</label>
+      </div>
+      <div class="options" style="margin-top:5mm;">
+        <label class="opt"><span class="box">{{SEG_AS_LEGAL}}</span> Asesoramiento legal</label>
+        <label class="opt"><span class="box">{{SEG_TRAT_PSICO}}</span> Tratamiento psicológico</label>
+        <label class="opt"><span class="box">{{SEG_SEGUIMIENTO_LEGAL}}</span> Seguimiento legal</label>
+        <label class="opt"><span class="box">{{SEG_ARCHIVO_CASO}}</span> Archivo del caso</label>
+      </div>
+   
+    </section>
+  </div>
 </body>
 </html>

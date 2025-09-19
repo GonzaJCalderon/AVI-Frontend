@@ -93,6 +93,7 @@ genero_id?: number;
       id: number;
       descripcion: string;
     };
+    
     personas_entrevistadas?: Array<{
       id: number;
       nombre: string;
@@ -110,6 +111,7 @@ genero_id?: number;
 
   abusos_sexuales?: Array<{
     id: number;
+     hubo?: boolean;
     tipo_abuso?: number;
     datos?: Array<{
       id: number;
@@ -172,78 +174,89 @@ type IntervencionesListResponse = {
  * Payload EXACTO que espera el backend para POST/PATCH /api/intervenciones
  */
 export type CreateIntervencionPayload = {
-  intervencion: { coordinador: string; operador: string; fecha: string; resena_hecho: string; }
+  intervencion: { 
+    coordinador: string; 
+    operador: string; 
+    fecha: string; 
+    resena_hecho: string;
+  };
 
-  derivacion: { motivos: number; derivador: string; fecha_derivacion: string }
+  derivacion: { motivos: number; derivador: string; fecha_derivacion: string };
 
   hechoDelictivo: {
-    expediente: string
-    numAgresores: number
-    fecha: string            // ✅ nuevo
-    hora: string             // ✅ nuevo (ej "14:30")
+    expediente: string;
+    numAgresores: number;
+    fecha: string;
+    hora: string;
     ubicacion: {
-      calleBarrio: string
-      departamento: number   // ✅ sin "localidad" aquí
-    }
+      calleBarrio: string;
+      departamento: number;
+      localidad: number; // ✅ Este se queda porque el backend lo agregará pronto
+    };
     tipoHecho: {
       robo: boolean; roboArmaFuego: boolean; roboArmaBlanca: boolean;
       amenazas: boolean; lesiones: boolean; lesionesArmaFuego: boolean; lesionesArmaBlanca: boolean;
       homicidioDelito: boolean; homicidioAccidenteVial: boolean; homicidioAvHecho: boolean;
       femicidio: boolean; travestisidioTransfemicidio: boolean; violenciaGenero: boolean; otros: boolean;
-    }
-  }
+    };
+  };
 
-  accionesPrimeraLinea: string
+  accionesPrimeraLinea: string;
 
-  abusoSexual: {               // ✅ sigue igual pero ahora la UI permitirá dejar ambos en false
-    simple: boolean
-    agravado: boolean
-  }
+  abusoSexual: {
+    simple: boolean;
+    agravado: boolean;
+  };
 
   datosAbusoSexual: {
-    kit: string               // "SI" | "NO" | "" (vacío si no aplica)
-    relacion: string          // "Conocido" | "Desconocido" | "Familiar" | "Pareja" | "Otro"
-    relacionOtro: string
-    lugarHecho: string        // "Institución" | "Vía pública" | "Domicilio" | "Lugar de trabajo" | "Otro"
-    lugarOtro: string
-  }
+    kit: string;
+    relacion: string;
+    relacionOtro: string;
+    lugarHecho: string;
+    lugarOtro: string;
+  };
 
-victima: {
-  dni: string;
-  nombre: string;
-  genero: number;
-  fechaNacimiento: string;     // ✅ usar este, NO cantidad_victima_por_hecho
-  telefono: string;
-  ocupacion: string;
-  cantidadVictimas: number;    // ✅ este es el que pide el backend
-direccion: {
-  calleNro: string;
-  barrio: string;
-  departamento: number; // <--- 👈 espera number
-  localidad: number;    // <--- 👈 espera number
-};
-}
-
-
+  victima: {
+    dni: string;
+    nombre: string;
+    genero: number;
+    fechaNacimiento: string;
+    telefono: string;
+    ocupacion: string;
+    cantidadVictimas: number;
+    direccion: {
+      calleNro: string;
+      barrio: string;
+      departamento: number;
+      localidad: number;
+    };
+  };
 
   personaEntrevistada: {
-    nombre: string
-    relacionVictima: string
-    direccion: { calleNro: string; barrio: string; departamento: number; localidad: number; }
-  }
+    nombre: string;
+    relacionVictima: string;
+    direccion: { calleNro: string; barrio: string; departamento: number; localidad: number };
+  };
 
   tipoIntervencion: {
     crisis: boolean; telefonica: boolean; domiciliaria: boolean; psicologica: boolean;
     medica: boolean; social: boolean; legal: boolean; sinIntervencion: boolean; archivoCaso: boolean;
-  }
+  };
 
   seguimiento: {
-    realizado: boolean
-    tipo: { asesoramientoLegal: boolean; tratamientoPsicologico: boolean; seguimientoLegal: boolean; archivoCaso: boolean; }
-  }
+    realizado: boolean | null;
+    tipo: {
+      asesoramientoLegal: boolean;
+      tratamientoPsicologico: boolean;
+      seguimientoLegal: boolean;
+      archivoCaso: boolean;
+    };
+  };
 
-  detalleSeguimiento: string
-}
+  detalleIntervencion: string;
+};
+
+
 
 
 export type IntervencionCreated = {
