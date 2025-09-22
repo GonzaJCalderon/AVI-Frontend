@@ -384,14 +384,17 @@ const handleDownloadPDF = async () => {
         >
           Imprimir
         </Button>
-        <Button
-          variant="contained"
-          color="success"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownloadPDF}
-        >
-          Descargar PDF
-        </Button>
+     <Button
+  variant="contained"
+  color="success"
+  startIcon={<DownloadIcon />}
+  onClick={() => {
+    Promise.resolve().then(() => handleDownloadPDF());
+  }}
+>
+  Descargar PDF
+</Button>
+
       </Stack>
 
       {/* Formulario renderizado */}
