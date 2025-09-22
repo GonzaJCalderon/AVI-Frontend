@@ -68,49 +68,49 @@ export default function ImprimirFormularioExacto() {
   }, [])
 
   // === Cargar datos desde backend ===
-  useEffect(() => {
-    if (!id) {
-      setError('ID de intervención no proporcionado')
-      setLoading(false)
-      return
-    }
+useEffect(() => {
+  if (!id) {
+    setError('ID de intervención no proporcionado')
+    setLoading(false)
+    return
+  }
 
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        const json = await obtenerIntervencionPorId(Number(id))
-        console.log('[✅ Datos de intervención cargados]', json)
-
-        if (!json) throw new Error('No se encontraron datos para la intervención')
-
-        setData(json)
-        setError(null)
-      } catch (error) {
-        console.error('[❌ ERROR AL CARGAR INTERVENCIÓN]', error)
-        setError(`Error cargando intervención: ${error instanceof Error ? error.message : 'Error desconocido'}`)
-        setData(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [id])
-
-  // === Formatear fechas ===
-  const formatDate = (date?: string) => {
-    if (!date) return ''
+  const loadData = async () => {
     try {
-      const d = new Date(date)
-      if (isNaN(d.getTime())) return ''
-      const day = d.getUTCDate()
-      const month = d.getUTCMonth() + 1
-      const year = d.getUTCFullYear()
-      return `${day}/${month}/${year}`
-    } catch {
-      return ''
+      setLoading(true)
+      const json = await obtenerIntervencionPorId(Number(id))
+      console.log('[✅ Datos de intervención cargados]', json)
+
+      if (!json) throw new Error('No se encontraron datos para la intervención')
+
+      setData(json)
+      setError(null)
+    } catch (error) {
+      console.error('[❌ ERROR AL CARGAR INTERVENCIÓN]', error)
+      setError(`Error cargando intervención: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      setData(null)
+    } finally {
+      setLoading(false)
     }
   }
+
+  loadData()
+}, [id])
+useEffect(() => {
+  if (data?.hechos_delictivos) {
+    console.log('DEBUG geo completo:', data.hechos_delictivos[0]?.geo);
+  }
+}, [data]);
+
+
+  // === Formatear fechas ===
+const formatDate = (date?: string) => {
+  if (!date) return '';
+  const [fechaSolo] = date.split(' '); // separa "2025-09-19" de la hora
+  const [year, month, day] = fechaSolo.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 
   const safeGenero = (value: any): number | null => {
     const num = Number(value)
@@ -123,11 +123,12 @@ export default function ImprimirFormularioExacto() {
     return depto ? depto.nombre : ''
   }
 
-  const getLocalidadNombre = (id?: string | number) => {
+const getLocalidadNombre = (id?: string | number) => {
   if (!id) return ''
-  const loc = localidades.find(l => String(l.id) === String(id)) // 👈 compara como string
+  const loc = localidades.find(l => String(l.id) === String(id))
   return loc ? loc.nombre : ''
 }
+
 
 
 
@@ -150,16 +151,21 @@ export default function ImprimirFormularioExacto() {
 
       // === DERIVACIÓN ===
       '{{DERIVADOR}}': d?.derivaciones?.[0]?.derivador || '',
-      '{{HORA_DERIV}}': d?.derivaciones?.[0]?.fecha_derivacion?.split('T')[1]?.slice(0, 5) || '',
+'{{HORA_DERIV}}': d?.derivaciones?.[0]?.fecha_derivacion
+  ? d.derivaciones[0].fecha_derivacion.split(' ')[1]?.slice(0, 5)
+  : '',
+
       '{{CEO_911}}': derivacionDesc === 'ceo911' ? 'X' : '',
       '{{MIN_SEGURIDAD}}': derivacionDesc === 'minseguridad' ? 'X' : '',
       '{{MIN_PUBLICO_FISCAL}}': derivacionDesc === 'minpublicofiscal' ? 'X' : '',
       '{{HOSPITAL}}': derivacionDesc === 'hospital' ? 'X' : '',
       '{{CENTRO_SALUD}}': derivacionDesc === 'centrodesalud' ? 'X' : '',
       '{{DEMANDA_ESPONTANEA}}': derivacionDesc === 'demandaespontanea' ? 'X' : '',
-      '{{MUNICIPIO}}': derivacionDesc === 'municipio' ? 'X' : '',
-      '{{OTRO_DERIVACION}}': derivacionDesc === 'otro' ? 'X' : '',
-      '{{OTRO_DERIVACION_TEXTO}}': d?.derivaciones?.[0]?.otro_texto || '',
+     '{{MUNICIPIO}}': derivacionDesc === 'municipio' ? 'X' : '',
+'{{MUNICIPIO_NOMBRE}}': d?.derivaciones?.[0]?.municipio || '',  // 👈 ESTA ES LA CLAVE
+'{{OTRO_DERIVACION}}': derivacionDesc === 'otro' ? 'X' : '',
+'{{OTRO_DERIVACION_TEXTO}}': d?.derivaciones?.[0]?.otro_texto || '',
+
 
       // === HECHO DELICTIVO ===
       '{{EXPEDIENTE}}': d?.hechos_delictivos?.[0]?.expediente || '',
@@ -183,11 +189,28 @@ export default function ImprimirFormularioExacto() {
       '{{DELITO_VIOLENCIA_GENERO}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.violencia_genero ? 'X' : '',
       '{{DELITO_OTROS}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.otros ? 'X' : '',
 
-      
       '{{UBICACION}}': d?.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '',
-      '{{DEPTO_HECHO}}': getDepartamentoNombre(d?.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id),
-      '{{FECHA_HECHO}}': formatDate(d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha),
-      '{{HORA_HECHO}}': d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha?.split('T')[1]?.slice(0, 5) || '',
+'{{DEPTO_HECHO}}': getDepartamentoNombre(
+  d?.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id
+),
+
+'{{LOC_HECHO}}': getLocalidadNombre(
+  d?.hechos_delictivos?.[0]?.geo?.[0]?.localidad_id
+),
+
+
+
+
+
+
+'{{FECHA_HECHO}}': formatDate(d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha),
+'{{HORA_HECHO}}': d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha
+  ? d.hechos_delictivos[0].geo[0].fecha.split(' ')[1].slice(0, 5)
+  : '',
+
+
+
+
 
       // === ACCIONES PRIMERA LÍNEA ===
       '{{ACCIONES_1L}}': d?.acciones_primera_linea?.[0]?.acciones || '',
@@ -332,6 +355,8 @@ const handleDownloadPDF = async () => {
 
   if (loading) return <div>Cargando datos...</div>
   if (error) return <div style={{ color: 'red' }}>{error}</div>
+
+  
 
   return (
     <div

@@ -352,6 +352,7 @@ const localidadHechoID = hd.ubicacion?.localidad ?? geo0?.localidad_id ?? '';
 const localidadHechoNombre = getNombreLocalidad(localidadHechoID, localidades);
 
 
+
   const fechaHecho = toDateInput(geo0?.fecha);
   const horaHecho = toTimeInput(geo0?.fecha);
 
@@ -451,81 +452,86 @@ const entrevistadoLocalidadNombre = getNombreLocalidad(entrevistadoLocalidadID, 
   const segArchivoCaso = !!segTipo?.archivocaso;
   const detalleSeguimiento = seg?.detalles?.[0]?.detalle ?? '';
   
+  
 
-  return {
-    fechaIntervencion,
-    coordinador,
-    operador,
-    observaciones,
-    derivadorNombre,
-    horaDerivacion,
-    motivoDerivacion,
-    nroExpediente,
-    nroAgresores,
-    robo,
-    roboArmaFuego,
-    roboArmaBlanca,
-    amenazas,
-    lesiones,
-    lesionesArmaFuego,
-    lesionesArmaBlanca,
-    homicidioDelito,
-    homicidioAccidenteVial,
-    homicidioAvHecho,
-    femicidio,
-    transfemicidio,
-    violenciaGenero,
-    otros,
-departamentoHecho: String(departamentoHechoID || ''),
+return {
+  fechaIntervencion,
+  coordinador,
+  operador,
+  observaciones,
+  derivadorNombre,
+  horaDerivacion,
+  motivoDerivacion,
+  nroExpediente,
+  nroAgresores,
+  robo,
+  roboArmaFuego,
+  roboArmaBlanca,
+  amenazas,
+  lesiones,
+  lesionesArmaFuego,
+  lesionesArmaBlanca,
+  homicidioDelito,
+  homicidioAccidenteVial,
+  homicidioAvHecho,
+  femicidio,
+  transfemicidio,
+  violenciaGenero,
+  otros,
 
+  // 🔹 Aquí corregido
+  departamentoHecho: String(departamentoHechoID || ''),
+  localidadHecho: String(localidadHechoID || ''),
 
-   localidadHecho: localidadHechoNombre || localidadHechoID || '',
+  calleBarrioHecho,
+  fechaHecho,
+  horaHecho,
+  accionesPrimeraLinea,
+  abusoSexualSimple,
+  abusoSexualAgravado,
+  kitAplicado,
+  relacionAgresor,
+  otroRelacion,
+  tipoLugar,
+  otroLugar,
+  dni,
+  nombreVictima,
+  genero,
+  fechaNacimiento,
+  telefono,
+  calleNro,
+  barrio,
 
-    calleBarrioHecho,
-    fechaHecho,
-    horaHecho,
-    accionesPrimeraLinea,
-    abusoSexualSimple,
-    abusoSexualAgravado,
-    kitAplicado,
-    relacionAgresor,
-    otroRelacion,
-    tipoLugar,
-    otroLugar,
-    dni,
-    nombreVictima,
-    genero,
-    fechaNacimiento,
-    telefono,
-    calleNro,
-    barrio,
-departamento: departamentoID || '',  // ✅ SOLO ID
-  localidad: localidadID || '', 
+  departamento: String(departamentoID || ''),
+  localidad: String(localidadID || ''),
 
-    ocupacion,
-    entrevistadoNombre,
-    entrevistadoCalle,
-    entrevistadoBarrio,
-   entrevistadoDepartamento: entrevistadoDepartamentoNombre || entrevistadoDepartamentoID || '',
-entrevistadoLocalidad: entrevistadoLocalidadNombre || entrevistadoLocalidadID || '',
+  ocupacion,
+  entrevistadoNombre,
+  entrevistadoCalle,
+  entrevistadoBarrio,
 
-    entrevistadoRelacion,
-    crisis,
-    telefonica,
-    domiciliaria,
-    psicologica,
-    medica,
-    social,
-    legal,
-    sinIntervencion,
-    archivoCaso,
-    seguimientoRealizado,
-    segAsesoramientoLegal,
-    segTratamientoPsicologico,
-    segSeguimientoLegal,
-    segArchivoCaso,
-    detalleSeguimiento,
-  };
+  // 🔹 Aquí corregido
+  entrevistadoDepartamento: String(entrevistadoDepartamentoID || ''),
+  entrevistadoLocalidad: String(entrevistadoLocalidadID || ''),
+
+  entrevistadoRelacion,
+  crisis,
+  telefonica,
+  domiciliaria,
+  psicologica,
+  medica,
+  social,
+  legal,
+  sinIntervencion,
+  archivoCaso,
+  seguimientoRealizado,
+  segAsesoramientoLegal,
+  segTratamientoPsicologico,
+  segSeguimientoLegal,
+  segArchivoCaso,
+  detalleSeguimiento,
+};
+
 };
 
 /** ========================
@@ -971,6 +977,11 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
   ? localidades.filter((l) => Number(l.departamento_id) === Number(f.entrevistadoDepartamento))
   : [];
 
+// 📍 Filtrar localidades según el departamento seleccionado en el hecho delictivo
+const localidadesHecho = localidades.filter(
+  (loc: { id: string; nombre: string; departamento_id: string }) =>
+    Number(loc.departamento_id) === Number(f.departamentoHecho)
+);
 
 
   return (
@@ -1241,46 +1252,60 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
     Ubicación del Hecho
   </Typography>
 
-  <Grid container spacing={2}>
-    {/* Calle y Barrio */}
-    <Grid item xs={12} md={6}>
-      <FastTextField
-        name="calleBarrioHecho"
-        label="Calle y Barrio *"
-        placeholder="Ingrese la calle y barrio donde ocurrió el hecho"
-        fullWidth
-        value={f.calleBarrioHecho}
-        onCommit={commit}
-        version={version}
-      />
-    </Grid>
+<Grid container spacing={2} sx={{ mt: 2 }}>
+  {/* Calle y Barrio */}
+  <Grid item xs={12} md={6}>
+    <FastTextField
+      name="calleBarrioHecho"
+      label="Calle y Barrio *"
+      placeholder="Ingrese la calle y barrio donde ocurrió el hecho"
+      fullWidth
+      value={f.calleBarrioHecho}
+      onCommit={commit}
+      version={version}
+    />
+  </Grid>
 
-    {/* Departamento */}
-    <Grid item xs={12} md={6}>
-      <FastTextField
-        name="departamentoHecho"
-        label="Departamento (ID / nombre)"
-        placeholder="Ej. 10 - Capital"
-        fullWidth
-        value={String(f.departamentoHecho ?? '')}
-        onCommit={commit}
-        version={version}
-      />
-    </Grid>
+  {/* Departamento */}
+  <Grid item xs={12} md={3}>
+    <FormControl fullWidth>
+      <InputLabel>--Seleccione Departamento--</InputLabel>
+      <Select
+        value={f.departamentoHecho?.toString() ?? ''}
+        onChange={(e) => {
+          forceCommit('departamentoHecho', e.target.value);
+          forceCommit('localidadHecho', ''); // limpiar localidad cuando cambia depto
+        }}
+      >
+        <MenuItem value="">--Seleccione Departamento--</MenuItem>
+        {departamentos.map((d) => (
+          <MenuItem key={d.id} value={d.id}>
+            {d.nombre}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   </Grid>
 
   {/* Localidad */}
-<Grid item xs={12} md={6}>
-  <FastTextField
-    name="localidadHecho"
-    label="Localidad (ID / nombre)"
-    placeholder="Ej. 112 - Godoy Cruz"
-    fullWidth
-    value={String(f.localidadHecho ?? '')}
-    onCommit={commit}
-    version={version}
-  />
+  <Grid item xs={12} md={3}>
+    <FormControl fullWidth>
+      <InputLabel>--Seleccione Localidad--</InputLabel>
+      <Select
+        value={f.localidadHecho?.toString() ?? ''}
+        onChange={(e) => forceCommit('localidadHecho', e.target.value)}
+      >
+        <MenuItem value="">--Seleccione Localidad--</MenuItem>
+        {localidadesHecho.map((loc) => (
+          <MenuItem key={loc.id} value={loc.id}>
+            {loc.nombre}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  </Grid>
 </Grid>
+
 
 
   {/* Tipo de Hecho */}

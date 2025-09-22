@@ -60,15 +60,20 @@ derivaciones?: Array<{
 }>;
 
 
-    geo?: Array<{
-      domicilio?: string;
-         fecha?: string; 
-      departamentos?: {
-        id?: number;
-        descripcion?: string;
-        dep_id?: number;
-      };
-    }>;
+geo?: Array<{
+  domicilio?: string;
+  fecha?: string; 
+
+  localidad?: number;  // 👈 Esta es la propiedad correcta
+    localidad_id?: number;
+
+  departamentos?: {
+    id?: number;
+    descripcion?: string;
+    dep_id?: number;
+  };
+}>;
+
   }>;
 
   victimas?: Array<{
