@@ -476,7 +476,9 @@ const entrevistadoLocalidadNombre = getNombreLocalidad(entrevistadoLocalidadID, 
     transfemicidio,
     violenciaGenero,
     otros,
-  departamentoHecho: departamentoHechoNombre || departamentoHechoID || '',
+departamentoHecho: String(departamentoHechoID || ''),
+
+
    localidadHecho: localidadHechoNombre || localidadHechoID || '',
 
     calleBarrioHecho,
@@ -781,6 +783,16 @@ if (erroresValidados.length > 0) {
 
       const f = bufferRef.current;
 
+      console.log("DEBUG departamentoHecho crudo:", f.departamentoHecho);
+
+console.log("DEBUG valor procesado para departamento:", (() => {
+  if (!f.departamentoHecho) return 0;
+  const soloNumero = String(f.departamentoHecho).trim().split(' ')[0];
+  const num = Number(soloNumero);
+  return isNaN(num) ? 0 : num;
+})());
+
+
       // Helpers de fechas/horas
       const derivFechaISO =
         f.horaDerivacion && f.horaDerivacion.includes('T') ? f.horaDerivacion : ''; // YYYY-MM-DDTHH:mm
@@ -832,7 +844,21 @@ derivacion: {
     hora: hechoHoraStr || '',
 ubicacion: {
   calleBarrio: f.calleBarrioHecho,
-  departamento: toOptionalPositiveNumber(f.departamentoHecho) ?? 0,
+departamento: (() => {
+  if (!f.departamentoHecho) return 0;
+
+  // Si el valor ya es un número o string numérico, úsalo directo
+  if (!isNaN(Number(f.departamentoHecho))) {
+    return Number(f.departamentoHecho);
+  }
+
+  // Si es texto como "Lavalle", intenta buscar el ID correspondiente
+  const dep = departamentos.find(d => d.nombre === String(f.departamentoHecho).trim());
+  return dep ? Number(dep.id) : 0;
+})(),
+
+
+
   localidad: toOptionalPositiveNumber(f.localidad) ?? 0,
 },
 
@@ -1095,7 +1121,7 @@ console.log('🧪 Payload FINAL que se enviará al backend:', JSON.stringify(pay
     </Grid>
 
     {/* Cantidad de Agresores */}
-    <Grid item xs={12} md={1}>
+    <Grid item xs={12} md={3}>
       <TextField
         fullWidth
         type="number"

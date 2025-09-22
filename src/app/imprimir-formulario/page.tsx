@@ -18,6 +18,8 @@ export default function ImprimirFormularioExacto() {
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLDivElement>(null)
   const [departamentos, setDepartamentos] = useState<{ id: string; nombre: string }[]>([])
+  const [localidades, setLocalidades] = useState<{ id: string; nombre: string }[]>([])
+
 
   useEffect(() => {
     const loadDepartamentos = async () => {
@@ -31,6 +33,20 @@ export default function ImprimirFormularioExacto() {
     }
     loadDepartamentos()
   }, [])
+
+  useEffect(() => {
+  const loadLocalidades = async () => {
+    try {
+      const res = await fetch('/localidadesMendoza.json')
+      const data = await res.json()
+      setLocalidades(data.localidades) // 👈 Guarda el array
+    } catch (err) {
+      console.error('Error cargando localidades', err)
+    }
+  }
+  loadLocalidades()
+}, [])
+
 
   // === Cargar plantilla HTML ===
   useEffect(() => {
@@ -106,6 +122,14 @@ export default function ImprimirFormularioExacto() {
     const depto = departamentos.find(d => d.id === String(id))
     return depto ? depto.nombre : ''
   }
+
+  const getLocalidadNombre = (id?: string | number) => {
+  if (!id) return ''
+  const loc = localidades.find(l => String(l.id) === String(id)) // 👈 compara como string
+  return loc ? loc.nombre : ''
+}
+
+
 
   // === Generar reemplazos ===
   const replacements = useMemo(() => {
@@ -211,6 +235,8 @@ export default function ImprimirFormularioExacto() {
         ? `${d.victimas[0].direccion.calle_nro}, ${d.victimas[0].direccion.barrio}`
         : '',
       '{{DEPTO_VICTIMA}}': getDepartamentoNombre(d?.victimas?.[0]?.direccion?.departamento),
+      '{{LOC_VICTIMA}}': getLocalidadNombre(d?.victimas?.[0]?.direccion?.localidad),
+
       '{{OCUPACION}}': d?.victimas?.[0]?.ocupacion || '',
 
  '{{ENTREV_NOMBRE}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.nombre || '',
@@ -221,7 +247,10 @@ export default function ImprimirFormularioExacto() {
 
 
 '{{ENTREV_DEPTO}}': getDepartamentoNombre(d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.departamento),
-'{{ENTREV_LOCALIDAD}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.localidad || '',
+'{{ENTREV_LOCALIDAD}}': getLocalidadNombre(
+  d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.localidad
+),
+
 
 
 
