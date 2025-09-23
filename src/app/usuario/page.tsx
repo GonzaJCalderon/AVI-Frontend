@@ -244,7 +244,7 @@ export default function PerfilUsuarioPage() {
                       <Typography variant="body2" color="text.secondary">Nombre (solo lectura)</Typography>
                       <TextField value={usuario.nombre} fullWidth InputProps={{ readOnly: true }} />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={10}>
                       <Box display="flex" alignItems="center" justifyContent="space-between">
                         <Typography variant="body2" color="text.secondary">Correo electrónico</Typography>
                         {!editEmail ? (

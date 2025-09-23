@@ -297,10 +297,11 @@ async createUsuario(
 
 
 
-
 async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
-  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-    method: 'PATCH',
+  console.log('Actualizando usuario en:', `${API_BASE_URL}/usuarios/cuenta/${id}`);
+
+  const response = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
+    method: 'PATCH', // o 'PUT' si tu backend no soporta PATCH
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
@@ -309,6 +310,8 @@ async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
   const raw = json?.data ?? json;
   return normalizeUsuario(raw);
 }
+
+
 
   // services/usuarioService.ts
 // services/usuarioService.ts

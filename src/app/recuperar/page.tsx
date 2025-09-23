@@ -114,51 +114,54 @@ export default function RecuperarPasswordPage() {
           Ingresá tu correo electrónico y te enviaremos un enlace para restablecerla.
         </Typography>
 
+        {/* Mostrar errores */}
         <Fade in={!!error}>
           <div>
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           </div>
         </Fade>
 
+        {/* Mostrar mensaje de éxito */}
         <Fade in={enviado}>
           <div>
             {enviado && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Si el correo está registrado, te enviamos un enlace para recuperar tu contraseña. 
-                Revisa tu bandeja de entrada y spam.
-              </Alert>
-            )}
+              <>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  Si el correo está registrado, te enviamos un enlace para recuperar tu contraseña. 
+                  Revisa tu bandeja de entrada y spam.
+                </Alert>
 
-        {enviado && (
-          <Stack spacing={2} sx={{ mt: 3 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={() => {
-                setEnviado(false)
-                setEmail('')
-                setError('')
-              }}
-            >
-              Enviar otro correo
-            </Button>
-            
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={() => router.push('/login')}
-              sx={{
-                backgroundColor: '#6d44b8',
-                '&:hover': { backgroundColor: '#5934a2' },
-              }}
-            >
-              Ir al Login
-            </Button>
-          </Stack>
-        )}
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => {
+                      setEnviado(false)
+                      setEmail('')
+                      setError('')
+                    }}
+                  >
+                    Enviar otro correo
+                  </Button>
+                  
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => router.push('/login')}
+                    sx={{
+                      backgroundColor: '#6d44b8',
+                      '&:hover': { backgroundColor: '#5934a2' },
+                    }}
+                  >
+                    Ir al Login
+                  </Button>
+                </Stack>
+              </>
+            )}
           </div>
         </Fade>
 
+        {/* Formulario cuando NO se ha enviado */}
         {!enviado && (
           <form onSubmit={handleSubmit}>
             <TextField
@@ -201,34 +204,6 @@ export default function RecuperarPasswordPage() {
               </Button>
             </Stack>
           </form>
-        )}
-
-        {enviado && (
-          <Stack spacing={2} sx={{ mt: 3 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={() => {
-                setEnviado(false)
-                setEmail('')
-                setError('')
-              }}
-            >
-              Enviar otro correo
-            </Button>
-            
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={() => router.push('/login')}
-              sx={{
-                backgroundColor: '#6d44b8',
-                '&:hover': { backgroundColor: '#5934a2' },
-              }}
-            >
-              Ir al Login
-            </Button>
-          </Stack>
         )}
       </Paper>
     </Box>
