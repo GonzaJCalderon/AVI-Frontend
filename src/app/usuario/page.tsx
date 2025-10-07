@@ -95,75 +95,66 @@ export default function PerfilUsuarioPage() {
   }
 
   // Guardar email
-  const handleSaveEmail = async () => {
-    if (!userId) {
-      setSnack({ open: true, type: 'error', msg: 'No se pudo determinar el ID del usuario.' })
-      return
-    }
-    const trimmed = email.trim()
-    if (!trimmed) {
-      setSnack({ open: true, type: 'warning', msg: 'El email es requerido.' })
-      return
-    }
-    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
-      setSnack({ open: true, type: 'warning', msg: 'El email no es válido.' })
-      return
-    }
-
-    try {
-      setSavingEmail(true)
-      const updated = await usuarioService.updateUsuario(userId, { email: trimmed })
-      // actualizar vista
-      setUsuario(prev => prev ? ({ ...prev, email: updated.email ?? trimmed }) : prev)
-      // actualizar localStorage
-      try {
-        const raw = localStorage.getItem('user')
-        const prev = raw ? JSON.parse(raw) : {}
-        localStorage.setItem('user', JSON.stringify({ ...prev, email: updated.email ?? trimmed }))
-      } catch {}
-      setSnack({ open: true, type: 'success', msg: 'Email actualizado correctamente.' })
-      setEditEmail(false)
-    } catch (e: any) {
-      setSnack({ open: true, type: 'error', msg: e?.message || 'No se pudo actualizar el email' })
-    } finally {
-      setSavingEmail(false)
-    }
+ const handleSaveEmail = async () => {
+  if (!userId) {
+    setSnack({ open: true, type: 'error', msg: 'No se pudo determinar el ID del usuario.' })
+    return
   }
+
+  try {
+    setSavingEmail(true)
+    const updated = await usuarioService.updatePerfil(userId, { email: true })
+
+    setUsuario(prev => prev ? ({ ...prev, email: updated.email ?? email }) : prev)
+    setSnack({ open: true, type: 'success', msg: 'Email actualizado correctamente.' })
+    setEditEmail(false)
+  } catch (e: any) {
+    setSnack({ open: true, type: 'error', msg: e?.message || 'No se pudo actualizar el email' })
+  } finally {
+    setSavingEmail(false)
+  }
+}
+
 
   // Guardar contraseña
   const handleSavePassword = async () => {
-    if (!userId) {
-      setSnack({ open: true, type: 'error', msg: 'No se pudo determinar el ID del usuario.' })
-      return
-    }
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setSnack({ open: true, type: 'warning', msg: 'Completá todos los campos de contraseña.' })
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setSnack({ open: true, type: 'warning', msg: 'La confirmación no coincide.' })
-      return
-    }
-    if (newPassword.length < 8) {
-      setSnack({ open: true, type: 'warning', msg: 'La nueva contraseña debe tener al menos 8 caracteres.' })
-      return
-    }
-
-    try {
-      setSavingPassword(true)
-      await usuarioService.changePassword(userId, { currentPassword, newPassword })
-      setSnack({ open: true, type: 'success', msg: 'Contraseña actualizada correctamente.' })
-      // limpiar formulario
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setEditPassword(false)
-    } catch (e: any) {
-      setSnack({ open: true, type: 'error', msg: e?.message || 'No se pudo actualizar la contraseña' })
-    } finally {
-      setSavingPassword(false)
-    }
+  if (!userId) {
+    setSnack({ open: true, type: 'error', msg: 'No se pudo determinar el ID del usuario.' });
+    return;
   }
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setSnack({ open: true, type: 'warning', msg: 'Completá todos los campos de contraseña.' });
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    setSnack({ open: true, type: 'warning', msg: 'La confirmación no coincide.' });
+    return;
+  }
+  if (newPassword.length < 8) {
+    setSnack({ open: true, type: 'warning', msg: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+    return;
+  }
+
+  try {
+    setSavingPassword(true);
+    await usuarioService.changePasswordCuenta(userId, {
+      currentPassword,
+      newPassword,
+    });
+
+    setSnack({ open: true, type: 'success', msg: 'Contraseña actualizada correctamente.' });
+    // limpiar formulario
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setEditPassword(false);
+  } catch (e: any) {
+    setSnack({ open: true, type: 'error', msg: e?.message || 'No se pudo actualizar la contraseña' });
+  } finally {
+    setSavingPassword(false);
+  }
+};
+
 
   if (loading && !usuario) {
     return (

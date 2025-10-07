@@ -1,10 +1,10 @@
 // src/components/types.ts
-export type Usuario = {
-  id: number
-  nombre: string
-  email: string
-  rol: string
-  activo: boolean
+export interface Usuario {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: 'user' | 'admin'; // 👈 Igual que en usuarioService.ts
+  activo: boolean;
 }
 
 export type BooleanMap = {

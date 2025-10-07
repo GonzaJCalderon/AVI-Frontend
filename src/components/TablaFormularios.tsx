@@ -170,38 +170,26 @@ export default function TablaFormularios({
       </Box>
 
       {/* Menú contextual por fila */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-        {!esEliminado && (
-          <MenuItem key="editar" onClick={() => handleAccion('editar')}>✏️ Editar</MenuItem>
-        )}
+   <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
+  {!esEliminado && (
+    <MenuItem key="editar" onClick={() => handleAccion('editar')}>✏️ Editar</MenuItem>
+  )}
 
-        {/* ✅ Acciones directas sobre el documento */}
-        <MenuItem key="ver" onClick={() => handleAccion('ver')}>👁️ Ver</MenuItem>
-        <MenuItem key="imprimir" onClick={() => handleAccion('imprimir')}>🖨️ Imprimir</MenuItem>
-        <MenuItem key="descargar" onClick={() => handleAccion('descargar')}>⬇️ Descargar</MenuItem>
+  <MenuItem key="ver" onClick={() => handleAccion('ver')}>👁️ Ver</MenuItem>
+  <MenuItem key="imprimir" onClick={() => handleAccion('imprimir')}>🖨️ Imprimir</MenuItem>
+  <MenuItem key="descargar" onClick={() => handleAccion('descargar')}>⬇️ Descargar</MenuItem>
 
-        <Divider />
+  <Divider />
 
-        {!esEliminado && !esActivo && (
-          <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
-        )}
+  {!esEliminado && !esActivo && (
+    <MenuItem key="activar" onClick={() => handleAccion('activar')}>✅ Activar</MenuItem>
+  )}
 
-        {!esEliminado && !esArchivado && (
-          <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
-        )}
+  {!esEliminado && !esArchivado && (
+    <MenuItem key="archivar" onClick={() => handleAccion('archivar')}>📁 Archivar</MenuItem>
+  )}
+</Menu>
 
-        {!esEliminado && <Divider />}
-
-        {!esEliminado && (
-          <MenuItem
-            key="eliminar"
-            onClick={() => handleAccion('eliminar')}
-            sx={{ color: 'error.main' }}
-          >
-            🗑️ Eliminar
-          </MenuItem>
-        )}
-      </Menu>
     </Paper>
   );
 }

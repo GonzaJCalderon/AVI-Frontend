@@ -23,15 +23,16 @@ import GroupIcon from '@mui/icons-material/Group'
 import MenuIcon from '@mui/icons-material/Menu'
 import PrintIcon from '@mui/icons-material/Print'
 import DescriptionIcon from '@mui/icons-material/Description'
-
-
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 const expandedWidth = 240
 const collapsedWidth = 72
-const PROFILE_PATH = '/usuario' // ✅ tu página de perfil real
+
+// 🔗 Base de todas las rutas
+const BASE_URL = 'https://sistemas.seguridad.mendoza.gov.ar/avd'
+const PROFILE_PATH = `${BASE_URL}/usuario`
 
 type User = {
   nombre?: string
@@ -45,20 +46,14 @@ function getInitials(nombre?: string) {
   return nombre.trim().split(/\s+/).map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2)
 }
 
-
-
 export default function SidebarNavbar() {
-  const router = useRouter()
   const pathname = usePathname()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
-   // ⛔ Rutas donde NO debe mostrarse el sidebar
+  // ⛔ Rutas donde NO debe mostrarse el sidebar
   const HIDE_ON = ['/login', '/recuperar-password', '/restablecer-password']
-
-  if (HIDE_ON.some(p => pathname?.startsWith(p))) {
-    return null
-  }
+  if (HIDE_ON.some(p => pathname?.startsWith(p))) return null
 
   const [user, setUser] = useState<User | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -77,40 +72,38 @@ export default function SidebarNavbar() {
 
   const handleLogout = () => {
     localStorage.clear()
-    router.push('/login')
+    window.location.href = `${BASE_URL}/login`
   }
 
-const navItems = [
-  { label: 'Inicio', icon: <HomeIcon />, path: '/inicio' },
-  { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: '/nuevo-caso' },
-  { label: 'Buscar', icon: <SearchIcon />, path: '/inicio#busqueda-avanzada' },
-  ...(user?.rol === 'admin'
-    ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' }]
-    : []),
-  {
-    label: 'Formulario en blanco',
-    icon: <PrintIcon />,
-    path: '/formulario_vacio.html', // ✅ apunta al formulario vacío
-    action: 'imprimir-pdf'
-  },
-  {
-    label: 'Listar Formularios',
-    icon: <DescriptionIcon />,
-    path: '/listar-formularios',
-  },
-];
-
-
+  const navItems = [
+    { label: 'Inicio', icon: <HomeIcon />, path: `${BASE_URL}/inicio` },
+    { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: `${BASE_URL}/nuevo-caso` },
+    { label: 'Buscar', icon: <SearchIcon />, path: `${BASE_URL}/inicio#busqueda-avanzada` },
+    ...(user?.rol === 'admin'
+      ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: `${BASE_URL}/admin` }]
+      : []),
+    {
+      label: 'Formulario en blanco',
+      icon: <PrintIcon />,
+      path: `${BASE_URL}/formulario_vacio.html`,
+      action: 'imprimir-pdf'
+    },
+    {
+      label: 'Listar Formularios',
+      icon: <DescriptionIcon />,
+      path: `${BASE_URL}/listar-formularios`,
+    },
+  ]
 
   const userItems = [
-    { label: 'Mi Perfil', icon: <AccountCircleIcon />, path: PROFILE_PATH }, // ✅
+    { label: 'Mi Perfil', icon: <AccountCircleIcon />, path: PROFILE_PATH },
   ]
 
   const drawerContent = (
     <Box display="flex" flexDirection="column" height="100%">
       {/* LOGO + TÍTULO */}
       <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={2} sx={{ minHeight: '80px' }}>
-        <IconButton onClick={() => router.push('/inicio')}>
+        <IconButton onClick={() => (window.location.href = `${BASE_URL}/inicio`)}>
           <Avatar alt="Logo Gobierno" src="/images/logo-png-sin-fondo.png" sx={{ width: 48, height: 48, bgcolor: 'white' }} />
         </IconButton>
 
@@ -126,49 +119,37 @@ const navItems = [
       {/* NAVEGACIÓN PRINCIPAL */}
       <List>
         {navItems.map((item) => (
-       <ListItem
-  button
-  key={item.label}
- onClick={() => {
-  if (item.action === 'imprimir-pdf') {
-    const win = window.open(item.path, '_blank');
-    if (win) {
-      win.focus();
-      win.onload = () => {
-        setTimeout(() => {
-          win.print();
-        }, 500);
-      };
-    }
-  } else if (item.label === 'Nuevo Caso') {
-  router.push('/nuevo-caso');
-}
- else if (item.label === 'Formulario Acción') {
-    window.open('/formulario-accion', '_blank');
-  } else if (item.path.includes('#')) {
-    window.location.href = item.path;
-  } else {
-    router.push(item.path);
-  }
-
-  if (isMobile) setMobileOpen(false);
-}}
-
-  selected={pathname === item.path}
-  sx={{
-    '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.15)' },
-    '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
-    justifyContent: hovered || isMobile ? 'flex-start' : 'center',
-    px: hovered || isMobile ? 3 : 2,
-    transition: 'padding 0.3s',
-  }}
->
-  <ListItemIcon sx={{ color: 'white', minWidth: 0, mr: hovered || isMobile ? 2 : 0 }}>
-    {item.icon}
-  </ListItemIcon>
-  {(hovered || isMobile) && <ListItemText primary={item.label} />}
-</ListItem>
-
+          <ListItem
+            button
+            key={item.label}
+            onClick={() => {
+              if (item.action === 'imprimir-pdf') {
+                const win = window.open(item.path, '_blank')
+                if (win) {
+                  win.focus()
+                  win.onload = () => {
+                    setTimeout(() => {
+                      win.print()
+                    }, 500)
+                  }
+                }
+              } else {
+                window.location.href = item.path
+              }
+              if (isMobile) setMobileOpen(false)
+            }}
+            sx={{
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+              justifyContent: hovered || isMobile ? 'flex-start' : 'center',
+              px: hovered || isMobile ? 3 : 2,
+              transition: 'padding 0.3s',
+            }}
+          >
+            <ListItemIcon sx={{ color: 'white', minWidth: 0, mr: hovered || isMobile ? 2 : 0 }}>
+              {item.icon}
+            </ListItemIcon>
+            {(hovered || isMobile) && <ListItemText primary={item.label} />}
+          </ListItem>
         ))}
       </List>
 
@@ -184,12 +165,10 @@ const navItems = [
                 button
                 key={item.label}
                 onClick={() => {
-                  router.push(item.path)
+                  window.location.href = item.path
                   if (isMobile) setMobileOpen(false)
                 }}
-                selected={pathname === item.path}
                 sx={{
-                  '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.15)' },
                   '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
                   justifyContent: 'flex-start',
                   px: 3,
@@ -218,7 +197,7 @@ const navItems = [
                   mx: 'auto', cursor: 'pointer',
                   '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
                 }}
-                onClick={() => router.push(PROFILE_PATH)} // ✅
+                onClick={() => (window.location.href = PROFILE_PATH)}
               >
                 {getInitials(user?.nombre || user?.name)}
               </Avatar>
@@ -249,7 +228,7 @@ const navItems = [
               cursor: 'pointer', transition: 'background-color 0.2s',
               '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' }
             }}
-            onClick={() => router.push(PROFILE_PATH)} // ✅
+            onClick={() => (window.location.href = PROFILE_PATH)}
           >
             <Typography variant="body2" color="white" fontWeight="bold">
               {user.nombre || user.name || 'Usuario'}

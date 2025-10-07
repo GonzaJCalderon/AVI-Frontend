@@ -51,7 +51,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 import * as XLSX from 'xlsx-js-style';
 import {
-  listarIntervenciones,
+
   IntervencionItem,
   eliminarIntervencionSoft,
   cerrarIntervencion,
@@ -61,6 +61,8 @@ import {
    activarIntervencion, 
     obtenerIntervencionPorId,
 } from '@/services/intervenciones';
+import { listarIntervenciones } from '@/services/intervenciones'
+
 
 // ✅ Importar el tipo desde el archivo de tipos
 import { Formulario } from '@/types/formulario';

@@ -11,16 +11,17 @@ interface Localidad {
   departamento_id: string;
 }
 
-// Cache para evitar recargar los JSONs constantemente
-let departamentosCache: Departamento[] | null = null;
-let localidadesCache: Localidad[] | null = null;
+// Cache inicializado como arrays vacíos para evitar problemas con null
+let departamentosCache: Departamento[] = [];
+let localidadesCache: Localidad[] = [];
 
 /**
  * Carga los departamentos desde el JSON público
  */
 export async function cargarDepartamentos(): Promise<Departamento[]> {
-  if (departamentosCache) return departamentosCache;
-  
+  // Si ya tenemos los datos en cache, los retornamos
+  if (departamentosCache.length > 0) return departamentosCache;
+
   try {
     const response = await fetch('/departamentosMendoza.json');
     const data = await response.json();
@@ -36,8 +37,9 @@ export async function cargarDepartamentos(): Promise<Departamento[]> {
  * Carga las localidades desde el JSON público
  */
 export async function cargarLocalidades(): Promise<Localidad[]> {
-  if (localidadesCache) return localidadesCache;
-  
+  // Si ya tenemos los datos en cache, los retornamos
+  if (localidadesCache.length > 0) return localidadesCache;
+
   try {
     const response = await fetch('/localidadesMendoza.json');
     const data = await response.json();
@@ -56,28 +58,25 @@ export async function cargarLocalidades(): Promise<Localidad[]> {
  */
 export function mapearDepartamento(departamentoId: string | number | undefined): string {
   if (!departamentoId) return '—';
-  
-  if (!departamentosCache) {
+
+  if (departamentosCache.length === 0) {
     console.warn('Departamentos no cargados. Llama a cargarDepartamentos() primero.');
     return String(departamentoId);
   }
-  
+
   const depIdStr = String(departamentoId);
-  const departamento = departamentosCache.find(d => d.id === depIdStr);
-  
+  const departamento = departamentosCache.find((d) => d.id === depIdStr);
+
   return departamento ? departamento.nombre : String(departamentoId);
 }
 
 /**
  * Mapea un domicilio/dirección a localidad (para el caso donde viene como texto)
- * @param domicilio - Texto del domicilio que puede contener información de localidad  
+ * @param domicilio - Texto del domicilio que puede contener información de localidad
  * @returns El domicilio tal como viene o "—" si está vacío
  */
 export function mapearDomicilioALocalidad(domicilio: string | undefined): string {
   if (!domicilio || domicilio.trim() === '') return '—';
-  
-  // Por ahora devolvemos el domicilio tal como viene
-  // Podrías implementar lógica más sofisticada para extraer la localidad del domicilio
   return domicilio.trim();
 }
 
@@ -87,8 +86,8 @@ export function mapearDomicilioALocalidad(domicilio: string | undefined): string
  * @returns Objeto departamento o undefined
  */
 export function obtenerDepartamentoPorNombre(nombre: string): Departamento | undefined {
-  if (!departamentosCache) return undefined;
-  return departamentosCache.find(d => d.nombre === nombre);
+  if (departamentosCache.length === 0) return undefined;
+  return departamentosCache.find((d) => d.nombre === nombre);
 }
 
 /**
@@ -97,6 +96,6 @@ export function obtenerDepartamentoPorNombre(nombre: string): Departamento | und
  * @returns Array de localidades del departamento
  */
 export function obtenerLocalidadesPorDepartamento(departamentoId: string): Localidad[] {
-  if (!localidadesCache) return [];
-  return localidadesCache.filter(l => l.departamento_id === departamentoId);
+  if (localidadesCache.length === 0) return [];
+  return localidadesCache.filter((l) => l.departamento_id === departamentoId);
 }

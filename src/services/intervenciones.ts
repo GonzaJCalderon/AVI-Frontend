@@ -572,3 +572,9 @@ export const cambiarEstadoMultiple = async (ids: number[], nuevoEstado: string) 
   
   return exitosas;
 };
+
+
+export const listarNoActivas = async (): Promise<IntervencionItem[]> => {
+  const todas = await listarIntervenciones(); // Usa la función que ya tienes
+  return todas.filter(intervencion => intervencion.estado?.toLowerCase() !== 'activa');
+};

@@ -133,7 +133,7 @@ export interface CreateUsuarioData {
   nombre: string;
   apellido: string;
   email: string;
-  rol: 'admin' | 'usuario'; // se mapea a 'admin' | 'user' en el payload
+  rol: 'admin' | 'user'; // se mapea a 'admin' | 'user' en el payload
   password?: string;
 }
 
@@ -292,15 +292,26 @@ async createUsuario(
 }
 
 
+async updatePerfil(id: number, data: { nombre?: string; email?: boolean; password?: boolean }): Promise<Usuario> {
+  const response = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  const json = await this.handleResponse<any>(response);
+  const raw = json?.data ?? json;
+  return normalizeUsuario(raw);
+}
 
 
 
 
 
 async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
-  console.log('Actualizando usuario en:', `${API_BASE_URL}/usuarios/cuenta/${id}`);
+  console.log('Actualizando usuario en:', `${API_BASE_URL}/usuarios/${id}`);
 
-  const response = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
     method: 'PATCH', // o 'PUT' si tu backend no soporta PATCH
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -453,48 +464,30 @@ async enviarResetPasswordEmail(email: string): Promise<boolean> {
    * Se envían ambos juegos de claves para máxima compatibilidad:
    * { currentPassword, newPassword } y { actual, nueva }
    */
-  async changePassword(
-    id: number,
-    payload: { currentPassword: string; newPassword: string }
-  ): Promise<{ success?: boolean; message?: string }> {
-    // 1) Intento endpoint específico de usuarios
-    try {
-      const res = await fetch(`${API_BASE_URL}/usuarios/${id}/password`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          // nombres comunes
-          currentPassword: payload.currentPassword,
-          newPassword: payload.newPassword,
-          // alias frecuentes en APIs en español
-          actual: payload.currentPassword,
-          nueva: payload.newPassword,
-        }),
-      });
+async changePasswordCuenta(
+  id: number,
+  payload: { currentPassword: string; newPassword: string }
+): Promise<{ success?: boolean; message?: string }> {
+  const res = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      password: true,                // 🔑 le indica al backend que es cambio de password
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+    }),
+  });
 
-      if (!res.ok) {
-        // si es 404, probamos fallback
-        if (res.status === 404) throw new Error('__FALLBACK__');
-        const data = await res.json().catch(() => ({}));
-        const msg = data?.message || data?.error || `Error ${res.status}`;
-        throw new Error(msg);
-      }
-
-      return this.handleResponse<{ success?: boolean; message?: string }>(res);
-    } catch (e: any) {
-      if (e?.message !== '__FALLBACK__') throw e;
-      // 2) Fallback endpoint global: /auth/change-password
-      const res2 = await fetch(`${API_BASE_URL}/auth/change-password`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          currentPassword: payload.currentPassword,
-          newPassword: payload.newPassword,
-        }),
-      });
-      return this.handleResponse<{ success?: boolean; message?: string }>(res2);
-    }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = data?.message || data?.error || `Error ${res.status}`;
+    throw new Error(msg);
   }
+
+  return this.handleResponse<{ success?: boolean; message?: string }>(res);
+}
+
+
 }
 
 

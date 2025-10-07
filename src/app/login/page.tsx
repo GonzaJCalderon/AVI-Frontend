@@ -90,16 +90,19 @@ const secureStorage = {
         localStorage.removeItem(key);
       });
 
+      // Guardar en localStorage
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       localStorage.setItem(STORAGE_KEYS.TOKEN, accessToken);
-      
       if (refreshToken) {
         localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       }
-      
       if (user) {
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
       }
+
+      // ✅ Guardar token como cookie para que lo lea el middleware
+      document.cookie = `access_token=${accessToken}; path=/; max-age=3600; SameSite=Strict; Secure`;
+
     } catch (error) {
       console.error('Error al guardar datos de autenticación:', error);
       throw new Error('Error al guardar los datos de sesión');
@@ -110,6 +113,9 @@ const secureStorage = {
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
+
+    // ✅ Limpiar la cookie también
+    document.cookie = 'access_token=; path=/; max-age=0';
   }
 };
 

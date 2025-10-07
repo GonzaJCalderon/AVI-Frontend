@@ -17,7 +17,7 @@ import {
   CircularProgress
 } from '@mui/material'
 import { useState } from 'react'
-import { estados, departments, delitos } from '@/utils/constants'
+import { ESTADOS_UI, departments, delitos } from '@/utils/constants'
 import * as XLSX from 'xlsx'
 
 type ResultadoFormulario = {
@@ -157,7 +157,7 @@ export default function BuscarFormularioPage() {
               onChange={handleChange}
             >
               <MenuItem value="">Todos</MenuItem>
-              {estados.map((e) => (
+              {ESTADOS_UI.map((e) => (
                 <MenuItem key={e} value={e}>
                   {e}
                 </MenuItem>

@@ -1,8 +1,7 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import { useState } from 'react';
 import {
-  Box,
   Button,
   MenuItem,
   Paper,
@@ -17,145 +16,136 @@ import {
   Grid,
   CircularProgress,
   FormHelperText,
-} from '@mui/material'
-import { useUsuarios } from '@/hooks/useUsuarios'
+} from '@mui/material';
+import { useUsuarios } from '@/hooks/useUsuarios';
 import {
   createUsuarioSchema,
-  CreateUsuarioFormData,
   validateField,
   validateForm,
-} from '@/utils/validationSchemas'
+} from '@/utils/validationSchemas';
 
-// ✅ Tipo explícito para el rol
-type RolUsuario = 'usuario' | 'admin'
+// ✅ Tipo explícito para el rol según lo que espera la API
+type RolUsuario = 'user' | 'admin';
 
 // ✅ Tipo fuerte para el formulario
 type FormularioCrearUsuarioState = {
-  nombre: string
-  apellido: string
-  email: string
-  rol: RolUsuario
-}
+  nombre: string;
+  apellido: string;
+  email: string;
+  rol: RolUsuario;
+};
 
 interface FormularioCrearUsuarioProps {
-  onUserCreated?: (tempPassword?: string) => void
+  onUserCreated?: (tempPassword?: string) => void;
 }
 
 export default function FormularioCrearUsuario({
   onUserCreated,
 }: FormularioCrearUsuarioProps) {
-  const { createUsuario, creating, error, clearError } = useUsuarios()
+  const { createUsuario, creating, error, clearError } = useUsuarios();
 
   const [form, setForm] = useState<FormularioCrearUsuarioState>({
     nombre: '',
     apellido: '',
     email: '',
-    rol: 'usuario',
-  })
+    rol: 'user', // 👈 corregido
+  });
 
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [feedback, setFeedback] = useState({
     open: false,
     success: true,
     message: '',
-  })
+  });
 
   const handleFieldValidation = async (field: string, value: any) => {
-    const error = await validateField(createUsuarioSchema, field, value)
-
+    const error = await validateField(createUsuarioSchema, field, value);
     setFieldErrors((prev) => ({
       ...prev,
       [field]: error || '',
-    }))
-  }
+    }));
+  };
 
-  const handleInputChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const { name, value } = e.target
-
-    setForm((prev) => ({ ...prev, [name]: value }))
-
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
     if (touched[name]) {
-      await handleFieldValidation(name, value)
+      await handleFieldValidation(name, value);
     }
-  }
+  };
 
   const handleSelectChange = async (e: SelectChangeEvent<string>) => {
-    const { name, value } = e.target
-
-    setForm((prev) => ({ ...prev, [name]: value as RolUsuario }))
-
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value as RolUsuario }));
     if (touched[name!]) {
-      await handleFieldValidation(name!, value)
+      await handleFieldValidation(name!, value);
     }
-  }
+  };
 
   const handleBlur = async (field: string) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    await handleFieldValidation(field, form[field as keyof FormularioCrearUsuarioState])
-  }
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    await handleFieldValidation(field, form[field as keyof FormularioCrearUsuarioState]);
+  };
 
   const resetForm = () => {
     setForm({
       nombre: '',
       apellido: '',
       email: '',
-      rol: 'usuario',
-    })
-    setFieldErrors({})
-    setTouched({})
-    clearError()
-  }
+      rol: 'user', // 👈 corregido
+    });
+    setFieldErrors({});
+    setTouched({});
+    clearError();
+  };
 
- // dentro de FormularioCrearUsuario.tsx
+  const handleSubmit = async () => {
+    const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), {});
+    setTouched(allTouched);
 
-const handleSubmit = async () => {
-  const allTouched = Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), {});
-  setTouched(allTouched);
+    const validation = await validateForm(createUsuarioSchema, form);
+    if (!validation.isValid) {
+      setFieldErrors(validation.errors);
+      setFeedback({
+        open: true,
+        success: false,
+        message: 'Por favor, corrige los errores en el formulario',
+      });
+      return;
+    }
 
-  const validation = await validateForm(createUsuarioSchema, form);
-  if (!validation.isValid) {
-    setFieldErrors(validation.errors);
-    setFeedback({ open: true, success: false, message: 'Por favor, corrige los errores en el formulario' });
-    return;
-  }
+    const result = await createUsuario(form);
 
-  // ⬇️ ahora esperamos un objeto { ok, temporaryPassword? }
- const result = await createUsuario(form);
+    if (result?.ok) {
+      const msgBase = 'Usuario creado correctamente.';
+      const msgPwd = result.temporaryPassword
+        ? ` Contraseña temporal: ${result.temporaryPassword}`
+        : ' Se ha asignado una contraseña temporal.';
+      setFeedback({ open: true, success: true, message: msgBase + msgPwd });
 
-if (result?.ok) {
-  const msgBase = 'Usuario creado correctamente.';
-  const msgPwd  = result.temporaryPassword
-    ? ` Contraseña temporal: ${result.temporaryPassword}`
-    : ' Se ha asignado una contraseña temporal.';
-  setFeedback({ open: true, success: true, message: msgBase + msgPwd });
-
-  resetForm();
-  onUserCreated?.(result.temporaryPassword); // 👈 importante
-} else {
-  setFeedback({
-    open: true,
-    success: false,
-    message: error || 'Error al crear el usuario',
-  });
-}
-
-};
-
+      resetForm();
+      onUserCreated?.(result.temporaryPassword);
+    } else {
+      setFeedback({
+        open: true,
+        success: false,
+        message: error || 'Error al crear el usuario',
+      });
+    }
+  };
 
   const closeFeedback = () => {
-    setFeedback((prev) => ({ ...prev, open: false }))
-    clearError()
-  }
+    setFeedback((prev) => ({ ...prev, open: false }));
+    clearError();
+  };
 
-  const hasErrors = Object.values(fieldErrors).some((error) => error !== '')
+  const hasErrors = Object.values(fieldErrors).some((error) => error !== '');
   const isFormValid =
     !hasErrors &&
     Object.values(form).every((value) =>
       typeof value === 'string' ? value.trim() !== '' : true
-    )
+    );
 
   return (
     <Paper sx={{ p: 4, maxWidth: 500 }}>
@@ -228,7 +218,7 @@ if (result?.ok) {
               onChange={handleSelectChange}
               onBlur={() => handleBlur('rol')}
             >
-              <MenuItem value="usuario">Usuario</MenuItem>
+              <MenuItem value="user">Usuario</MenuItem>
               <MenuItem value="admin">Administrador</MenuItem>
             </Select>
             {touched.rol && fieldErrors.rol && (
@@ -261,11 +251,7 @@ if (result?.ok) {
         </Alert>
       )}
 
-      <Snackbar
-        open={feedback.open}
-        autoHideDuration={6000}
-        onClose={closeFeedback}
-      >
+      <Snackbar open={feedback.open} autoHideDuration={6000} onClose={closeFeedback}>
         <Alert
           severity={feedback.success ? 'success' : 'error'}
           onClose={closeFeedback}
@@ -273,27 +259,26 @@ if (result?.ok) {
           {feedback.message}
         </Alert>
       </Snackbar>
-      {feedback.success && feedback.message.includes('Contraseña temporal:') && (
-  <Alert severity="info" sx={{ mt: 2 }}>
-    {
-      // Extraemos la contraseña temporal del mensaje
-      feedback.message.match(/Contraseña temporal: (\S+)/)?.[1]
-    }
-    <Button
-      size="small"
-      sx={{ ml: 2 }}
-      onClick={() => {
-        const password = feedback.message.match(/Contraseña temporal: (\S+)/)?.[1]
-        if (password) {
-          navigator.clipboard.writeText(password)
-        }
-      }}
-    >
-      Copiar
-    </Button>
-  </Alert>
-)}
 
+      {feedback.success && feedback.message.includes('Contraseña temporal:') && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          {
+            feedback.message.match(/Contraseña temporal: (\S+)/)?.[1]
+          }
+          <Button
+            size="small"
+            sx={{ ml: 2 }}
+            onClick={() => {
+              const password = feedback.message.match(/Contraseña temporal: (\S+)/)?.[1];
+              if (password) {
+                navigator.clipboard.writeText(password);
+              }
+            }}
+          >
+            Copiar
+          </Button>
+        </Alert>
+      )}
     </Paper>
-  )
+  );
 }
