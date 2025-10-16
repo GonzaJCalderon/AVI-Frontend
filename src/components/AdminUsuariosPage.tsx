@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Typography, Paper, Button } from '@mui/material';
-import { useUsuarioActual } from '@/hooks/useUsuarios'; // ✅ Hook correcto
+import { useUsuarioActual } from '@/hooks/useUsuarios';
 import { useRouter } from 'next/navigation';
 import TablaUsuarios from '@/components/TablaUsuarios';
 import { Usuario } from '@/components/types';
+import { logger } from '@/lib/logger';
 
 export default function AdminUsuariosPage() {
   const router = useRouter();
@@ -36,13 +37,17 @@ export default function AdminUsuariosPage() {
    *  Redirección por permisos
    *  ========================== */
   useEffect(() => {
-    if (loading) return; // esperar a que termine de cargar el estado
+    if (loading) return;
     if (!usuario || !usuario.rol) {
-      router.push('/login'); // si no hay usuario logueado
+      logger.info('Usuario sin sesión, redirigiendo a login');
+      router.push('/login');
       return;
     }
     if (usuario.rol !== 'admin') {
-      router.push('/usuario'); // si el usuario no es admin
+      logger.info('Usuario sin permisos de admin, redirigiendo a /usuario', {
+        rol: usuario.rol,
+      });
+      router.push('/usuario');
     }
   }, [usuario, loading, router]);
 
@@ -55,33 +60,38 @@ export default function AdminUsuariosPage() {
         id: 1,
         nombre: 'Juan Pérez',
         email: 'juan@correo.com',
-        rol: 'admin', // ✅ literal type
+        rol: 'admin',
         activo: true,
       },
       {
         id: 2,
         nombre: 'Ana López',
         email: 'ana@correo.com',
-        rol: 'user', // ✅ literal type
+        rol: 'user',
         activo: false,
       },
     ];
     setUsuarios(mock);
+    logger.info('Usuarios mock cargados', { cantidad: mock.length });
   }, []);
 
   /** ==========================
    *  Funciones CRUD
    *  ========================== */
   const handleEditar = (user: Usuario) => {
+    logger.info('Editando usuario', { id: user.id, email: user.email });
     setEditandoId(user.id);
     setEditForm({
       nombre: user.nombre,
       email: user.email,
-      rol: user.rol, // ✅ mantiene el tipo correcto
+      rol: user.rol,
     });
   };
 
-  const cancelarEdicion = () => setEditandoId(null);
+  const cancelarEdicion = () => {
+    logger.info('Edición cancelada');
+    setEditandoId(null);
+  };
 
   const guardarCambios = (id: number) => {
     setUsuarios((prev: Usuario[]) =>
@@ -89,32 +99,40 @@ export default function AdminUsuariosPage() {
         u.id === id
           ? {
               ...u,
-              ...editForm, // ✅ ahora editForm tiene 'rol' como 'user' | 'admin'
+              ...editForm,
             }
           : u
       )
     );
+    logger.info('Cambios guardados en usuario', { id, ...editForm });
     setEditandoId(null);
   };
 
   const eliminarUsuario = (id: number) => {
     const user = usuarios.find((u) => u.id === id);
     if (user?.rol === 'admin') {
+      logger.info('Intento bloqueado de eliminar usuario admin', { id });
       alert('❌ No puedes eliminar un usuario con rol de administrador.');
       return;
     }
     if (!confirm('¿Eliminar este usuario?')) return;
+
     setUsuarios((prev) => prev.filter((u) => u.id !== id));
+    logger.info('Usuario eliminado', { id });
   };
 
   const toggleActivo = (id: number) => {
     setUsuarios((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, activo: !u.activo } : u))
+      prev.map((u) =>
+        u.id === id ? { ...u, activo: !u.activo } : u
+      )
     );
+    logger.info('Estado activo cambiado', { id });
   };
 
   const reiniciarPassword = (user: Usuario) => {
     alert(`🔐 Se ha bloqueado la contraseña para: ${user.email}`);
+    logger.info('Password reseteada (mock)', { email: user.email });
   };
 
   /** ==========================
@@ -130,7 +148,10 @@ export default function AdminUsuariosPage() {
         <Button
           variant="contained"
           sx={{ mt: 2 }}
-          onClick={() => router.push('/admin/crear-usuario')}
+          onClick={() => {
+            logger.info('Redirigiendo a creación de usuario');
+            router.push('/admin/crear-usuario');
+          }}
         >
           ➕ Crear nuevo usuario
         </Button>

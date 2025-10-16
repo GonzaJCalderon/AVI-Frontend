@@ -3,12 +3,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/services/api'; // asegurate de tenerlo arriba
+import { logger } from '@/lib/logger';
 
 // Interfaces mejoradas con validación más estricta
 interface User {
   id: string | number;
   email: string;
-  nombre?: string;
+  nombre?: string; 
   rol?: string;
   [key: string]: any;
 }
@@ -45,10 +47,11 @@ const STORAGE_KEYS = {
 } as const;
 
 const API_ENDPOINTS = {
-  LOGIN: '/api/auth/login',
+  LOGIN: '/auth/login', // <-- cambiar esta línea
   RECOVERY: '/recuperar',
   DASHBOARD: '/inicio',
-} as const;
+};
+
 
 const VALIDATION_RULES = {
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -152,59 +155,29 @@ export default function LoginPage() {
     }
   }, [errors]);
 
-  // Función mejorada para manejo de login
-  const performLogin = async (credentials: FormData): Promise<LoginResponse> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, VALIDATION_RULES.REQUEST_TIMEOUT);
 
-    try {
-      const response = await fetch(API_ENDPOINTS.LOGIN, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          email: credentials.email.trim().toLowerCase(),
-          password: credentials.password,
-        }),
-        signal: controller.signal,
-      });
 
-      clearTimeout(timeoutId);
+const performLogin = async (credentials: FormData): Promise<LoginResponse> => {
+  const data = await apiFetch<LoginResponse>(API_ENDPOINTS.LOGIN, {
+    method: 'POST',
+    body: JSON.stringify({
+      email: credentials.email.trim().toLowerCase(),
+      password: credentials.password,
+    }),
+  });
 
-      let data: LoginResponse = {};
-      
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        const text = await response.text();
-        if (text) {
-          data = JSON.parse(text);
-        }
-      }
+  const hasValidToken = data?.access_token || data?.accessToken || data?.token;
+  if (!hasValidToken) {
+    throw new Error('Respuesta del servidor inválida: token no encontrado');
+  }
+logger.info('Login exitoso', {
+  email: credentials.email,
+  userId: data?.user?.id,
+});
 
-      if (!response.ok) {
-        const errorMessage = data?.message || data?.error || 
-          (response.status === 401 ? 'Credenciales incorrectas' :
-           response.status === 429 ? 'Demasiados intentos. Intenta más tarde' :
-           response.status >= 500 ? 'Error del servidor. Intenta más tarde' :
-           `Error de autenticación (${response.status})`);
-        
-        throw new Error(errorMessage);
-      }
+  return data;
+};
 
-      // Validar que se recibió token válido
-      const hasValidToken = data?.access_token || data?.accessToken || data?.token;
-      if (!hasValidToken) {
-        throw new Error('Respuesta del servidor inválida: token no encontrado');
-      }
-
-      return data;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  };
 
   // Manejador de envío mejorado
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -226,6 +199,8 @@ export default function LoginPage() {
     setErrors({});
 
     try {
+      logger.info('Intento de login', { email: form.email });
+
       const loginData = await performLogin(form);
       secureStorage.store(loginData);
       
@@ -234,7 +209,8 @@ export default function LoginPage() {
       router.push(API_ENDPOINTS.DASHBOARD);
       
     } catch (error: any) {
-      console.error('Error de login:', error);
+  logger.error('Error de login', error);
+
       
       let errorMessage = 'Error inesperado. Intenta nuevamente.';
       

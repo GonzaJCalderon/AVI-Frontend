@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import debounce from "lodash/debounce";
+import { useMemo } from "react";
 
 // Material UI
 import {
@@ -319,7 +321,6 @@ type FastTextFieldProps = Omit<
   onCommit: (name: keyof FormState, next: string) => void;
   version: number;
 };
-
 const FastTextField: React.FC<FastTextFieldProps> = ({
   name,
   value,
@@ -335,17 +336,23 @@ const FastTextField: React.FC<FastTextFieldProps> = ({
     <TextField
       key={`${String(name)}-${key}`}
       defaultValue={value ?? ""}
+      onChange={(e) => {
+        localRef.current = e.target.value; // ✅ mantiene en sync lo que el usuario escribe
+      }}
       onBlur={(e) => {
         const v = e.target.value ?? "";
         if (v !== localRef.current) {
           localRef.current = v;
           onCommit(name, v);
+        } else {
+          onCommit(name, v); // ✅ fuerza commit del valor actual incluso si no cambió
         }
       }}
       {...props}
     />
   );
 };
+
 
 /** ========================
  *  Mapeo de datos API -> FormState
@@ -466,9 +473,12 @@ const mapearDatosAPI = (
   const localidadNombre = getNombreLocalidad(localidadID, localidades);
 
   const ocupacion = vict?.ocupacion ?? "";
+const ent = vict?.personas_entrevistadas?.[0];
+const entrevistadoNombre =
+  ent?.nombre && ent?.nombre.trim().toLowerCase() !== (vict?.nombre ?? "").toLowerCase()
+    ? ent.nombre
+    : "";
 
-  const ent = vict?.personas_entrevistadas?.[0];
-  const entrevistadoNombre = ent?.nombre ?? "";
   const entrevistadoCalle = ent?.direccion?.calle_nro ?? "";
   const entrevistadoBarrio = ent?.direccion?.barrio ?? "";
   const entrevistadoDepartamentoID = ent?.direccion?.departamento ?? "";
@@ -654,75 +664,98 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
   }, []); // Se ejecuta una sola vez al montar el componente
 
   // Buffer mutable (no re-render por tecla en FastTextField)
-  const bufferRef = useRef<FormState>({
-    fechaIntervencion: "",
-    coordinador: "",
-    operador: "",
-    observaciones: "",
-    derivadorNombre: "",
-    horaDerivacion: "",
-    motivoDerivacion: "",
-    nroExpediente: "",
-    nroAgresores: "",
-    robo: false,
-    roboArmaFuego: false,
-    roboArmaBlanca: false,
-    amenazas: false,
-    lesiones: false,
-    lesionesArmaFuego: false,
-    lesionesArmaBlanca: false,
-    homicidioDelito: false,
-    homicidioAccidenteVial: false,
-    homicidioAvHecho: false,
-    femicidio: false,
-    transfemicidio: false,
-    violenciaGenero: false,
-    otros: false,
-    departamentoHecho: "",
-    localidadHecho: "", // ✅ AGREGADO AQUÍ
-    calleBarrioHecho: "",
-    fechaHecho: "",
-    horaHecho: "",
-    accionesPrimeraLinea: "",
-    abusoSexualSimple: false,
-    abusoSexualAgravado: false,
-    kitAplicado: "",
-    relacionAgresor: "",
-    otroRelacion: "",
-    tipoLugar: "",
-    otroLugar: "",
-    dni: "",
-    nombreVictima: "",
-    genero: "",
-    fechaNacimiento: "",
-    telefono: "",
-    calleNro: "",
-    barrio: "",
-    departamento: "",
-    localidad: "",
-    ocupacion: "",
-    entrevistadoNombre: "",
-    entrevistadoCalle: "",
-    entrevistadoBarrio: "",
-    entrevistadoDepartamento: "",
-    entrevistadoLocalidad: "",
-    entrevistadoRelacion: "",
-    crisis: false,
-    telefonica: false,
-    domiciliaria: false,
-    psicologica: false,
-    medica: false,
-    social: false,
-    legal: false,
-    sinIntervencion: false,
-    archivoCaso: false,
-    seguimientoRealizado: "",
-    segAsesoramientoLegal: false,
-    segTratamientoPsicologico: false,
-    segSeguimientoLegal: false,
-    segArchivoCaso: false,
-    detalleSeguimiento: "",
-  });
+  const [formState, setFormState] = useState<FormState>({
+  fechaIntervencion: "",
+  coordinador: "",
+  operador: "",
+  observaciones: "",
+  derivadorNombre: "",
+  horaDerivacion: "",
+  motivoDerivacion: "",
+  nroExpediente: "",
+  nroAgresores: "",
+  robo: false,
+  roboArmaFuego: false,
+  roboArmaBlanca: false,
+  amenazas: false,
+  lesiones: false,
+  lesionesArmaFuego: false,
+  lesionesArmaBlanca: false,
+  homicidioDelito: false,
+  homicidioAccidenteVial: false,
+  homicidioAvHecho: false,
+  femicidio: false,
+  transfemicidio: false,
+  violenciaGenero: false,
+  otros: false,
+  departamentoHecho: "",
+  localidadHecho: "",
+  calleBarrioHecho: "",
+  fechaHecho: "",
+  horaHecho: "",
+  accionesPrimeraLinea: "",
+  abusoSexualSimple: false,
+  abusoSexualAgravado: false,
+  kitAplicado: "",
+  relacionAgresor: "",
+  otroRelacion: "",
+  tipoLugar: "",
+  otroLugar: "",
+  dni: "",
+  nombreVictima: "",
+  genero: "",
+  fechaNacimiento: "",
+  telefono: "",
+  calleNro: "",
+  barrio: "",
+  departamento: "",
+  localidad: "",
+  ocupacion: "",
+  entrevistadoNombre: "",
+  entrevistadoCalle: "",
+  entrevistadoBarrio: "",
+  entrevistadoDepartamento: "",
+  entrevistadoLocalidad: "",
+  entrevistadoRelacion: "",
+  crisis: false,
+  telefonica: false,
+  domiciliaria: false,
+  psicologica: false,
+  medica: false,
+  social: false,
+  legal: false,
+  sinIntervencion: false,
+  archivoCaso: false,
+  seguimientoRealizado: "",
+  segAsesoramientoLegal: false,
+  segTratamientoPsicologico: false,
+  segSeguimientoLegal: false,
+  segArchivoCaso: false,
+  detalleSeguimiento: "",
+});
+
+const commitDebounced = useMemo(() => {
+  return debounce((name: keyof FormState, value: any) => {
+    setFormState((prev) => ({ ...prev, [name]: value }));
+  }, 300);
+}, []);
+
+const commit = useCallback(
+  (name: keyof FormState, value: string | number | boolean) => {
+    commitDebounced(name, value);
+  },
+  [commitDebounced]
+);
+
+const forceCommit = useCallback(
+  (name: keyof FormState, value: string | number | boolean) => {
+    setFormState((prev) => ({ ...prev, [name]: value }));
+    setVersion((v) => v + 1);
+  },
+  []
+);
+
+
 
   // Inicialización desde selected (una sola vez y cuando cambie)
  useEffect(() => {
@@ -739,27 +772,11 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
   console.log("🧪 Valor final de kitAplicado:", formData.kitAplicado);
   console.log("🧪 Valor de abusoDatos?.kit crudo:", selected.abusos_sexuales?.[0]?.datos?.[0]?.kit);
 
-  bufferRef.current = formData;
+  setFormState(formData);
   setVersion((v) => v + 1);
 }, [selected, departamentos, localidades]);
 
 
-  // Commit genérico (no forza re-render por defecto para no laggear textos)
-  const commit = useCallback(
-    (name: keyof FormState, next: string | number | boolean) => {
-      (bufferRef.current as any)[name] = next;
-    },
-    []
-  );
-
-  // Handlers que SÍ fuerzan re-render para controles que lo necesitan
-  const forceCommit = useCallback(
-    (name: keyof FormState, next: string | number | boolean) => {
-      (bufferRef.current as any)[name] = next;
-      setVersion((v) => v + 1); // ✅ necesario para Checkboxes/Radio
-    },
-    []
-  );
 
   const onCheck = useCallback(
     (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -838,12 +855,6 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
       nuevosErrores.push("El nombre de la víctima es obligatorio");
     }
 
-    // 8️⃣ Nombre entrevistado
-    if (!f.entrevistadoNombre.trim()) {
-      nuevosErrores.push(
-        "El nombre y apellido de la persona entrevistada es obligatorio"
-      );
-    }
 
     return nuevosErrores;
   };
@@ -867,8 +878,8 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
         return;
       }
 
-      const f = bufferRef.current;
-
+    const f = formState;
+  
       console.log("DEBUG departamentoHecho crudo:", f.departamentoHecho);
 
       console.log(
@@ -909,6 +920,36 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
           : f.tipoLugar === "Otro"
           ? "otro"
           : "";
+
+  // 🧹 Normalizamos y validamos todos los campos del entrevistado
+const nombreEntrev = f.entrevistadoNombre.trim();
+const relacionEntrev = f.entrevistadoRelacion.trim();
+const calleEntrev = f.entrevistadoCalle.trim();
+const barrioEntrev = f.entrevistadoBarrio.trim();
+const deptoEntrev = toValidPositiveNumber(f.entrevistadoDepartamento);
+const locEntrev = toValidPositiveNumber(f.entrevistadoLocalidad);
+
+// ⚙️ Construcción condicional solo si hay algo real
+const personaEntrevistada =
+  nombreEntrev ||
+  relacionEntrev ||
+  calleEntrev ||
+  barrioEntrev ||
+  deptoEntrev > 0 ||
+  locEntrev > 0
+    ? {
+        nombre: nombreEntrev,
+        relacionVictima: relacionEntrev,
+        direccion: {
+          calleNro: calleEntrev,
+          barrio: barrioEntrev,
+          departamento: deptoEntrev,
+          localidad: locEntrev,
+        },
+      }
+    : null;
+
+
 
       const payload = {
         intervencion: {
@@ -1005,17 +1046,9 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
           },
         },
 
-        personaEntrevistada: {
-          nombre: f.entrevistadoNombre,
-          relacionVictima: f.entrevistadoRelacion,
-          direccion: {
-            calleNro: f.entrevistadoCalle,
-            barrio: f.entrevistadoBarrio,
-            departamento: toValidPositiveNumber(f.entrevistadoDepartamento),
-            // ✅ Cambiar esta línea:
-            localidad: toValidPositiveNumber(f.entrevistadoLocalidad), // En lugar de toOptionalPositiveNumber
-          },
-        },
+personaEntrevistada: personaEntrevistada || undefined,
+
+
 
         seguimiento: {
           realizado: f.seguimientoRealizado === "si",
@@ -1053,7 +1086,8 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
       setGuardando(false);
     }
   };
-  const f = bufferRef.current;
+  const f = formState;
+
 
   const localidadesVictima = localidades.filter(
     (l) => Number(l.departamento_id) === Number(f.departamento)

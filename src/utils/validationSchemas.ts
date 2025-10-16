@@ -26,7 +26,7 @@ export const createUsuarioSchema = yup.object({
   rol: yup
     .string()
     .required('El rol es obligatorio')
-    .oneOf(['usuario', 'admin'], 'El rol debe ser "usuario" o "admin"'),
+    .oneOf(['user', 'admin'], 'El rol debe ser "usuario" o "admin"'),
 });
 
 // Validación para actualizar usuario
