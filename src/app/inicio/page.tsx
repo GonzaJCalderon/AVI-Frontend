@@ -138,18 +138,24 @@ interface Departamento {
 } 
 
 const [user, setUser] = useState<any>(null);
+const [loadingUser, setLoadingUser] = useState(true);
+
 
 useEffect(() => {
   try {
     const data = localStorage.getItem('user');
     if (data) {
       setUser(JSON.parse(data));
+    } else {
+      setUser(null);
     }
   } catch (e) {
     console.error('❌ Error leyendo el usuario desde localStorage:', e);
+    setUser(null);
+  } finally {
+    setLoadingUser(false);
   }
 }, []);
-
 
 
 const handleImprimirFormularioPDF = () => {
@@ -166,7 +172,12 @@ const handleImprimirFormularioPDF = () => {
   }
 };
 
-
+// ✅ Redirige al login si no hay usuario una vez cargado
+  useEffect(() => {
+    if (!loadingUser && !user) {
+      router.push('/login');
+    }
+  }, [user, loadingUser, router]);
 
 
 
@@ -188,14 +199,7 @@ const handleImprimirFormularioPDF = () => {
 departamentosRef.current = departamentosJson.departamentos;
 
 
-      
-      function normalizarTexto(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
+
 
 const mapped: Formulario[] = data.map((it) => {
   const victima = it.victimas?.[0];
@@ -218,10 +222,6 @@ const mapped: Formulario[] = data.map((it) => {
   const localidadParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '—';
   const reseñaParsed = it.resena_hecho?.trim() || '—';
 
-  console.log("ROL ACTUAL DEL USUARIO:", user?.rol);
-
-
-  // ✅ Aquí está el return principal garantizado
   return {
     id: String(it.id),
     coordinador: it.coordinador || '—',
@@ -246,6 +246,7 @@ const mapped: Formulario[] = data.map((it) => {
     },
   };
 });
+
 
 
       setFormularios(mapped);
@@ -927,6 +928,16 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     setOpenEstadoDialog(false);
   };
 
+  // ✅ Early return para mostrar loading mientras se carga el usuario
+  if (loadingUser) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Typography color="text.secondary">Cargando usuario...</Typography>
+      </Box>
+    );
+  }
+
+
   if (cargando) {
     return (
       <Box sx={{ p: 4 }}>
@@ -1000,7 +1011,7 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       </Box>
 
       <Box display="flex" justifyContent="flex-start" mb={2} gap={2}>
-    {user && user.rol === 'admin' && (
+   {!loadingUser && user?.rol === 'admin' && (
   <Button
     variant="contained"
     onClick={() => router.push('/admin')}

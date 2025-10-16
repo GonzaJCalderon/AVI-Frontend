@@ -22,6 +22,7 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  Pagination,
 } from '@mui/material'
 
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -70,13 +71,11 @@ export default function AdminUsuariosPage() {
     severity: 'success' | 'error'
   }>({ open: false, message: '', severity: 'success' })
 
-  // Forzar re-render cuando usuarios cambie
   const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [pagina, setPagina] = useState(1);
-const USUARIOS_POR_PAGINA = 10;
+  const [pagina, setPagina] = useState(1)
+  const USUARIOS_POR_PAGINA = 10
 
-const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloqueados'>('todos');
-
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloqueados'>('todos')
 
   const handleEditar = (user: Usuario) => {
     setEditandoId(user.id)
@@ -95,11 +94,8 @@ const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloquead
         setNotification({ open: true, message: 'Usuario actualizado exitosamente', severity: 'success' })
         setEditandoId(null)
         setEditForm({ nombre: '', email: '', rol: 'user' })
-        
-        // Forzar actualización visual
         setRefreshTrigger(prev => prev + 1)
         
-        // Opcional: recargar lista completa para garantizar sincronización
         setTimeout(() => {
           fetchUsuarios()
         }, 100)
@@ -114,22 +110,21 @@ const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloquead
   }
 
   const eliminarUsuario = async (id: number, rol: string) => {
-  if (rol === 'admin') {
-    setNotification({ open: true, message: 'No puedes eliminar un usuario administrador', severity: 'error' });
-    return;
-  }
-  if (!confirm('¿Eliminar este usuario definitivamente?')) return;
+    if (rol === 'admin') {
+      setNotification({ open: true, message: 'No puedes eliminar un usuario administrador', severity: 'error' })
+      return
+    }
+    if (!confirm('¿Eliminar este usuario definitivamente?')) return
 
-  const res = await deleteUsuario(id);   // ahora devuelve { ok, message }
-  if (res.ok) {
-    setNotification({ open: true, message: res.message || 'Usuario eliminado correctamente', severity: 'success' });
-    await fetchUsuarios();               // ⬅️ IMPORTANTE: volver a leer del backend
-    setRefreshTrigger(prev => prev + 1);
-  } else {
-    setNotification({ open: true, message: res.message || 'Error al eliminar usuario', severity: 'error' });
+    const res = await deleteUsuario(id)
+    if (res.ok) {
+      setNotification({ open: true, message: res.message || 'Usuario eliminado correctamente', severity: 'success' })
+      await fetchUsuarios()
+      setRefreshTrigger(prev => prev + 1)
+    } else {
+      setNotification({ open: true, message: res.message || 'Error al eliminar usuario', severity: 'error' })
+    }
   }
-};
-
 
   const toggleActivo = async (id: number | undefined, activo: boolean) => {
     if (!id) {
@@ -148,67 +143,68 @@ const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'bloquead
     }
   }
 
- const reiniciarPassword = async (user: Usuario) => {
-  try {
-    await usuarioService.enviarResetPasswordEmail(user.email)
+  const reiniciarPassword = async (user: Usuario) => {
+    try {
+      await usuarioService.enviarResetPasswordEmail(user.email)
+      setNotification({
+        open: true,
+        message: `Se envió un email de restablecimiento a ${user.email}`,
+        severity: 'success',
+      })
+    } catch (error: any) {
+      console.error('Error al enviar email de restablecimiento:', error)
+      setNotification({
+        open: true,
+        message: error.message || 'Error al enviar el correo',
+        severity: 'error',
+      })
+    }
+  }
+
+  const usuariosFiltrados = usuarios
+    .filter(u => `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase()))
+    .filter(u => {
+      if (filtroEstado === 'activos') return u.activo
+      if (filtroEstado === 'bloqueados') return !u.activo
+      return true
+    })
+
+  const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA)
+
+  const usuariosPaginados = usuariosFiltrados.slice(
+    (pagina - 1) * USUARIOS_POR_PAGINA,
+    pagina * USUARIOS_POR_PAGINA
+  )
+
+  const handleUserCreated = (tempPassword?: string) => {
     setNotification({
       open: true,
-      message: `Se envió un email de restablecimiento a ${user.email}`,
+      message: tempPassword
+        ? `Usuario creado. Contraseña temporal: ${tempPassword}`
+        : 'Usuario creado exitosamente',
       severity: 'success',
     })
-  } catch (error: any) {
-    console.error('Error al enviar email de restablecimiento:', error)
-    setNotification({
-      open: true,
-      message: error.message || 'Error al enviar el correo',
-      severity: 'error',
-    })
+    fetchUsuarios()
+    setRefreshTrigger(prev => prev + 1)
   }
-}
 
- const usuariosFiltrados = usuarios
-  .filter(u => `${u.nombre} ${u.email}`.toLowerCase().includes(busqueda.toLowerCase()))
-  .filter(u => {
-    if (filtroEstado === 'activos') return u.activo;
-    if (filtroEstado === 'bloqueados') return !u.activo;
-    return true; // todos
-  });
-
-const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA);
-
-const usuariosPaginados = usuariosFiltrados.slice(
-  (pagina - 1) * USUARIOS_POR_PAGINA,
-  pagina * USUARIOS_POR_PAGINA
-);
-
-const handleUserCreated = (tempPassword?: string) => {
-  setNotification({
-    open: true,
-    message: tempPassword
-      ? `Usuario creado. Contraseña temporal: ${tempPassword}`
-      : 'Usuario creado exitosamente',
-    severity: 'success',
-  })
-  fetchUsuarios()
-  setRefreshTrigger(prev => prev + 1)
-}
+  const handleCambiarPagina = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPagina(value)
+  }
 
   useEffect(() => {
-  const rawUser = localStorage.getItem('user')
-  const user = rawUser ? JSON.parse(rawUser) : null
+    const rawUser = localStorage.getItem('user')
+    const user = rawUser ? JSON.parse(rawUser) : null
 
-  if (!user || user.rol !== 'admin') {
-    alert('Acceso denegado. Solo administradores pueden acceder.')
-    router.push('/inicio') // O la ruta segura que uses
-  }
-}, [])
+    if (!user || user.rol !== 'admin') {
+      alert('Acceso denegado. Solo administradores pueden acceder.')
+      router.push('/inicio')
+    }
+  }, [])
 
-
-  // Efecto para detectar cambios en usuarios
   useEffect(() => {
     console.log('Lista de usuarios actualizada:', usuarios.length)
   }, [usuarios, refreshTrigger])
-  
 
   return (
     <Box sx={{ p: 4 }}>
@@ -239,61 +235,98 @@ const handleUserCreated = (tempPassword?: string) => {
             Lista de usuarios ({usuariosFiltrados.length})
           </Typography>
 
-          <TextField
-            size="small"
-            fullWidth
-            placeholder="Buscar por nombre o correo"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Box display="flex" alignItems="center" gap={2} mt={2}>
-  <Typography variant="body2">Filtrar por estado:</Typography>
-  <Select
-    size="small"
-    value={filtroEstado}
-    onChange={(e) => {
-      setFiltroEstado(e.target.value as 'todos' | 'activos' | 'bloqueados');
-      setPagina(1); // volver a página 1 cuando se aplica un filtro
-    }}
-  >
-    <MenuItem value="todos">Todos</MenuItem>
-    <MenuItem value="activos">Activos</MenuItem>
-    <MenuItem value="bloqueados">Bloqueados</MenuItem>
-  </Select>
-</Box>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} flex={1} maxWidth={{ md: '60%' }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Buscar por nombre o correo"
+              value={busqueda}
+              onChange={(e) => {
+                setBusqueda(e.target.value)
+                setPagina(1) // Volver a página 1 al buscar
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
 
+            <Box display="flex" alignItems="center" gap={1} whiteSpace="nowrap">
+              <Typography variant="body2">Estado:</Typography>
+              <Select
+                size="small"
+                value={filtroEstado}
+                onChange={(e) => {
+                  setFiltroEstado(e.target.value as 'todos' | 'activos' | 'bloqueados')
+                  setPagina(1)
+                }}
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="todos">Todos</MenuItem>
+                <MenuItem value="activos">Activos</MenuItem>
+                <MenuItem value="bloqueados">Bloqueados</MenuItem>
+              </Select>
+            </Box>
+          </Box>
         </Box>
-<TablaUsuarios
-  usuarios={usuariosPaginados}
-  busqueda={busqueda}
-  editandoId={editandoId}
-  editForm={editForm}
-  onEdit={handleEditar}
-  onCancel={cancelarEdicion}
-  onSave={guardarCambios}
-  onDelete={(id) => eliminarUsuario(id, 'user')}
-  onToggleActivo={(id) => {
-    const user = usuarios.find(u => u.id === id)
-    if (user) toggleActivo(id, user.activo)
-  }}
-  onResetPassword={reiniciarPassword}
-  onBusquedaChange={setBusqueda}
-  onEditFormChange={setEditForm}
-/>
 
+        <TablaUsuarios
+          usuarios={usuariosPaginados}
+          busqueda={busqueda}
+          editandoId={editandoId}
+          editForm={editForm}
+          onEdit={handleEditar}
+          onCancel={cancelarEdicion}
+          onSave={guardarCambios}
+          onDelete={(id) => eliminarUsuario(id, 'user')}
+          onToggleActivo={(id) => {
+            const user = usuarios.find(u => u.id === id)
+            if (user) toggleActivo(id, user.activo)
+          }}
+          onResetPassword={reiniciarPassword}
+          onBusquedaChange={setBusqueda}
+          onEditFormChange={setEditForm}
+        />
 
         {usuariosFiltrados.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography color="text.secondary">
               No se encontraron usuarios que coincidan con la búsqueda.
             </Typography>
+          </Box>
+        )}
+
+        {/* ✅ PAGINACIÓN */}
+        {usuariosFiltrados.length > 0 && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mt: 3,
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 2,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Mostrando {(pagina - 1) * USUARIOS_POR_PAGINA + 1} -{' '}
+              {Math.min(pagina * USUARIOS_POR_PAGINA, usuariosFiltrados.length)} de{' '}
+              {usuariosFiltrados.length} usuarios
+            </Typography>
+
+            <Pagination
+              count={totalPaginas}
+              page={pagina}
+              onChange={handleCambiarPagina}
+              color="primary"
+              showFirstButton
+              showLastButton
+              siblingCount={1}
+              boundaryCount={1}
+            />
           </Box>
         )}
       </Paper>
