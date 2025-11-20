@@ -141,6 +141,13 @@ export default function ImprimirMultiplesFormulariosExactos() {
       '{{LUGAR_DOM}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.lugar_hecho === 'Dom. particular' ? 'X' : '',
       '{{LUGAR_TRABAJO}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.lugar_hecho === 'Lugar de trab.' ? 'X' : '',
       '{{LUGAR_OTRO}}': d?.abusos_sexuales?.[0]?.datos?.[0]?.lugar_otro || '',
+      // Otros delitos
+'{{DELITO_OTROS}}': d?.hechos_delictivos?.[0]?.relaciones?.[0]?.otros ? 'X' : '',
+
+// Localidad del hecho
+'{{LOC_HECHO}}': d?.hechos_delictivos?.[0]?.geo?.[0]?.localidad
+  ? String(d.hechos_delictivos[0].geo[0].localidad)
+  : '',
 
       // === VÍCTIMAS ===
       '{{CANT_VICTIMAS}}': String(d?.victimas?.[0]?.cantidad_victima_por_hecho ?? ''),
@@ -167,6 +174,15 @@ export default function ImprimirMultiplesFormulariosExactos() {
         : '',
       '{{DEPTO_VICTIMA}}': getDepartamentoNombre(d?.victimas?.[0]?.direccion?.departamento),
       '{{OCUPACION}}': d?.victimas?.[0]?.ocupacion || '',
+      // === PERSONA ENTREVISTADA ===
+'{{ENTREV_NOMBRE}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.nombre || '',
+'{{ENTREV_RELACION}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.relacion_victima || '',
+'{{ENTREV_DIRECCION}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.calle_nro || '',
+'{{ENTREV_DEPARTAMENTO}}': getDepartamentoNombre(
+  d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.departamento
+),
+'{{ENTREV_LOCALIDAD}}': d?.victimas?.[0]?.personas_entrevistadas?.[0]?.direccion?.localidad || '',
+
 
       // === TIPO DE INTERVENCIÓN ===
       '{{TIPO_CRISIS}}': d?.intervenciones_tipo?.[0]?.crisis ? 'X' : '',
@@ -200,6 +216,18 @@ export default function ImprimirMultiplesFormulariosExactos() {
               
               let finalHtml = tpl
               // Hacer reemplazos con más logging
+              const allKeys = [...new Set(tpl.match(/{{[^}]+}}/g) || [])]
+
+// ⚠️ Usamos un cast temporal a Record<string, string> para poder indexar con cualquier string
+const safeReplacements = replacements as Record<string, string>
+
+for (const key of allKeys) {
+  if (!(key in safeReplacements)) {
+    safeReplacements[key] = ''
+    console.warn(`[WARN] No se encontró reemplazo para ${key}, se usará vacío`)
+  }
+}
+
      for (const [key, value] of Object.entries(replacements)) {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(escapedKey, 'g')

@@ -1,44 +1,40 @@
-// src/middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
   const token =
-    req.cookies.get('access_token')?.value || // ← token que seteás en el login
+    req.cookies.get('access_token')?.value ||
     req.cookies.get('token')?.value
 
   const { pathname } = req.nextUrl
 
-  // ✅ Rutas públicas que no requieren autenticación
+  // ✅ SIN /avd/ porque basePath lo agrega automáticamente
   const publicPaths = [
     '/login',
     '/recuperar-password',
     '/restablecer-password'
   ]
 
-  const isPublic = publicPaths.some(p => pathname.startsWith(p))
+  const isPublic = publicPaths.includes(pathname)
 
-  // ⛔️ Usuario autenticado intenta entrar al login → redirigir a dashboard
+  // ✅ Redirigir sin /avd/
   if (isPublic && token) {
     return NextResponse.redirect(new URL('/inicio', req.url))
   }
 
-  // ✅ Permitir acceso a rutas públicas sin token
   if (isPublic) {
     return NextResponse.next()
   }
 
-  // ⛔️ Sin token → redirigir al login
+  // ✅ Redirigir sin /avd/
   if (!token) {
-    const loginUrl = new URL('/login', req.url)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // ✅ Autenticado → permitir acceso
   return NextResponse.next()
 }
 
-// ✅ Aplicar middleware a todas las rutas excepto recursos estáticos y API
+// ✅ Matcher para todas las rutas (no solo /avd/)
 export const config = {
-  matcher: ['/((?!_next|api|images|favicon.ico|robots.txt).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|images).*)'],
 }

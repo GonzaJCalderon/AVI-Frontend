@@ -1,46 +1,40 @@
-import type { NextConfig } from 'next';
-import withBundleAnalyzer from '@next/bundle-analyzer';
+/** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
 
-const withAnalyzer = withBundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-});
-
-const isDev = process.env.NODE_ENV === 'development';
-
-const nextConfig: NextConfig = {
-  reactStrictMode: true,
-
- 
-
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.tudominio.com',
-      },
-    ],
-  },
-
+// Dirección del backend según entorno
+const backendURL = isDev
+  ? 'http://10.100.1.64:3333'
+  : 'https://sistemas.seguridad.mendoza.gov.ar/bavd'; // O lo que uses en prod
+const nextConfig = {
   async rewrites() {
     return [
       {
         source: '/api/intervenciones',
-        destination: 'http://10.100.1.80:3333/api/intervenciones',
+        destination: `${backendURL}/api/intervenciones`,
       },
       {
-        source: '/api/intervenciones/:id',
-        destination: 'http://10.100.1.80:3333/api/intervenciones/:id',
+        source: '/api/intervenciones/:path*',
+        destination: `${backendURL}/api/intervenciones/:path*`,
       },
       {
         source: '/api/auth/login',
-        destination: 'http://10.100.1.80:3333/api/auth/login',
+        destination: `${backendURL}/api/auth/login`, // ✅ antes estaba sin /api
       },
       {
         source: '/api/auth/refresh',
-        destination: 'http://10.100.1.80:3333/api/auth/refresh',
+        destination: `${backendURL}/api/auth/refresh`, // ✅ igual acá
+      },
+      {
+        source: '/api/auth/:path*',
+        destination: `${backendURL}/api/auth/:path*`,
+      },
+      {
+        source: '/api/:path*',
+        destination: `${backendURL}/api/:path*`,
       },
     ];
   },
 };
 
-export default withAnalyzer(nextConfig);
+
+export default nextConfig;

@@ -89,7 +89,8 @@ const fetchUsuarios = useCallback(async () => {
   setError(null);
   try {
     // fetchUsuarios
-const data = await usuarioService.getUsuarios({ includeInactivos: true });
+const data = await usuarioService.getUsuarios(); // ✅
+
 const visibles = (Array.isArray(data) ? data : []).filter((u) => {
   const eliminado = u.deleted === true || u.eliminado === true || !!u.deletedAt;
   const nombreVacio = String(u.nombre ?? '').trim() === '';

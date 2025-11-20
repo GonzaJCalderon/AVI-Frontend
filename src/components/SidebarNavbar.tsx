@@ -24,15 +24,15 @@ import MenuIcon from '@mui/icons-material/Menu'
 import PrintIcon from '@mui/icons-material/Print'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 const expandedWidth = 240
 const collapsedWidth = 72
 
-// 🔗 Base de todas las rutas
-const BASE_URL = 'https://sistemas.seguridad.mendoza.gov.ar/avd'
-const PROFILE_PATH = `${BASE_URL}/usuario`
+// 🔗 Base de todas las rutas internas
+const PROFILE_PATH = '/usuario';
+
 
 type User = {
   nombre?: string
@@ -48,10 +48,10 @@ function getInitials(nombre?: string) {
 
 export default function SidebarNavbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
-  // ⛔ Rutas donde NO debe mostrarse el sidebar
   const HIDE_ON = ['/login', '/recuperar-password', '/restablecer-password']
   if (HIDE_ON.some(p => pathname?.startsWith(p))) return null
 
@@ -70,28 +70,34 @@ export default function SidebarNavbar() {
     }
   }, [])
 
-  const handleLogout = () => {
-    localStorage.clear()
-    window.location.href = `${BASE_URL}/login`
-  }
+ const handleLogout = () => {
+  // Limpiar localStorage
+  localStorage.clear()
+
+  // ❗️ Borrar la cookie del token (clave para que middleware no redirija)
+  document.cookie = 'access_token=; path=/; max-age=0'
+
+  // Redirigir a login
+  router.push('/login')
+}
 
   const navItems = [
-    { label: 'Inicio', icon: <HomeIcon />, path: `${BASE_URL}/inicio` },
-    { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: `${BASE_URL}/nuevo-caso` },
-    { label: 'Buscar', icon: <SearchIcon />, path: `${BASE_URL}/inicio#busqueda-avanzada` },
+    { label: 'Inicio', icon: <HomeIcon />, path: '/inicio' },
+    { label: 'Nuevo Caso', icon: <AddCircleIcon />, path: '/nuevo-caso' },
+    { label: 'Buscar', icon: <SearchIcon />, path: '/inicio#busqueda-avanzada' },
     ...(user?.rol === 'admin'
-      ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: `${BASE_URL}/admin` }]
+      ? [{ label: 'Gestión de Usuarios', icon: <GroupIcon />, path: '/admin' }]
       : []),
     {
       label: 'Formulario en blanco',
       icon: <PrintIcon />,
-      path: `${BASE_URL}/formulario_vacio.html`,
+      path: '/formulario_vacio.html',
       action: 'imprimir-pdf'
     },
     {
       label: 'Listar Formularios',
       icon: <DescriptionIcon />,
-      path: `${BASE_URL}/listar-formularios`,
+      path: '/listar-formularios',
     },
   ]
 
@@ -103,7 +109,7 @@ export default function SidebarNavbar() {
     <Box display="flex" flexDirection="column" height="100%">
       {/* LOGO + TÍTULO */}
       <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={2} sx={{ minHeight: '80px' }}>
-        <IconButton onClick={() => (window.location.href = `${BASE_URL}/inicio`)}>
+        <IconButton onClick={() => router.push('/inicio')}>
           <Avatar alt="Logo Gobierno" src="/images/logo-png-sin-fondo.png" sx={{ width: 48, height: 48, bgcolor: 'white' }} />
         </IconButton>
 
@@ -128,13 +134,11 @@ export default function SidebarNavbar() {
                 if (win) {
                   win.focus()
                   win.onload = () => {
-                    setTimeout(() => {
-                      win.print()
-                    }, 500)
+                    setTimeout(() => win.print(), 500)
                   }
                 }
               } else {
-                window.location.href = item.path
+                router.push(item.path)
               }
               if (isMobile) setMobileOpen(false)
             }}
@@ -164,10 +168,11 @@ export default function SidebarNavbar() {
               <ListItem
                 button
                 key={item.label}
-                onClick={() => {
-                  window.location.href = item.path
-                  if (isMobile) setMobileOpen(false)
-                }}
+               onClick={() => {
+  router.push(item.path)
+  if (isMobile) setMobileOpen(false)
+}}
+
                 sx={{
                   '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
                   justifyContent: 'flex-start',
@@ -197,7 +202,7 @@ export default function SidebarNavbar() {
                   mx: 'auto', cursor: 'pointer',
                   '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
                 }}
-                onClick={() => (window.location.href = PROFILE_PATH)}
+                 onClick={() => router.push(PROFILE_PATH)}
               >
                 {getInitials(user?.nombre || user?.name)}
               </Avatar>
@@ -228,7 +233,7 @@ export default function SidebarNavbar() {
               cursor: 'pointer', transition: 'background-color 0.2s',
               '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' }
             }}
-            onClick={() => (window.location.href = PROFILE_PATH)}
+            onClick={() => router.push(PROFILE_PATH)}
           >
             <Typography variant="body2" color="white" fontWeight="bold">
               {user.nombre || user.name || 'Usuario'}
@@ -256,9 +261,9 @@ export default function SidebarNavbar() {
           <MenuIcon />
         </IconButton>
       )}
+<Drawer
+  variant={isMobile ? 'temporary' : 'permanent'}
 
-      <Drawer
-        variant={isMobile ? 'temporary' : 'permanent'}
         open={isMobile ? mobileOpen : true}
         onClose={() => setMobileOpen(false)}
         anchor="left"

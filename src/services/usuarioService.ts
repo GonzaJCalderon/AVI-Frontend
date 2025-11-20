@@ -1,6 +1,7 @@
 // services/usuarioService.ts
+import { apiFetch } from './api' // Ajustá ruta si es necesario
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.80:3333/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.64:3333'
 
 // --- helpers de seguridad ---
 const generateStrongTempPassword = (): string => {
@@ -183,54 +184,21 @@ class UsuarioService {
   }
 
   // =========== PERFIL ===========
-  async getPerfil(): Promise<Perfil> {
-    const res = await fetch(`${API_BASE_URL}/auth/profile`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-    // algunos backends envuelven en {success, data}
-    const json = await this.handleResponse<any>(res);
-    return json?.data ?? json;
-  }
+async getPerfil(): Promise<Perfil> {
+  const json = await apiFetch<any>('/auth/profile')
+  return json?.data ?? json
+}
 
   // =========== USUARIOS (CRUD) ===========
  // services/usuarioService.ts
-async getUsuarios(opts?: { includeInactivos?: boolean }): Promise<Usuario[]> {
-  const headers = getAuthHeaders();
-
-  // Si pedimos inactivos, probamos distintas variantes comunes
-  if (opts?.includeInactivos) {
-    // Variante 1: ?includeInactivos=1
-    try {
-      const r1 = await fetch(`${API_BASE_URL}/usuarios?includeInactivos=1`, { headers });
-      const j1 = await this.handleResponse<any>(r1);
-      const arr1 = Array.isArray(j1?.data) ? j1.data : (Array.isArray(j1) ? j1 : []);
-      if (Array.isArray(arr1)) return arr1.map(normalizeUsuario);
-    } catch {}
-
-    // Variante 2: ?activo=all
-    try {
-      const r2 = await fetch(`${API_BASE_URL}/usuarios?activo=all`, { headers });
-      const j2 = await this.handleResponse<any>(r2);
-      const arr2 = Array.isArray(j2?.data) ? j2.data : (Array.isArray(j2) ? j2 : []);
-      if (Array.isArray(arr2)) return arr2.map(normalizeUsuario);
-    } catch {}
-
-    // Variante 3: ?includeInactive=1 (en inglés)
-    try {
-      const r3 = await fetch(`${API_BASE_URL}/usuarios?includeInactive=1`, { headers });
-      const j3 = await this.handleResponse<any>(r3);
-      const arr3 = Array.isArray(j3?.data) ? j3.data : (Array.isArray(j3) ? j3 : []);
-      if (Array.isArray(arr3)) return arr3.map(normalizeUsuario);
-    } catch {}
-  }
-
-  // Fallback: endpoint base
-  const r = await fetch(`${API_BASE_URL}/usuarios`, { headers });
-  const j = await this.handleResponse<any>(r);
+async getUsuarios(): Promise<Usuario[]> {
+  const url = '/api/usuarios';
+  console.log('🔍 getUsuarios --> solicitando a:', url);
+  const j = await apiFetch<any>(url);
   const data = Array.isArray(j?.data) ? j.data : (Array.isArray(j) ? j : []);
   return data.map(normalizeUsuario);
 }
+
 
 
 // services/usuarioService.ts
@@ -245,11 +213,11 @@ async createUsuario(
   const password = data.password || 'Temp#' + Math.random().toString(36).slice(2) + '9A!';
   const payload = { email: data.email, password, nombre: `${data.nombre} ${data.apellido}`.trim(), rol: data.rol };
 
-  const res = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+const res = await apiFetch('/api/auth/register', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});
+
 
   const ct = res.headers.get('content-type') || '';
   const isJson = ct.includes('application/json');
@@ -291,35 +259,25 @@ async createUsuario(
   };
 }
 
-
 async updatePerfil(id: number, data: { nombre?: string; email?: boolean; password?: boolean }): Promise<Usuario> {
-  const response = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
+const json = await apiFetch<any>(`/api/usuarios/cuenta/${id}`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
     body: JSON.stringify(data),
-  });
-
-  const json = await this.handleResponse<any>(response);
-  const raw = json?.data ?? json;
-  return normalizeUsuario(raw);
+  })
+  const raw = json?.data ?? json
+  return normalizeUsuario(raw)
 }
 
 
 
 
-
 async updateUsuario(id: number, data: UpdateUsuarioData): Promise<Usuario> {
-  console.log('Actualizando usuario en:', `${API_BASE_URL}/usuarios/${id}`);
-
-  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-    method: 'PATCH', // o 'PUT' si tu backend no soporta PATCH
-    headers: getAuthHeaders(),
+const json = await apiFetch<any>(`/api/usuarios/${id}`,{
+    method: 'PATCH',
     body: JSON.stringify(data),
-  });
-
-  const json = await this.handleResponse<any>(response);
-  const raw = json?.data ?? json;
-  return normalizeUsuario(raw);
+  })
+  const raw = json?.data ?? json
+  return normalizeUsuario(raw)
 }
 
 
@@ -370,7 +328,7 @@ async deleteUsuario(id: number): Promise<{ success: boolean; message?: string }>
 
   // 1) intentos DELETE
   let res =
-    await tryDelete(`${API_BASE_URL}/usuarios/${id}`) ??
+await tryDelete(`/api/usuarios/${id}`)??
     { success: false as const };
 
   if (!res.success) {
@@ -418,42 +376,30 @@ async deleteUsuario(id: number): Promise<{ success: boolean; message?: string }>
 }
 
 async enviarResetPasswordEmail(email: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+  await apiFetch('/auth/forgot-password', {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify({ email }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Error desconocido');
-    throw new Error(error || 'Error al enviar correo de reinicio');
-  }
-
-  return true;
+  })
+  return true
 }
 
 
 
- async toggleUsuarioStatus(id: number, activo: boolean): Promise<Usuario> {
-  const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+async toggleUsuarioStatus(id: number, activo: boolean): Promise<Usuario> {
+  const json = await apiFetch<any>(`/api/usuarios/${id}`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
     body: JSON.stringify({ activo }),
-  });
-
-  const json = await this.handleResponse<any>(response);
-  const raw = json?.data ?? json;
-  return normalizeUsuario(raw);
+  })
+  const raw = json?.data ?? json
+  return normalizeUsuario(raw)
 }
 
-  async resetPassword(id: number): Promise<{ temporaryPassword: string }> {
-    const response = await fetch(`${API_BASE_URL}/usuarios/${id}/reset-password`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    });
 
-    return this.handleResponse<{ temporaryPassword: string }>(response);
-  }
+async resetPassword(id: number): Promise<{ temporaryPassword: string }> {
+  return await apiFetch<{ temporaryPassword: string }>(`/usuarios/${id}/reset-password`, {
+    method: 'POST',
+  })
+}
 
   // =========== CAMBIO DE CONTRASEÑA ===========
   /**
@@ -468,23 +414,17 @@ async changePasswordCuenta(
   id: number,
   payload: { currentPassword: string; newPassword: string }
 ): Promise<{ success?: boolean; message?: string }> {
-  const res = await fetch(`${API_BASE_URL}/usuarios/cuenta/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({
-      password: true,                // 🔑 le indica al backend que es cambio de password
-      currentPassword: payload.currentPassword,
-      newPassword: payload.newPassword,
-    }),
-  });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const msg = data?.message || data?.error || `Error ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return this.handleResponse<{ success?: boolean; message?: string }>(res);
+  return await apiFetch<{ success?: boolean; message?: string }>(
+    `/usuarios/cuenta/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        password: true,
+        currentPassword: payload.currentPassword,
+        newPassword: payload.newPassword,
+      }),
+    }
+  )
 }
 
 

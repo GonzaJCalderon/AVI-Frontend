@@ -106,15 +106,30 @@ const [fechaNacimientoInput, setFechaNacimientoInput] = useState('');
 
 
 
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const [depRes, locRes] = await Promise.all([
+        fetch('/departamentosMendoza.json'),
+        fetch('/localidadesMendoza.json'),
+      ]);
 
-  useEffect(() => {
-    fetch('/departamentosMendoza.json')
-      .then(res => res.json())
-      .then(data => setDepartamentos(data.departamentos || []));
-    fetch('/localidadesMendoza.json')
-      .then(res => res.json())
-      .then(data => setLocalidades(data.localidades || []));
-  }, []);
+      const deps = await depRes.json();
+      const locs = await locRes.json();
+
+      setDepartamentos(deps.departamentos || deps);
+      setLocalidades(locs.localidades || locs);
+
+      console.log('📦 Departamentos cargados:', deps.departamentos?.length || deps.length);
+      console.log('📦 Localidades cargadas:', locs.localidades?.length || locs.length);
+    } catch (error) {
+      console.error('❌ Error cargando JSONs:', error);
+    }
+  };
+
+  loadData();
+}, []);
+
 
   
 
@@ -146,42 +161,97 @@ const maxBirthDateStr = maxBirthDate.toISOString().split('T')[0];
 const router = useRouter();
 
 const [formData, setFormData] = useState<CreateIntervencionPayload>({
-  intervencion: { coordinador: '', operador: '', fecha: '', resena_hecho: '' },
-  derivacion: { motivos: 0, derivador: '', fecha_derivacion: '' },
+  intervencion: { 
+    coordinador: '', 
+    operador: '', 
+    fecha: '', 
+    resena_hecho: '' 
+  },
+  derivacion: { 
+    motivos: 0, 
+    derivador: null, 
+    fecha_derivacion: '',
+
+    expediente: null,       // 🆕 agregado
+    departamento: null,     // 🆕 agregado
+    localidad: null         // 🆕 agregado
+  },
   hechoDelictivo: {
     expediente: '',
     numAgresores: 0,
-    fecha: '',
+    fecha: null,
     hora: '',
-    ubicacion: { calleBarrio: '', departamento: 0, localidad: 0    },
+    ubicacion: { 
+      calleBarrio: '', 
+      departamento: null, 
+      localidad: null 
+    },
     tipoHecho: {
-      robo: false, roboArmaFuego: false, roboArmaBlanca: false,
-      amenazas: false, lesiones: false, lesionesArmaFuego: false, lesionesArmaBlanca: false,
-      homicidioDelito: false, homicidioAccidenteVial: false, homicidioAvHecho: false,
-      femicidio: false, travestisidioTransfemicidio: false, violenciaGenero: false, otros: false
+      robo: false,
+      roboArmaFuego: false,
+      roboArmaBlanca: false,
+      amenazas: false,
+      lesiones: false,
+      lesionesArmaFuego: false,
+      lesionesArmaBlanca: false,
+      homicidioDelito: false,
+      homicidioAccidenteVial: false,
+      homicidioAvHecho: false,
+      femicidio: false,
+      travestisidioTransfemicidio: false,
+      violenciaGenero: false,
+      otros: false
     }
   },
   accionesPrimeraLinea: '',
-  abusoSexual: { simple: false, agravado: false },
-  datosAbusoSexual: { kit: '', relacion: '', relacionOtro: '', lugarHecho: '', lugarOtro: '' },
+  abusoSexual: { 
+    simple: false, 
+    agravado: false 
+  },
+  datosAbusoSexual: { 
+    kit: '', 
+    relacion: '', 
+    relacionOtro: '', 
+    lugarHecho: '', 
+    lugarOtro: '' 
+  },
   victima: {
     dni: '',
     nombre: '',
     genero: 1,
-    fechaNacimiento: '',
+   fechaNacimiento: null,
+
     telefono: '',
     ocupacion: '',
     cantidadVictimas: 1,
-    direccion: { calleNro: '', barrio: '', departamento: 0, localidad: 0 }
+direccion: {
+  calleNro: '',
+  barrio: '',
+  departamento: '', 
+  localidad: ''     
+}
+
   },
   personaEntrevistada: {
     nombre: '',
     relacionVictima: '',
-    direccion: { calleNro: '', barrio: '', departamento: 0, localidad: 0 }
+    direccion: { 
+      calleNro: '', 
+      barrio: '', 
+      departamento: 0, 
+      localidad: 0 
+    }
   },
   tipoIntervencion: {
-    crisis: false, telefonica: false, domiciliaria: false, psicologica: false,
-    medica: false, social: false, legal: false, sinIntervencion: false, archivoCaso: false
+    crisis: false,
+    telefonica: false,
+    domiciliaria: false,
+    psicologica: false,
+    medica: false,
+    social: false,
+    legal: false,
+    sinIntervencion: false,
+    archivoCaso: false
   },
   seguimiento: {
     realizado: null,
@@ -198,20 +268,23 @@ const [formData, setFormData] = useState<CreateIntervencionPayload>({
 
 
 
+
+
+
+
   // ✅ handler genérico
 const handleChange = (path: string) => (e: any) => {
   const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-  setFormData(prev => {
+  setFormData((prev: CreateIntervencionPayload) => {
     const newData: any = { ...prev };
     const keys = path.split('.');
     let ref = newData;
     for (let i = 0; i < keys.length - 1; i++) ref = ref[keys[i]];
     ref[keys[keys.length - 1]] = value;
-    return newData;
+    return newData as CreateIntervencionPayload;
   });
 
-  // Limpiar error del campo al editar
-  setFormErrors(prev => {
+  setFormErrors((prev: Record<string, string>) => {
     const newErrors = { ...prev };
     delete newErrors[path];
     return newErrors;
@@ -219,192 +292,325 @@ const handleChange = (path: string) => (e: any) => {
 };
 
 
-
-
-// 🔽 JUSTO ANTES de handleSubmit
-// También actualiza la validación del formulario para ser más específica:
 const validarFormulario = (): string[] => {
   const nuevosErrores: string[] = [];
 
-  // 1️⃣ Coordinador
   if (!formData.intervencion.coordinador.trim()) {
     nuevosErrores.push("El nombre y apellido del coordinador es obligatorio");
-
   }
 
   if (!formData.intervencion.fecha) {
-  nuevosErrores.push("La fecha de la intervención es obligatoria");
-}
+    nuevosErrores.push("La fecha de la intervención es obligatoria");
+  }
 
-
-  // 2️⃣ Tipo de delito
   if (!Object.values(formData.hechoDelictivo.tipoHecho).some(v => v === true)) {
     nuevosErrores.push("Debe marcar al menos un tipo de delito");
   }
 
-  // 3️⃣ Ubicación geográfica del hecho
   if (!formData.hechoDelictivo.ubicacion.calleBarrio.trim()) {
     nuevosErrores.push("La ubicación geográfica del hecho es obligatoria");
   }
 
-  // 4️⃣ Departamento de la ubicación
   if (!formData.hechoDelictivo.ubicacion.departamento || formData.hechoDelictivo.ubicacion.departamento === 0) {
     nuevosErrores.push("Debe seleccionar un departamento para el hecho");
   }
 
-  // 5️⃣ Fecha del hecho
   if (!formData.hechoDelictivo.fecha) {
     nuevosErrores.push("La fecha del hecho es obligatoria");
   }
 
-  // 6️⃣ Acciones en primera línea
-// 6️⃣ Acciones en primera línea
-const { sinIntervencion, ...restoDeIntervencion } = formData.tipoIntervencion;
-const huboIntervencion = Object.values(restoDeIntervencion).some(v => v === true);
+const { sinIntervencion, ...resto } = formData.tipoIntervencion as CreateIntervencionPayload['tipoIntervencion'];
 
 
 
+// Solución 2: actualizar el uso
+const huboIntervencion = Object.values(resto).some(v => v === true);
 
-  // 7️⃣ Abuso sexual
-// 7️⃣ Abuso sexual
-const huboAbuso = formData.abusoSexual.simple || formData.abusoSexual.agravado;
 
-if (huboAbuso) {
-  // Validación: Kit obligatorio SOLO si se marcó algún abuso sexual
-  if (formData.datosAbusoSexual.kit.trim() === '') {
-    nuevosErrores.push("Debe indicar si se aplicó el kit cuando hubo abuso sexual");
+  const huboAbuso = formData.abusoSexual.simple || formData.abusoSexual.agravado;
+
+  if (huboAbuso) {
+    if (formData.datosAbusoSexual.kit.trim() === '') {
+      nuevosErrores.push("Debe indicar si se aplicó el kit cuando hubo abuso sexual");
+    }
+
+    if (formData.datosAbusoSexual.relacion.trim() === '') {
+      nuevosErrores.push("Debe indicar la relación entre la víctima y el presunto agresor");
+    }
+
+    if (formData.datosAbusoSexual.lugarHecho.trim() === '') {
+      nuevosErrores.push("Debe indicar el tipo de lugar del hecho");
+    }
   }
 
-  // Validación: Relación obligatoria SOLO si se marcó algún abuso sexual
-  if (formData.datosAbusoSexual.relacion.trim() === '') {
-    nuevosErrores.push("Debe indicar la relación entre la víctima y el presunto agresor");
-  }
-
-  // Validación: Lugar del hecho obligatorio SOLO si se marcó algún abuso sexual
-  if (formData.datosAbusoSexual.lugarHecho.trim() === '') {
-    nuevosErrores.push("Debe indicar el tipo de lugar del hecho");
-  }
-}
-
-
-
-  // 8️⃣ Victima - Nombre
   if (!formData.victima.nombre.trim()) {
     nuevosErrores.push("El nombre de la víctima es obligatorio");
   }
 
-
-
-  // 9️⃣ Tipo de intervención
   if (!Object.values(formData.tipoIntervencion).some(v => v === true)) {
     nuevosErrores.push("Debe marcar al menos un tipo de intervención");
   }
 
-// Detalle de la intervención obligatorio
-if (!formData.detalleIntervencion.trim()) {
-  nuevosErrores.push("Debe completar el detalle de la intervención");
-}
-
-  // 1️⃣1️⃣ Tipo de seguimiento
- // 1️⃣1️⃣ Tipo de seguimiento
-if (formData.seguimiento.realizado === true) {
-  const algunoSeleccionado = Object.values(formData.seguimiento.tipo).some((v) => v === true);
-  if (!algunoSeleccionado) {
-    nuevosErrores.push("Debe marcar al menos un tipo de seguimiento");
+  if (!formData.detalleIntervencion.trim()) {
+    nuevosErrores.push("Debe completar el detalle de la intervención");
   }
-}
 
-
+  if (formData.seguimiento.realizado === true) {
+    const algunoSeleccionado = Object.values(formData.seguimiento.tipo).some((v) => v === true);
+    if (!algunoSeleccionado) {
+      nuevosErrores.push("Debe marcar al menos un tipo de seguimiento");
+    }
+  }
 
   return nuevosErrores;
 };
-const parseISODate = (input: string): string => {
-  if (!input || input.trim() === '') return ''; // Maneja vacíos
-  
-  const date = new Date(input);
-  if (isNaN(date.getTime())) return '';
-  
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+
+// 🆕 Función para combinar fecha y hora
+const combinarFechaHoraHecho = (fecha: string, hora: string): string => {
+  const [year, month, day] = fecha.split("-").map(Number);
+  const [hours, minutes] = hora.split(":").map(Number);
+
+  const localDate = new Date();
+  localDate.setFullYear(year);
+  localDate.setMonth(month - 1);
+  localDate.setDate(day);
+  localDate.setHours(hours);
+  localDate.setMinutes(minutes);
+  localDate.setSeconds(0);
+  localDate.setMilliseconds(0);
+
+  const iso = new Date(
+    Date.UTC(
+      localDate.getFullYear(),
+      localDate.getMonth(),
+      localDate.getDate(),
+      localDate.getHours(),
+      localDate.getMinutes()
+    )
+  ).toISOString();
+
+  return iso;
 };
 
 
+const parseISODate = (input: string): string | null => {
+  console.log('🔄 parseISODate - INPUT:', input);
+
+  if (!input || input.trim() === '') {
+    console.log('❌ Input vacío → devolviendo null');
+    return null; // ✅ antes devolvía '', ahora null
+  }
+
+  // Si ya viene en formato ISO completo
+  if (input.includes('T') && input.includes('Z')) {
+    console.log('✅ Ya es ISO completo:', input);
+    return input;
+  }
+
+  try {
+    // YYYY-MM-DD
+    if (input.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const resultado = new Date(input + 'T00:00:00.000Z').toISOString();
+      console.log('✅ Convertido de YYYY-MM-DD:', resultado);
+      return resultado;
+    }
+
+    // YYYY-MM-DDTHH:mm
+    if (input.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
+      const resultado = new Date(input + ':00.000Z').toISOString();
+      console.log('✅ Convertido de datetime-local:', resultado);
+      return resultado;
+    }
+
+    const date = new Date(input);
+    if (!isNaN(date.getTime())) {
+      const resultado = date.toISOString();
+      console.log('✅ Parseado directo:', resultado);
+      return resultado;
+    }
+
+    console.log('❌ No se pudo parsear → devolviendo null');
+    return null;
+  } catch (error) {
+    console.error('❌ Error en parseISODate:', error);
+    return null;
+  }
+};
+
+const normalizarPayloadParaBackend = (payload: CreateIntervencionPayload): any => {
+  const toEmptyString = (val: any): string => {
+    if (val === null || val === undefined || val === '') return '';
+    return String(val);
+  };
+  
+  const toNumberOrZero = (val: any): number => {
+    const num = Number(val);
+    return !isNaN(num) && num > 0 ? num : 0;
+  };
+
+  // ✅ Construir objeto victima sin fechaNacimiento si está vacío
+  const victimaData: any = {
+    dni: toEmptyString(payload.victima.dni),
+    nombre: toEmptyString(payload.victima.nombre),
+    genero: Number(payload.victima.genero) || 1,
+    telefono: toEmptyString(payload.victima.telefono),
+    ocupacion: toEmptyString(payload.victima.ocupacion),
+    cantidadVictimas: Number(payload.victima.cantidadVictimas) || 1,
+    direccion: {
+      calleNro: toEmptyString(payload.victima.direccion.calleNro),
+      barrio: toEmptyString(payload.victima.direccion.barrio),
+      departamento: Number(payload.victima.direccion.departamento) || 0,
+      localidad: payload.victima.direccion.localidad
+        ? Number(payload.victima.direccion.localidad)
+        : null,
+    },
+  };
+
+  // ✅ Solo agregar fechaNacimiento si tiene un valor válido
+  if (
+    typeof payload.victima.fechaNacimiento === 'string' && 
+    payload.victima.fechaNacimiento.trim() &&
+    payload.victima.fechaNacimiento !== ''
+  ) {
+    victimaData.fechaNacimiento = payload.victima.fechaNacimiento.split('T')[0];
+  }
+  
+  return {
+    intervencion: {
+      fecha: payload.intervencion.fecha || '',
+      coordinador: toEmptyString(payload.intervencion.coordinador),
+      operador: toEmptyString(payload.intervencion.operador),
+      resena_hecho: toEmptyString(payload.intervencion.resena_hecho),
+    },
+    derivacion: {
+      motivos: toNumberOrZero(payload.derivacion.motivos) || 1,
+      derivador: toEmptyString(payload.derivacion.derivador),
+      fecha_derivacion: payload.derivacion.fecha_derivacion || '',
+    },
+    hechoDelictivo: {
+      expediente: toEmptyString(payload.hechoDelictivo.expediente),
+      numAgresores: toNumberOrZero(payload.hechoDelictivo.numAgresores),
+      fecha: payload.hechoDelictivo.fecha === '' ? null : payload.hechoDelictivo.fecha,
+      hora: toEmptyString(payload.hechoDelictivo.hora),
+      ubicacion: {
+        calleBarrio: toEmptyString(payload.hechoDelictivo.ubicacion.calleBarrio),
+        departamento: toNumberOrZero(payload.hechoDelictivo.ubicacion.departamento),
+        localidad: toNumberOrZero(payload.hechoDelictivo.ubicacion.localidad),
+      },
+      tipoHecho: payload.hechoDelictivo.tipoHecho,
+    },
+    accionesPrimeraLinea: toEmptyString(payload.accionesPrimeraLinea),
+    abusoSexual: payload.abusoSexual,
+    datosAbusoSexual: {
+      kit: toEmptyString(payload.datosAbusoSexual.kit),
+      relacion: toEmptyString(payload.datosAbusoSexual.relacion),
+      relacionOtro: toEmptyString(payload.datosAbusoSexual.relacionOtro),
+      lugarHecho: toEmptyString(payload.datosAbusoSexual.lugarHecho),
+      lugarOtro: toEmptyString(payload.datosAbusoSexual.lugarOtro),
+    },
+    victima: victimaData, // ✅ Usar el objeto construido
+    personaEntrevistada: {
+      nombre: toEmptyString(payload.personaEntrevistada.nombre),
+      relacionVictima: toEmptyString(payload.personaEntrevistada.relacionVictima),
+      direccion: {
+        calleNro: toEmptyString(payload.personaEntrevistada.direccion.calleNro),
+        barrio: toEmptyString(payload.personaEntrevistada.direccion.barrio),
+        departamento: Number(payload.personaEntrevistada.direccion.departamento) || 0,
+        localidad:
+          payload.personaEntrevistada.direccion.localidad === '' ||
+          payload.personaEntrevistada.direccion.localidad === null
+            ? null
+            : Number(payload.personaEntrevistada.direccion.localidad),
+      },
+    },
+    tipoIntervencion: payload.tipoIntervencion,
+    seguimiento: {
+      realizado: payload.seguimiento.realizado ?? false,
+      tipo: payload.seguimiento.tipo,
+    },
+    detalleIntervencion: toEmptyString(payload.detalleIntervencion),
+  };
+};
+
 const handleSubmit = async () => {
+  console.log('🚀 ==================== INICIO SUBMIT ====================');
+  console.log('📊 Estado actual de formData:', JSON.stringify(formData, null, 2));
+  
   setMostrarErrores(true);
   const erroresValidados = validarFormulario();
   setErrores(erroresValidados);
 
   if (erroresValidados.length > 0) {
+    console.log('❌ Errores de validación:', erroresValidados);
     showNotification(`Errores en el formulario:\n${erroresValidados.join('\n')}`, 'error');
     return;
   }
 
+  console.log('✅ Validación pasada, construyendo payload...');
+  
   try {
-    const payload: CreateIntervencionPayload = {
+    const fechaHechoCombinada = combinarFechaHoraHecho(
+      formData.hechoDelictivo.fecha || '',
+      formData.hechoDelictivo.hora || ''
+    );
+
+    console.log('🔗 Fecha+Hora combinada FINAL:', fechaHechoCombinada);
+    
+    // Construir payload base
+    const payloadBase: CreateIntervencionPayload = {
       ...formData,
       intervencion: {
-        ...formData.intervencion,
         fecha: formData.intervencion.fecha
           ? parseISODate(formData.intervencion.fecha)
-          : new Date().toISOString(), // Usar fecha actual si está vacía
+          : null,
+        coordinador: formData.intervencion.coordinador,
+        operador: formData.intervencion.operador,
+        resena_hecho: formData.intervencion.resena_hecho,
       },
       derivacion: {
         ...formData.derivacion,
+        expediente: formData.hechoDelictivo.expediente, // ✅ Mover expediente aquí
         fecha_derivacion: formData.derivacion.fecha_derivacion
           ? parseISODate(formData.derivacion.fecha_derivacion)
-          : '', // Vacío si no se completó
+          : null,
       },
       hechoDelictivo: {
         ...formData.hechoDelictivo,
-        fecha: parseISODate(formData.hechoDelictivo.fecha),
+        fecha: fechaHechoCombinada,
+        hora: formData.hechoDelictivo.hora,
       },
       victima: {
         ...formData.victima,
-        fechaNacimiento: parseISODate(formData.victima.fechaNacimiento),
-        direccion: {
-          ...formData.victima.direccion,
-          departamento: Number(formData.victima.direccion.departamento),
-          localidad: Number(formData.victima.direccion.localidad),
-        },
-      },
-      personaEntrevistada: {
-        ...formData.personaEntrevistada,
-        direccion: {
-          ...formData.personaEntrevistada.direccion,
-          departamento: Number(formData.personaEntrevistada.direccion.departamento),
-          localidad: Number(formData.personaEntrevistada.direccion.localidad),
-        },
+        fechaNacimiento: formData.victima.fechaNacimiento
+          ? parseISODate(formData.victima.fechaNacimiento)
+          : null,
       },
     };
 
-    if (formData.seguimiento.realizado === false) {
-  payload.seguimiento.tipo = {
-    asesoramientoLegal: false,
-    tratamientoPsicologico: false,
-    seguimientoLegal: false,
-    archivoCaso: false,
-  };
-}
+    // ✅ Normalizar payload completo
+    const payloadNormalizado = normalizarPayloadParaBackend(payloadBase);
 
+    console.log('📦 ==================== PAYLOAD NORMALIZADO ====================');
+    console.log(JSON.stringify(payloadNormalizado, null, 2));
+    console.log('==============================================================');
 
-    // Eliminar campos que no existen en el DTO del backend
-    delete (payload as any).detalleSeguimiento;
-
-    console.log('📦 Payload FINAL enviado al backend:', JSON.stringify(payload, null, 2));
-
-    await crearIntervencion(payload);
+    await crearIntervencion(payloadNormalizado);
+      
+    console.log('✅ Intervención creada exitosamente');
     showNotification('Intervención creada con éxito', 'success');
 
     setTimeout(() => {
       router.push('/inicio');
     }, 2500);
   } catch (error: any) {
+    console.error('❌ ==================== ERROR ====================');
     console.error('Error completo:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('================================================');
     showNotification(`Error al enviar: ${error.message}`, 'error');
   }
 };
-
-
-
 
 
 
@@ -453,20 +659,19 @@ const handleFechaIntervencionChange = (e: React.ChangeEvent<HTMLInputElement>) =
       delete copy['intervencion.fecha'];
       return copy;
     });
-
-    validateInterventionDate(
-      value,
-      'intervencion.fecha',
-      (val) =>
-        setFormData(prev => ({
-          ...prev,
-          intervencion: {
-            ...prev.intervencion,
-            fecha: val,
-          }
-        })),
-      setFormErrors
-    );
+validateInterventionDate(
+  value,
+  'intervencion.fecha',
+  (val) =>
+    setFormData((prev: CreateIntervencionPayload) => ({
+      ...prev,
+      intervencion: {
+        ...prev.intervencion,
+        fecha: val,
+      }
+    })),
+  setFormErrors
+);
   } else {
     // No coincide formato
     setFormErrors(prev => ({
@@ -515,16 +720,17 @@ const handleFechaHechoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     value,
     'hechoDelictivo.fecha',
     (val) =>
-      setFormData(prev => ({
+      setFormData((prev: CreateIntervencionPayload) => ({
         ...prev,
         hechoDelictivo: {
           ...prev.hechoDelictivo,
-          fecha: val
-        }
+          fecha: val,
+        },
       })),
     setFormErrors
   );
 };
+
 
 
 const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -570,74 +776,58 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
        {/* 1. Intervención */}
 <Typography variant="h6">1. Datos de la Intervención</Typography>
 <Grid container spacing={2}>
-  <Grid item xs="auto">
-<TextField
-  type="date"
-  label="Fecha *"
-  value={formData.intervencion.fecha}
-  onChange={(e) => {
-    const value = e.target.value;
+<Grid item xs="auto">
+  <TextField
+    type="date"
+    label="Fecha *"
+    value={formData.intervencion.fecha}
+    onChange={(e) => {
+      const value = e.target.value;
 
-    // Detecta el año ingresado
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match) {
-      const year = parseInt(match[1], 10);
-      const currentYear = new Date().getFullYear();
-
-      if (year > currentYear) {
-        // 🔹 Corrige automáticamente a la fecha máxima permitida
-        const fixedDate = `${currentYear}-${match[2]}-${match[3]}`;
-        setFormData((prev) => ({
-          ...prev,
-          intervencion: { ...prev.intervencion, fecha: fixedDate },
-        }));
-        return;
-      }
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      intervencion: { ...prev.intervencion, fecha: value },
-    }));
-  }}
-  error={!!formErrors['intervencion.fecha']}
-  helperText={formErrors['intervencion.fecha']}
-  InputLabelProps={{ shrink: true }}
-  inputProps={{
-    max: todayISO,
-    min: '1900-01-01',
-    // Bloqueo directo mientras escribe
-    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const allowedKeys = [
-        'Backspace', 'Delete', 'Tab',
-        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'
-      ];
-      const isNumber = /\d/.test(e.key);
-      const isDash = e.key === '-';
-
-      if (!allowedKeys.includes(e.key) && !isNumber && !isDash) {
-        e.preventDefault();
-      }
-    },
-    // Bloquea pegado de fechas inválidas
-    onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
-      const pasted = e.clipboardData.getData('text');
-      const match = pasted.match(/^(\d{4})/);
+      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (match) {
         const year = parseInt(match[1], 10);
         const currentYear = new Date().getFullYear();
-        if (year > currentYear || year < 1900) {
-          e.preventDefault();
+
+        if (year > currentYear) {
+          const fixedDate = `${currentYear}-${match[2]}-${match[3]}`;
+          setFormData((prev) => ({
+            ...prev,
+            intervencion: { ...prev.intervencion, fecha: fixedDate },
+          }));
+          return;
         }
       }
-    }
-  }}
-  sx={dateFieldStyles}
-/>
+
+      setFormData((prev) => ({
+        ...prev,
+        intervencion: { ...prev.intervencion, fecha: value },
+      }));
+    }}
+    error={!!formErrors['intervencion.fecha']}
+    helperText={formErrors['intervencion.fecha']}
+    InputLabelProps={{ shrink: true }}
+    inputProps={{
+      max: todayISO,
+      min: '1900-01-01',
+      onKeyDown: preventInvalidDateYear,
+      onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const pasted = e.clipboardData.getData('text');
+        const match = pasted.match(/^(\d{4})/);
+        if (match) {
+          const year = parseInt(match[1], 10);
+          const currentYear = new Date().getFullYear();
+          if (year > currentYear || year < 1900) {
+            e.preventDefault();
+          }
+        }
+      }
+    }}
+    sx={dateFieldStyles}
+  />
+</Grid>
 
 
-
-  </Grid>
 
   <Grid item xs={12} md={4}>
    <TextField
@@ -694,7 +884,9 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     <TextField
       fullWidth
       label="Nombre y Apellido del Derivador"
-      value={formData.derivacion.derivador}
+      value={formData.derivacion.derivador ?? ''}
+
+
       onChange={handleChange('derivacion.derivador')}
     />
   </Grid>
@@ -704,7 +896,11 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     <TextField
       type="datetime-local"
       label="Fecha/Hora"
-      value={formData.derivacion.fecha_derivacion}
+value={formData.derivacion.fecha_derivacion || ''}
+
+
+
+
       onChange={handleFechaDerivacionChange}
       InputLabelProps={{ shrink: true }}
       inputProps={{
@@ -763,6 +959,11 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
                 derivacion: {
                   ...prev.derivacion,
                   motivos: Number(id),
+                  // Limpiar derivador si cambia a una opción distinta
+                  derivador:
+                    Number(id) === 7 || Number(id) === 8
+                      ? prev.derivacion.derivador
+                      : '',
                 },
               }))
             }
@@ -770,13 +971,40 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
         }
         label={label}
       />
-      {(Number(id) === 7 || Number(id) === 8) &&
+
+      {/* 🟢 Municipio: Mostrar Select de departamentos */}
+      {Number(id) === 7 &&
+        formData.derivacion.motivos === Number(id) && (
+          <FormControl fullWidth sx={{ mt: 1 }}>
+            <InputLabel>Seleccione Municipio</InputLabel>
+            <Select
+              value={formData.derivacion.derivador}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  derivacion: {
+                    ...prev.derivacion,
+                    derivador: String(e.target.value),
+                  },
+                }))
+              }
+            >
+              <MenuItem value="">Seleccione...</MenuItem>
+              {departamentos.map((dep) => (
+                <MenuItem key={dep.id} value={dep.nombre}>
+                  {dep.nombre}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
+      {/* 🟣 Otro: Mostrar campo de texto libre */}
+      {Number(id) === 8 &&
         formData.derivacion.motivos === Number(id) && (
           <TextField
             fullWidth
-            label={
-              label === "Municipio" ? "Ingrese Municipio" : "Especifique Otro"
-            }
+            label="Especifique Otro"
             sx={{ mt: 1 }}
             value={formData.derivacion.derivador}
             onChange={handleChange("derivacion.derivador")}
@@ -785,6 +1013,7 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     </Grid>
   ))}
 </Grid>
+
 
 <Divider sx={{ my: 3 }} />
 
@@ -795,10 +1024,10 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
 <Grid container spacing={2}>
   {/* Fecha del Hecho */}
   <Grid item xs="auto">
-    <TextField
-      type="date"
-      label="Fecha del Hecho"
-      value={formData.hechoDelictivo.fecha}
+<TextField
+  type="date"
+  value={formData.hechoDelictivo.fecha ?? ''}
+ 
       onChange={handleFechaHechoChange}
       error={!!formErrors['hechoDelictivo.fecha']}
       helperText={formErrors['hechoDelictivo.fecha']}
@@ -859,28 +1088,29 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     >
       <InputLabel>Departamento *</InputLabel>
       <Select
-        value={formData.hechoDelictivo.ubicacion.departamento || ''}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            hechoDelictivo: {
-              ...prev.hechoDelictivo,
-              ubicacion: {
-                ...prev.hechoDelictivo.ubicacion,
-                departamento: Number(e.target.value),
-                localidad: 0, // Reinicia localidad cuando cambia departamento
-              },
-            },
-          }))
-        }
-      >
-        <MenuItem value="">Seleccione...</MenuItem>
-        {departamentos.map((dep) => (
-          <MenuItem key={dep.id} value={dep.id}>
-            {dep.nombre}
-          </MenuItem>
-        ))}
-      </Select>
+  value={formData.hechoDelictivo.ubicacion.departamento || ''}
+  onChange={(e) =>
+    setFormData((prev) => ({
+      ...prev,
+      hechoDelictivo: {
+        ...prev.hechoDelictivo,
+        ubicacion: {
+          ...prev.hechoDelictivo.ubicacion,
+          departamento: e.target.value, // ✅ string, no Number()
+          localidad: '',
+        },
+      },
+    }))
+  }
+>
+  <MenuItem value="">Seleccione...</MenuItem>
+  {departamentos.map((dep) => (
+    <MenuItem key={dep.id} value={dep.id}>
+      {dep.nombre}
+    </MenuItem>
+  ))}
+</Select>
+
       <FormHelperText>
         {mostrarErrores &&
         (!formData.hechoDelictivo.ubicacion.departamento ||
@@ -893,38 +1123,39 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
 
   {/* Localidad */}
   <Grid item xs={12} md={6}>
-    <FormControl fullWidth>
-      <InputLabel>Localidad *</InputLabel>
-      <Select
-        value={formData.hechoDelictivo.ubicacion.localidad || ''}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            hechoDelictivo: {
-              ...prev.hechoDelictivo,
-              ubicacion: {
-                ...prev.hechoDelictivo.ubicacion,
-                localidad: Number(e.target.value), // Guarda la localidad seleccionada
-              },
-            },
-          }))
-        }
-        disabled={!formData.hechoDelictivo.ubicacion.departamento} // Deshabilitado si no hay departamento
-      >
-        <MenuItem value="">Seleccione...</MenuItem>
-        {localidades
-          .filter(
-            (loc) =>
-              Number(loc.departamento_id) ===
-              formData.hechoDelictivo.ubicacion.departamento
-          )
-          .map((loc) => (
-            <MenuItem key={loc.id} value={Number(loc.id)}>
-              {loc.nombre}
-            </MenuItem>
-          ))}
-      </Select>
-    </FormControl>
+<FormControl fullWidth>
+  <InputLabel>Localidad *</InputLabel>
+  <Select
+    value={formData.hechoDelictivo.ubicacion.localidad || ''}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        hechoDelictivo: {
+          ...prev.hechoDelictivo,
+          ubicacion: {
+            ...prev.hechoDelictivo.ubicacion,
+            localidad: e.target.value, // ✅ sin Number()
+          },
+        },
+      }))
+    }
+    disabled={!formData.hechoDelictivo.ubicacion.departamento}
+  >
+    <MenuItem value="">Seleccione...</MenuItem>
+    {localidades
+      .filter(
+        (loc) =>
+          loc.departamento_id ===
+          String(formData.hechoDelictivo.ubicacion.departamento) // ✅ compara como string
+      )
+      .map((loc) => (
+        <MenuItem key={loc.id} value={loc.id}>
+          {loc.nombre}
+        </MenuItem>
+      ))}
+  </Select>
+</FormControl>
+
   </Grid>
 </Grid>
 
@@ -942,19 +1173,19 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
   </Typography>
 
   <Grid container spacing={2}>
-    {Object.entries(formData.hechoDelictivo.tipoHecho).map(([key, value]) => (
-      <Grid item xs={6} md={4} key={key}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={value}
-              onChange={handleChange(`hechoDelictivo.tipoHecho.${key}`)}
-            />
-          }
-          label={labelMap[key] || key}
+   {Object.entries(formData.hechoDelictivo.tipoHecho).map(([key, value]) => (
+  <Grid item xs={6} md={4} key={key}>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={Boolean(value)} // ✅ Asegurar que sea boolean
+          onChange={handleChange(`hechoDelictivo.tipoHecho.${key}`)}
         />
-      </Grid>
-    ))}
+      }
+      label={labelMap[key] || key}
+    />
+  </Grid>
+))}
   </Grid>
 
   <FormHelperText>
@@ -1186,13 +1417,15 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
  
 <Grid item xs={12} md={4}>
   <TextField
-    label="Fecha de Nacimiento *"
+    label="Fecha de Nacimiento"
     placeholder="dd/mm/aaaa"
-    value={fechaNacimientoInput}
+value={formData.victima.fechaNacimiento ? formData.victima.fechaNacimiento.split('T')[0] : ''}
+
     fullWidth
     InputLabelProps={{ shrink: true }}
-    error={!!formErrors['victima.fechaNacimiento']}
-    helperText={formErrors['victima.fechaNacimiento']}
+   error={!!formErrors['victima.fechaNacimiento']}
+helperText={formErrors['victima.fechaNacimiento'] || ''} // No mostrar si está vacío
+
     inputProps={{
       maxLength: 10,
       inputMode: 'numeric',
@@ -1203,64 +1436,79 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
         }
       }
     }}
+   
     onChange={(e) => {
-      let raw = e.target.value.replace(/\D/g, '');
-      if (raw.length > 8) raw = raw.slice(0, 8);
-      
-      let formatted = raw;
-      if (raw.length >= 5) {
-        formatted = `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
-      } else if (raw.length >= 3) {
-        formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+  let raw = e.target.value.replace(/\D/g, '');
+  if (raw.length > 8) raw = raw.slice(0, 8);
+  
+  let formatted = raw;
+  if (raw.length >= 5) {
+    formatted = `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
+  } else if (raw.length >= 3) {
+    formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+  }
+
+  setFechaNacimientoInput(formatted);
+
+  if (formatted === '') {
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy['victima.fechaNacimiento'];
+      return copy;
+    });
+    setFormData(prev => ({
+      ...prev,
+      victima: {
+        ...prev.victima,
+        fechaNacimiento: ''
       }
-      
-      setFechaNacimientoInput(formatted);
-      
-      if (formatted.length === 10) {
-        const [dd, mm, yyyy] = formatted.split('/');
-        const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-        const date = new Date(iso);
-        const minDate = new Date('1900-01-01');
-        const today = new Date();
-        
-        if (isNaN(date.getTime()) || date < minDate || date > today) {
-          setFormErrors(prev => ({
-            ...prev,
-            'victima.fechaNacimiento': 'Fecha fuera de rango o inválida',
-          }));
-          setFormData(prev => ({
-            ...prev,
-            victima: {
-              ...prev.victima,
-              fechaNacimiento: '', // Vacío si es inválida
-            },
-          }));
-          return;
-        }
-        
-        // Fecha válida
-        setFormErrors(prev => {
-          const copy = { ...prev };
-          delete copy['victima.fechaNacimiento'];
-          return copy;
-        });
-        setFormData(prev => ({
-          ...prev,
-          victima: {
-            ...prev.victima,
-            fechaNacimiento: iso,
-          },
-        }));
-      } else {
-        // Limpia el error mientras está incompleta
-        setFormErrors(prev => {
-          const copy = { ...prev };
-          delete copy['victima.fechaNacimiento'];
-          return copy;
-        });
-        // NO actualiza formData hasta que esté completa
-      }
-    }}
+    }));
+    return;
+  }
+
+  if (formatted.length === 10) {
+    const [dd, mm, yyyy] = formatted.split('/');
+    const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    const date = new Date(iso);
+    const minDate = new Date('1900-01-01');
+    const today = new Date();
+
+    if (isNaN(date.getTime()) || date < minDate || date > today) {
+      setFormErrors(prev => ({
+        ...prev,
+        'victima.fechaNacimiento': 'Fecha fuera de rango o inválida',
+      }));
+      setFormData(prev => ({
+        ...prev,
+        victima: {
+          ...prev.victima,
+          fechaNacimiento: '',
+        },
+      }));
+      return;
+    }
+
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy['victima.fechaNacimiento'];
+      return copy;
+    });
+    setFormData(prev => ({
+      ...prev,
+      victima: {
+        ...prev.victima,
+        fechaNacimiento: iso,
+      },
+    }));
+  } else {
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy['victima.fechaNacimiento'];
+      return copy;
+    });
+  }
+}}
+
   />
 </Grid>
 
@@ -1285,7 +1533,7 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
 
   <Grid item xs={12} md={4}>
     <TextField fullWidth label="Teléfono"
-      value={formData.victima.telefono}
+     value={formData.victima.telefono ?? ''}
       onChange={handleChange('victima.telefono')}
     />
   </Grid>
@@ -1327,7 +1575,8 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     <FormControl fullWidth>
       <InputLabel>Localidad</InputLabel>
       <Select
-        value={formData.victima.direccion.localidad || ''}
+     value={formData.victima.direccion.localidad ?? ''}
+
        onChange={(e) =>
   setFormData(prev => ({
     ...prev,
@@ -1375,20 +1624,21 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     />
   </Grid>
   <Grid item xs={12} md={6}>
-    <TextField
+  <TextField
   fullWidth
-  label="Calle y Nro / Barrio / Lugar *"  // <-- Cambiar label
-  value={formData.hechoDelictivo.ubicacion.calleBarrio}
-  onChange={handleChange('hechoDelictivo.ubicacion.calleBarrio')}
-  required
+  label="Calle y Nro / Barrio / Lugar"
+  value={formData.personaEntrevistada.direccion.calleNro}
+  onChange={handleChange('personaEntrevistada.direccion.calleNro')}
 />
+
 
   </Grid>
   <Grid item xs={12} md={3}>
  <FormControl fullWidth>
   <InputLabel>Departamento</InputLabel>
  <Select
-  value={formData.personaEntrevistada.direccion.departamento}
+ value={formData.personaEntrevistada.direccion.departamento ?? ''}
+
   onChange={(e) =>
     setFormData(prev => ({
       ...prev,
@@ -1417,7 +1667,9 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     <FormControl fullWidth>
       <InputLabel>Localidad</InputLabel>
       <Select
-        value={formData.personaEntrevistada.direccion.localidad || ''}
+value={formData.personaEntrevistada.direccion.localidad ?? ''}
+
+
         onChange={(e) =>
           setFormData(prev => ({
             ...prev,
@@ -1464,7 +1716,7 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
         <FormControlLabel
           control={
             <Checkbox
-              checked={value}
+           checked={Boolean(value)} 
               onChange={handleChange(`tipoIntervencion.${key}`)}
             />
           }
@@ -1516,7 +1768,7 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
     row
     value={
       formData.seguimiento.realizado === null
-        ? '' // Sin selección inicial
+        ? ''
         : formData.seguimiento.realizado
         ? 'si'
         : 'no'
@@ -1527,7 +1779,6 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
         seguimiento: {
           ...prev.seguimiento,
           realizado: e.target.value === 'si',
-          // Si se selecciona "No", se limpian los tipos
           tipo:
             e.target.value === 'no'
               ? {
@@ -1550,6 +1801,8 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
       : ''}
   </FormHelperText>
 </FormControl>
+
+
 
 {/* Si la respuesta es "Sí", mostrar los tipos de seguimiento */}
 {formData.seguimiento.realizado && (

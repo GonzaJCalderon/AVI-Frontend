@@ -1,144 +1,284 @@
-@page {
-  size: A4;
-  margin: 10mm;
-}
-
-@media print {
-  body { 
-    -webkit-print-color-adjust: exact; 
-    print-color-adjust: exact; 
-  }
-  .no-print { display:none !important; }
-  .sheet { box-shadow: none !important; margin: 0 !important; }
-}
-
-:root {
-  --text:#111;
-  --muted:#555;
-  --line:#222;
-  --accent:#000;
+[data-formulario-container] {
+  --text: #111;
+  --muted: #555;
+  --line: #222;
   --font: "Arial", "Helvetica Neue", Helvetica, sans-serif;
-}
-
-* { box-sizing: border-box; }
-html, body {
   background: #f3f3f3;
   color: var(--text);
   font-family: var(--font);
-  font-size: 10pt;
-  line-height: 1.2;
+  font-size: 7.5pt;
+  line-height: 1.1;
 }
 
-/* Contenedor principal */
-.sheet {
-  width: 210mm; 
-  min-height: 297mm;
+[data-formulario-container] * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+[data-formulario-container] .sheet {
+  width: 210mm;
   background: #fff;
-  margin: auto;
-  padding: 10mm;
-  box-shadow: 0 8px 28px rgba(0,0,0,.10);
+  margin: 8mm auto;
+  padding: 12mm 10mm;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   position: relative;
 }
 
-/* Encabezado */
-.header {
-  display: grid;
-  grid-template-columns: 1fr 35mm;
-  align-items: center;
-  gap: 4mm;
-  margin-bottom: 4mm;
-  margin-top: -4mm; /* Reduce espacio superior */
+/* Header */
+[data-formulario-container] .header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 8mm;
+  min-height: 40mm;
+  page-break-inside: avoid;
+  margin-top: 6mm;
+  padding-top: 3mm;
 }
-.logo {
-  width: 55mm;
-  height: 55mm;
-  object-fit: contain;
-  justify-self: end;
+
+[data-formulario-container] .header-center {
+  text-align: center;
+  padding-top: 10mm;
 }
-.header-center { text-align: center; }
-.header-center .org { font-weight: 700; font-size: 12pt; margin-bottom: 1mm; }
-.header-center .proto {
-  display: inline-block;
-  padding: 1.5mm 3.5mm;
-  border: 1.2px solid var(--line);
-  font-size: 11pt;
+
+[data-formulario-container] .header-center .org {
   font-weight: 700;
+  font-size: 9pt;
+  margin-bottom: 2mm;
+  line-height: 1.2;
+}
+
+[data-formulario-container] .header-center .proto {
+  display: inline-block;
+  padding: 1.5mm 4mm;
+  border: 0.8px solid var(--line);
+  font-size: 8pt;
+  font-weight: 600;
+  margin-top: 1mm;
+}
+
+[data-formulario-container] .logo {
+  position: absolute;
+  top: 3mm;
+  right: 0;
+  width: 30mm;
+  height: 30mm;
+  object-fit: contain;
 }
 
 /* Secciones */
-.section {
+[data-formulario-container] .section {
   margin-top: 4mm;
-  border: 1.2px solid var(--line);
-  padding: 3.5mm;
-  page-break-inside: avoid; /* evita cortes feos dentro */
+  border: 0.8px solid var(--line);
+  padding: 3mm;
+  page-break-inside: avoid;
 }
 
-/* Solo la sección 4 fuerza nueva hoja */
-.section.break-before {
+[data-formulario-container] .section:first-of-type {
+  margin-top: 0;
+}
+
+[data-formulario-container] .section.break-before {
   page-break-before: always;
+  margin-top: 0;
 }
 
-.section-header {
-  display: flex; 
-  align-items: baseline; 
-  gap: 4mm; 
-  margin-bottom: 3mm;
+[data-formulario-container] .section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  margin-bottom: 2.5mm;
+  border-bottom: 0.8px solid var(--line);
+  padding-bottom: 1.5mm;
 }
-.section-number { font-weight: 700; font-size: 11pt; }
-.section-title { font-size: 11pt; font-weight: 700; letter-spacing: .2px; }
 
-/* Campos con línea */
-.field {
+[data-formulario-container] .section-number {
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+[data-formulario-container] .section-title {
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Campos */
+[data-formulario-container] .field {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2mm 3mm;
+  gap: 1.5mm 2mm;
   align-items: end;
   margin-bottom: 2.5mm;
 }
-.field .label { white-space: nowrap; font-weight: 600; }
-.field .line {
-  border-bottom: 1px solid var(--line);
-  height: 5mm;
+
+[data-formulario-container] .field .label {
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 7pt;
+}
+
+[data-formulario-container] .field .line {
+  border-bottom: 0.5px solid var(--line);
+  min-height: 4mm;
+  padding: 0 1mm 0.5mm 1mm;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  max-width: 100%;
-  display: block;
+  font-size: 7.5pt;
 }
-.field.inline { grid-template-columns: auto 50mm auto 1fr; }
+
+[data-formulario-container] .field.inline {
+  grid-template-columns: auto 35mm auto 25mm auto 18mm;
+  gap: 1.5mm;
+}
 
 /* Checkboxes */
-.options {
+[data-formulario-container] .options {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4mm;
-  font-size: 10pt;
+  gap: 2mm 2.5mm;
+  font-size: 7.5pt;
+  line-height: 1.15;
 }
-.opt {
+
+[data-formulario-container] .opt {
   display: flex;
   align-items: center;
-  gap: 3mm;
-  white-space: nowrap;
+  gap: 1.5mm;
+  font-size: 7.5pt;
 }
-.box {
-  width: 4mm;
-  height: 4mm;
-  border: 1px solid var(--line);
+
+[data-formulario-container] .box {
+  width: 3mm;
+  height: 3mm;
+  border: 0.6px solid var(--line);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10pt;
+  font-size: 7pt;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 /* Multi-línea */
-.multiline {
-  border: 1px solid var(--line);
-  height: 22mm; /* optimizado para que todo entre */
+[data-formulario-container] .multiline {
+  border: 0.6px solid var(--line);
+  height: 14mm;
   margin-top: 2mm;
+  padding: 2mm;
+  overflow: hidden;
+  font-size: 7.5pt;
+  line-height: 1.2;
 }
-.multiline.tall { height: 35mm; }
+
+[data-formulario-container] .multiline.tall {
+  height: 20mm;
+}
 
 /* Grillas */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 8mm; }
+[data-formulario-container] .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5mm 4mm;
+}
+
+[data-formulario-container] .grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5mm 3mm;
+}
+
+[data-formulario-container] .grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2.5mm 2.5mm;
+}
+
+/* Subtítulos */
+[data-formulario-container] .title.h2 {
+  font-size: 7.5pt;
+  font-weight: 600;
+  margin-top: 2.5mm;
+  margin-bottom: 2mm;
+}
+
+/* Campos que ocupan varias columnas */
+[data-formulario-container] .field[style*="grid-column: span"] .line {
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-height: 5mm;
+}
+
+/* Ajuste específico para opciones con campos de texto */
+[data-formulario-container] .opt[style*="grid-column: span"] {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 2mm;
+  align-items: center;
+}
+
+[data-formulario-container] .opt[style*="grid-column: span"] .line {
+  border-bottom: 0.5px solid var(--line);
+  min-height: 4mm;
+  padding: 0 1mm 0.5mm 1mm;
+}
+
+/* @media print scope */
+@media print {
+  [data-formulario-container] {
+    font-size: 7pt !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  [data-formulario-container] .sheet {
+    padding: 10mm 10mm 8mm 8mm !important;
+    margin: 0 !important;
+  }
+
+  [data-formulario-container] .header {
+    margin-top: 5mm !important;
+    margin-bottom: 5mm !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  [data-formulario-container] .header-center {
+    padding-top: 3mm !important;
+    margin-top: 0 !important;
+  }
+
+  [data-formulario-container] .logo {
+    top: 2mm !important;
+    width: 25mm !important;
+    height: 25mm !important;
+  }
+
+  [data-formulario-container] .section {
+    margin-top: 2mm !important;
+    padding: 2mm !important;
+  }
+
+  [data-formulario-container] .field {
+    margin-bottom: 1.5mm !important;
+  }
+
+  [data-formulario-container] .section-header {
+    margin-bottom: 1.5mm !important;
+    padding-bottom: 0.8mm !important;
+  }
+
+  [data-formulario-container] .multiline {
+    height: 10mm !important;
+    padding: 1mm !important;
+    line-height: 1.1 !important;
+  }
+
+  [data-formulario-container] .multiline.tall {
+    height: 15mm !important;
+  }
+}

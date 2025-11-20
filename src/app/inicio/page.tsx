@@ -36,7 +36,6 @@ import TablaFormularios from '@/components/TablaFormularios';
 import DialogCambiarEstado from '@/components/DialogCambiarEstado';
 import { ESTADOS_UI, estadoColorMap, normalizeEstado, type EstadoUI, delitoKeyMap } from '@/utils/constants';
 
-
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -51,36 +50,26 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 import * as XLSX from 'xlsx-js-style';
 import {
-
   IntervencionItem,
   eliminarIntervencionSoft,
   cerrarIntervencion,
   archivarIntervencion,
   cambiarEstadoMultipleConVerificacion, 
   debugCambioEstado,
-   activarIntervencion, 
-    obtenerIntervencionPorId,
+  activarIntervencion, 
+  obtenerIntervencionPorId,
 } from '@/services/intervenciones';
 import { listarIntervenciones } from '@/services/intervenciones'
-
 
 // ✅ Importar el tipo desde el archivo de tipos
 import { Formulario } from '@/types/formulario';
 import html2pdf from 'html2pdf.js';
 
+interface Departamento {
+  id: string;
+  nombre: string;
+}
 
-
-export default function InicioPage() {
-  const router = useRouter();
-
-  const [formularios, setFormularios] = useState<Formulario[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // ✅ AÑADIR ESTA LÍNEA AQUÍ
-  const departamentosRef = useRef<Departamento[]>([]);
-
-  // ✅ Filtros
 type FiltroFormularios = {
   coordinador: string;
   operador: string;
@@ -91,35 +80,37 @@ type FiltroFormularios = {
   fechaHasta: string;
   estado: string;
   delito: string[];
-  departamento: string[]; // ⬅️ Antes era string
+  departamento: string[];
   localidad: string;
 };
 
+export default function InicioPage() {
+  const router = useRouter();
 
-const filtrosIniciales: FiltroFormularios = {
-  coordinador: '',
-  operador: '',
-  victima: '',
-  numero: '',
-  dni: '',
-  fechaDesde: '',
-  fechaHasta: '',
-  estado: 'Todos',
-  delito: [],
-  departamento: [], // ⬅️ Array vacío
-  localidad: '',
-};
+  // ========== TODOS LOS ESTADOS Y REFS PRIMERO ==========
+  const [formularios, setFormularios] = useState<Formulario[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  
+  const departamentosRef = useRef<Departamento[]>([]);
 
+  const filtrosIniciales: FiltroFormularios = {
+    coordinador: '',
+    operador: '',
+    victima: '',
+    numero: '',
+    dni: '',
+    fechaDesde: '',
+    fechaHasta: '',
+    estado: 'Todos',
+    delito: [],
+    departamento: [],
+    localidad: '',
+  };
 
-const [filtro, setFiltro] = useState<FiltroFormularios>(filtrosIniciales);
-
-const resetFiltros = () => {
-  setFiltro(filtrosIniciales);
-  setPagina(1);
-};
-
-
-
+  const [filtro, setFiltro] = useState<FiltroFormularios>(filtrosIniciales);
   const [pagina, setPagina] = useState(1);
   const formulariosPorPagina = 5;
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -131,138 +122,215 @@ const resetFiltros = () => {
   // ✅ Estados seleccionables (excluye "Eliminado")
   const ESTADOS_SELECCIONABLES: EstadoUI[] = ['Activo', 'Archivado'];
   const ESTADO_TODOS = 'Todos';
-  
-interface Departamento {
-  id: string;
-  nombre: string;
-} 
 
-const [user, setUser] = useState<any>(null);
-const [loadingUser, setLoadingUser] = useState(true);
-
-
+  // ========== TODOS LOS useEffect ==========
 useEffect(() => {
-  try {
+  const verificarSesion = () => {
     const data = localStorage.getItem('user');
+
     if (data) {
-      setUser(JSON.parse(data));
+      try {
+        const userData = JSON.parse(data);
+        setUser(userData);
+      } catch (e) {
+        console.error('❌ Usuario inválido:', e);
+        router.replace('/login');
+      }
     } else {
-      setUser(null);
+      router.replace('/login');
     }
-  } catch (e) {
-    console.error('❌ Error leyendo el usuario desde localStorage:', e);
-    setUser(null);
-  } finally {
+
     setLoadingUser(false);
-  }
-}, []);
+  };
 
+  verificarSesion();
+}, [router]);
 
-const handleImprimirFormularioPDF = () => {
-  const win = window.open('/formulario.pdf', '_blank');
-  if (win) {
-    win.focus();
-    win.onload = () => {
-      setTimeout(() => {
-        win.print();
-      }, 500);
-    };
-  } else {
-    alert('No se pudo abrir el PDF');
-  }
-};
-
-// ✅ Redirige al login si no hay usuario una vez cargado
-  useEffect(() => {
-    if (!loadingUser && !user) {
-      router.push('/login');
-    }
-  }, [user, loadingUser, router]);
 
 
 
   // Carga real desde /api/intervenciones
- useEffect(() => {
-  const load = async () => {
-    setCargando(true);
-    setError(null);
+  useEffect(() => {
+    const load = async () => {
+      setCargando(true);
+      setError(null);
 
-    try {
-      const [data, depRes] = await Promise.all([
-        listarIntervenciones(),
-        fetch('/departamentosMendoza.json'),
-      ]);
+      try {
+        const [data, depRes] = await Promise.all([
+          listarIntervenciones(),
+          fetch('/departamentosMendoza.json'),
+        ]);
 
-      const departamentosJson = await depRes.json();
+        const departamentosJson = await depRes.json();
+        departamentosRef.current = departamentosJson.departamentos;
 
-      // ✅ Guardar el JSON en el useRef
-departamentosRef.current = departamentosJson.departamentos;
+        const mapped: Formulario[] = data.map((it) => {
+          const victima = it.victimas?.[0];
 
+          const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
+            ? Object.entries(it.hechos_delictivos[0].relaciones[0])
+                .filter(([key, val]) => val === true && key !== 'id' && key !== 'hecho_delictivo_id')
+                .map(([key]) => delitoKeyMap[key] || key.replaceAll('_', ' '))
+                .join(', ')
+            : '—';
 
+          const departamentoIdParsed = String(
+            it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id || ''
+          );
 
+          const departamentoNombre = departamentoIdParsed 
+            ? departamentosRef.current.find(d => d.id === departamentoIdParsed)?.nombre || '—'
+            : '—';
 
-const mapped: Formulario[] = data.map((it) => {
-  const victima = it.victimas?.[0];
+          const localidadParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '—';
+          const reseñaParsed = it.resena_hecho?.trim() || '—';
 
-  const delitoParsed = it.hechos_delictivos?.[0]?.relaciones?.[0]
-    ? Object.entries(it.hechos_delictivos[0].relaciones[0])
-        .filter(([key, val]) => val === true && key !== 'id' && key !== 'hecho_delictivo_id')
-        .map(([key]) => delitoKeyMap[key] || key.replaceAll('_', ' '))
-        .join(', ')
-    : '—';
+          return {
+            id: String(it.id),
+            coordinador: it.coordinador || '—',
+            operador: it.operador || '—',
+            victima: victima?.nombre || '—',
+            numero: it.numero_intervencion || '—',
+            numero_intervencion: it.numero_intervencion,
+            dni: victima?.dni || '—',
+            fecha: new Date(it.fecha).toISOString().slice(0, 10),
+            estado: normalizeEstado(it.estado, it.eliminado),
+            eliminado: it.eliminado,
+            delito: delitoParsed,
+            departamentoId: departamentoIdParsed,
+            departamento: departamentoNombre,
+            localidad: localidadParsed,
+            reseña_hecho: reseñaParsed,
+            counts: {
+              derivaciones: it.derivaciones?.length ?? 0,
+              hechos_delictivos: it.hechos_delictivos?.length ?? 0,
+              victimas: it.victimas?.length ?? 0,
+              seguimientos: it.seguimientos?.length ?? 0,
+            },
+          };
+        });
 
-  const departamentoIdParsed = String(
-    it.hechos_delictivos?.[0]?.geo?.[0]?.departamentos?.dep_id || ''
-  );
+        setFormularios(mapped);
+      } catch (e: any) {
+        setError(e?.message || 'No se pudieron cargar las intervenciones');
+      } finally {
+        setCargando(false);
+      }
+    };
 
-  const departamentoNombre = departamentoIdParsed 
-    ? departamentosRef.current.find(d => d.id === departamentoIdParsed)?.nombre || '—'
-    : '—';
+    load();
+  }, []);
 
-  const localidadParsed = it.hechos_delictivos?.[0]?.geo?.[0]?.domicilio || '—';
-  const reseñaParsed = it.resena_hecho?.trim() || '—';
+  // ========== TODOS LOS useMemo ==========
+  const formulariosFiltrados = useMemo(() => {
+    console.log('🔄 Recalculating filtered formularios...', { 
+      totalFormularios: formularios.length,
+      activeFilters: Object.entries(filtro).filter(([key, value]) => {
+        if (Array.isArray(value)) return value.length > 0;
+        return value && value !== 'Todos';
+      }).map(([key]) => key)
+    });
 
-  return {
-    id: String(it.id),
-    coordinador: it.coordinador || '—',
-    operador: it.operador || '—',
-    victima: victima?.nombre || '—',
-    numero: it.numero_intervencion || '—',
-    numero_intervencion: it.numero_intervencion,
-    dni: victima?.dni || '—',
-    fecha: new Date(it.fecha).toISOString().slice(0, 10),
-    estado: normalizeEstado(it.estado, it.eliminado),
-    eliminado: it.eliminado,
-    delito: delitoParsed,
-    departamentoId: departamentoIdParsed,
-    departamento: departamentoNombre,
-    localidad: localidadParsed,
-    reseña_hecho: reseñaParsed,
-    counts: {
-      derivaciones: it.derivaciones?.length ?? 0,
-      hechos_delictivos: it.hechos_delictivos?.length ?? 0,
-      victimas: it.victimas?.length ?? 0,
-      seguimientos: it.seguimientos?.length ?? 0,
-    },
-  };
-});
+    const startTime = performance.now();
+    
+    const hasCoordinadorFilter = Boolean(filtro.coordinador);
+    const hasOperadorFilter = Boolean(filtro.operador);
+    const hasVictimaFilter = Boolean(filtro.victima);
+    const hasNumeroFilter = Boolean(filtro.numero);
+    const hasDniFilter = Boolean(filtro.dni);
+    const hasDelitoFilter = filtro.delito.length > 0;
+    const hasDepartamentoFilter = filtro.departamento.length > 0;
+    const hasLocalidadFilter = Boolean(filtro.localidad);
+    const hasEstadoFilter = filtro.estado && filtro.estado !== 'Todos';
+    const hasFechaDesdeFilter = Boolean(filtro.fechaDesde);
+    const hasFechaHastaFilter = Boolean(filtro.fechaHasta);
+    
+    const coordinadorLower = hasCoordinadorFilter ? filtro.coordinador.toLowerCase() : '';
+    const operadorLower = hasOperadorFilter ? filtro.operador.toLowerCase() : '';
+    const victimaLower = hasVictimaFilter ? filtro.victima.toLowerCase() : '';
+    const numeroLower = hasNumeroFilter ? filtro.numero.toLowerCase() : '';
+    const dniLower = hasDniFilter ? filtro.dni.toLowerCase() : '';
+    const delitosLower = hasDelitoFilter ? filtro.delito.map(d => d.toLowerCase()) : [];
+    
+    const fechaDesde = hasFechaDesdeFilter ? new Date(filtro.fechaDesde) : null;
+    const fechaHasta = hasFechaHastaFilter ? new Date(filtro.fechaHasta) : null;
+    
+    const filtered = formularios.filter((f) => {
+      if (hasCoordinadorFilter && !f.coordinador.toLowerCase().includes(coordinadorLower)) return false;
+      if (hasOperadorFilter && !f.operador.toLowerCase().includes(operadorLower)) return false;
+      if (hasVictimaFilter && !f.victima.toLowerCase().includes(victimaLower)) return false;
+      if (hasNumeroFilter && !f.numero.toLowerCase().includes(numeroLower)) return false;
+      if (hasDniFilter && !f.dni?.toLowerCase().includes(dniLower)) return false;
+      
+      if (hasDelitoFilter) {
+        const delitoLower = f.delito?.toLowerCase() || '';
+        if (!delitosLower.some(delitoFiltro => delitoLower.includes(delitoFiltro))) return false;
+      }
+      
+      if (hasDepartamentoFilter) {
+        if (!filtro.departamento.includes(String(f.departamentoId))) return false;
+      }
 
+      if (hasLocalidadFilter && f.localidad !== filtro.localidad) return false;
+      if (hasEstadoFilter && f.estado !== filtro.estado) return false;
+      
+      if (hasFechaDesdeFilter || hasFechaHastaFilter) {
+        const fechaFormulario = f.fecha ? new Date(f.fecha) : null;
+        if (!fechaFormulario) return false;
+        
+        if (fechaDesde && fechaFormulario < fechaDesde) return false;
+        if (fechaHasta && fechaFormulario > fechaHasta) return false;
+      }
+      
+      return true;
+    });
+    
+    const endTime = performance.now();
+    console.log(`✅ Filtering completed in ${(endTime - startTime).toFixed(2)}ms. Found ${filtered.length}/${formularios.length} results`);
+    
+    return filtered;
+  }, [formularios, filtro]);
 
+  const formulariosPagina = useMemo(() => {
+    const startIndex = (pagina - 1) * formulariosPorPagina;
+    const endIndex = startIndex + formulariosPorPagina;
+    return formulariosFiltrados.slice(startIndex, endIndex);
+  }, [formulariosFiltrados, pagina, formulariosPorPagina]);
 
-      setFormularios(mapped);
-    } catch (e: any) {
-      setError(e?.message || 'No se pudieron cargar las intervenciones');
-    } finally {
-      setCargando(false);
+  // ========== TODOS LOS useCallback ==========
+  const handleFiltroInputOptimized = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFiltro((prev) => ({ ...prev, [name]: value }));
+    setPagina(1);
+  }, []);
+
+  const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string> | { target: { name: string; value: string } }) => {
+    const { name, value } = event.target;
+
+    if (value === '__reset__') {
+      setFiltro({
+        coordinador: '',
+        operador: '',
+        victima: '',
+        numero: '',
+        dni: '',
+        fechaDesde: '',
+        fechaHasta: '',
+        estado: 'Todos',
+        delito: [],
+        departamento: [],
+        localidad: '',
+      });
+      setPagina(1);
+      return;
     }
-  };
 
-  load();
-}, []);
+    setFiltro((prev) => ({ ...prev, [name]: value }));
+    setPagina(1);
+  }, []);
 
-
+  // ========== FUNCIONES REGULARES ==========
   function EstadoDot({ estado }: { estado: string }) {
-    // Verificación de tipo segura para indexar estadoColorMap
     const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
     const color = estadoColorMap[colorKey] || 'grey';
     return (
@@ -277,63 +345,77 @@ const mapped: Formulario[] = data.map((it) => {
       />
     );
   }
-const handleFiltroInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-  
-  // Validar que DNI solo contenga números
-  if (name === 'dni') {
-    // Permitir solo números (0-9)
-    const soloNumeros = value.replace(/[^0-9]/g, '');
-    setFiltro((prev) => ({ ...prev, [name]: soloNumeros }));
-  } else {
-    setFiltro((prev) => ({ ...prev, [name]: value }));
-  }
-  
-  setPagina(1);
-};
 
-const handleFiltroSelect = (
-  event: SelectChangeEvent<string> | { target: { name: string; value: string } }
-) => {
-  const { name, value } = event.target;
+  const resetFiltros = () => {
+    setFiltro(filtrosIniciales);
+    setPagina(1);
+  };
 
-  // Valor vacío = "Todos"
-  if (value === '') {
+  const handleFiltroInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'dni') {
+      const soloNumeros = value.replace(/[^0-9]/g, '');
+      setFiltro((prev) => ({ ...prev, [name]: soloNumeros }));
+    } else {
+      setFiltro((prev) => ({ ...prev, [name]: value }));
+    }
+    
+    setPagina(1);
+  };
+
+  const handleFiltroSelect = (
+    event: SelectChangeEvent<string> | { target: { name: string; value: string } }
+  ) => {
+    const { name, value } = event.target;
+
+    if (value === '') {
+      setFiltro((prev) => ({
+        ...prev,
+        [name]: '',
+        ...(name === 'departamento' && { localidad: '' }),
+      }));
+      setPagina(1);
+      return;
+    }
+
     setFiltro((prev) => ({
       ...prev,
-      [name]: '',
-      ...(name === 'departamento' && { localidad: '' }), // Limpia localidad si cambia departamento
+      [name]: value,
+      ...(name === 'departamento' && { localidad: '' }),
     }));
     setPagina(1);
-    return;
-  }
+  };
 
-  setFiltro((prev) => ({
-    ...prev,
-    [name]: value,
-    ...(name === 'departamento' && { localidad: '' }), // Limpia localidad si cambia departamento
-  }));
-  setPagina(1);
-};
+  const limpiarFiltros = () => {
+    setFiltro({
+      coordinador: '',
+      operador: '',
+      victima: '',
+      numero: '',
+      dni: '',
+      fechaDesde: '',
+      fechaHasta: '',
+      estado: 'Todos',
+      delito: [],
+      departamento: [],
+      localidad: '',
+    });
+  };
 
-
-const limpiarFiltros = () => {
-  setFiltro({
-    coordinador: '',
-    operador: '',
-    victima: '',
-    numero: '',
-    dni: '',
-    fechaDesde: '',
-    fechaHasta: '',
-    estado: 'Todos',
-    delito: [],
-    departamento: [], // ⬅️ Array vacío
-    localidad: '',
-  });
-};
-
-
+  const handleImprimirFormularioPDF = () => {
+    const win = window.open('/formulario.pdf', '_blank');
+    if (win) {
+      win.focus();
+      win.onload = () => {
+        setTimeout(() => {
+          win.print();
+        }, 500);
+      };
+    } else {
+      alert('No se pudo abrir el PDF');
+    }
+  };
 
   const handleImprimirSeleccionados = () => {
     if (seleccionados.length === 0) return
@@ -351,7 +433,6 @@ const limpiarFiltros = () => {
 
     try {
       await Promise.all(seleccionados.map(id => eliminarIntervencionSoft(Number(id))));
-      // ✅ Actualizar estado a "Eliminado" en lugar de remover del array
       setFormularios(prev => 
         prev.map(f => 
           seleccionados.includes(f.id) 
@@ -375,220 +456,96 @@ const limpiarFiltros = () => {
     setSelectedId(null);
   };
 
- const handleAccion = async (accion: string) => {
-  if (!selectedId) return;
+  const handleAccion = async (accion: string) => {
+    if (!selectedId) return;
 
-  try {
-    switch (accion) {
-     case 'ver':
-  router.push(`/imprimir-formulario?id=${selectedId}&modo=ver`);
+    try {
+      switch (accion) {
+  case 'ver': {
+  const url = `/imprimir-formulario?id=${selectedId}&modo=ver`;
+  window.open(url, '_blank');
   break;
-
-case 'imprimir':
-  router.push(`/imprimir-formulario?id=${selectedId}&modo=imprimir`);
-  break;
-
-case 'descargar':
-  router.push(`/imprimir-formulario?id=${selectedId}&modo=descargar`);
-  break;
-
-
-      case 'editar':
-        router.push(`/editar-formulario?id=${selectedId}`);
-        break;
-
-      case 'listar':
-        router.push(`/listar-formularios`);
-        break;
-
-      case 'estado': {
-        const formulario = formularios.find(f => f.id === selectedId);
-        if (formulario?.estado === 'Eliminado') {
-          alert('No se puede cambiar el estado de una intervención eliminada');
-          break;
-        }
-        setSeleccionados([selectedId]);
-        setOpenEstadoDialog(true);
-        break;
-      }
-
-      case 'archivar': {
-        await archivarIntervencion(Number(selectedId));
-        setFormularios(prev =>
-          prev.map(f =>
-            f.id === selectedId ? { ...f, estado: 'Archivado' as EstadoUI } : f
-          )
-        );
-        break;
-      }
-
-      case 'activar': {
-        const formulario = formularios.find(f => f.id === selectedId);
-        if (formulario?.estado === 'Eliminado') {
-          alert('No se puede activar una intervención eliminada');
-          break;
-        }
-        await activarIntervencion(Number(selectedId));
-        setFormularios(prev =>
-          prev.map(f =>
-            f.id === selectedId ? { ...f, estado: 'Activo' as EstadoUI } : f
-          )
-        );
-        router.refresh?.();
-        break;
-      }
-
-      case 'eliminar': {
-        const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
-        if (!ok) break;
-        await eliminarIntervencionSoft(Number(selectedId));
-        setFormularios(prev =>
-          prev.map(f =>
-            f.id === selectedId ? { ...f, estado: 'Eliminado' as EstadoUI } : f
-          )
-        );
-        break;
-      }
-    }
-  } catch (err: any) {
-    alert(err?.message || 'Ocurrió un error realizando la acción');
-  } finally {
-    handleCloseMenu();
-  }
-};
-
-
-
-  // Navega a creación de caso
-  const handleNuevoCaso = () => {
-    router.push('/nuevo-caso');
-  };
-
-
-
-// Replace your current formulariosFiltrados logic with this optimized version
-const formulariosFiltrados = useMemo(() => {
-  // Only log once when recalculating, not for every item
-  console.log('🔄 Recalculating filtered formularios...', { 
-    totalFormularios: formularios.length,
-    activeFilters: Object.entries(filtro).filter(([key, value]) => {
-      if (Array.isArray(value)) return value.length > 0;
-      return value && value !== 'Todos';
-    }).map(([key]) => key)
-  });
-
-  const startTime = performance.now();
-  
-  // Pre-compile filter conditions for better performance
-  const hasCoordinadorFilter = Boolean(filtro.coordinador);
-  const hasOperadorFilter = Boolean(filtro.operador);
-  const hasVictimaFilter = Boolean(filtro.victima);
-  const hasNumeroFilter = Boolean(filtro.numero);
-  const hasDniFilter = Boolean(filtro.dni);
-  const hasDelitoFilter = filtro.delito.length > 0;
- const hasDepartamentoFilter = filtro.departamento.length > 0;
-
-  const hasLocalidadFilter = Boolean(filtro.localidad);
-  const hasEstadoFilter = filtro.estado && filtro.estado !== 'Todos';
-  const hasFechaDesdeFilter = Boolean(filtro.fechaDesde);
-  const hasFechaHastaFilter = Boolean(filtro.fechaHasta);
-  
-  // Pre-compile case-insensitive filter values
-  const coordinadorLower = hasCoordinadorFilter ? filtro.coordinador.toLowerCase() : '';
-  const operadorLower = hasOperadorFilter ? filtro.operador.toLowerCase() : '';
-  const victimaLower = hasVictimaFilter ? filtro.victima.toLowerCase() : '';
-  const numeroLower = hasNumeroFilter ? filtro.numero.toLowerCase() : '';
-  const dniLower = hasDniFilter ? filtro.dni.toLowerCase() : '';
-  const delitosLower = hasDelitoFilter ? filtro.delito.map(d => d.toLowerCase()) : [];
-  
-  // Pre-compile date objects
-  const fechaDesde = hasFechaDesdeFilter ? new Date(filtro.fechaDesde) : null;
-  const fechaHasta = hasFechaHastaFilter ? new Date(filtro.fechaHasta) : null;
-  
-  const filtered = formularios.filter((f) => {
-    // Text-based filters with early returns
-    if (hasCoordinadorFilter && !f.coordinador.toLowerCase().includes(coordinadorLower)) return false;
-    if (hasOperadorFilter && !f.operador.toLowerCase().includes(operadorLower)) return false;
-    if (hasVictimaFilter && !f.victima.toLowerCase().includes(victimaLower)) return false;
-    if (hasNumeroFilter && !f.numero.toLowerCase().includes(numeroLower)) return false;
-    if (hasDniFilter && !f.dni?.toLowerCase().includes(dniLower)) return false;
-    
-    // Delito filtering - optimized to use some() instead of every()
-    if (hasDelitoFilter) {
-      const delitoLower = f.delito?.toLowerCase() || '';
-      if (!delitosLower.some(delitoFiltro => delitoLower.includes(delitoFiltro))) return false;
-    }
-    
-const hasDepartamentoFilter = filtro.departamento.length > 0;
-
-if (hasDepartamentoFilter) {
-  if (!filtro.departamento.includes(String(f.departamentoId))) return false;
 }
 
 
-    // Exact match filters
+      case 'imprimir': {
+  const url = `/imprimir-formulario?id=${selectedId}&modo=imprimir`;
+  window.open(url, '_blank');
+  break;
+}
 
 
+        case 'descargar':
+          router.push(`/imprimir-formulario?id=${selectedId}&modo=descargar`);
+          break;
 
-    if (hasLocalidadFilter && f.localidad !== filtro.localidad) return false;
-    if (hasEstadoFilter && f.estado !== filtro.estado) return false;
-    
-    // Date filtering - only parse if we have date filters
-    if (hasFechaDesdeFilter || hasFechaHastaFilter) {
-      const fechaFormulario = f.fecha ? new Date(f.fecha) : null;
-      if (!fechaFormulario) return false;
-      
-      if (fechaDesde && fechaFormulario < fechaDesde) return false;
-      if (fechaHasta && fechaFormulario > fechaHasta) return false;
+        case 'editar':
+          router.push(`/editar-formulario?id=${selectedId}`);
+          break;
+
+        case 'listar':
+          router.push(`/listar-formularios`);
+          break;
+
+        case 'estado': {
+          const formulario = formularios.find(f => f.id === selectedId);
+          if (formulario?.estado === 'Eliminado') {
+            alert('No se puede cambiar el estado de una intervención eliminada');
+            break;
+          }
+          setSeleccionados([selectedId]);
+          setOpenEstadoDialog(true);
+          break;
+        }
+
+        case 'archivar': {
+          await archivarIntervencion(Number(selectedId));
+          setFormularios(prev =>
+            prev.map(f =>
+              f.id === selectedId ? { ...f, estado: 'Archivado' as EstadoUI } : f
+            )
+          );
+          break;
+        }
+
+        case 'activar': {
+          const formulario = formularios.find(f => f.id === selectedId);
+          if (formulario?.estado === 'Eliminado') {
+            alert('No se puede activar una intervención eliminada');
+            break;
+          }
+          await activarIntervencion(Number(selectedId));
+          setFormularios(prev =>
+            prev.map(f =>
+              f.id === selectedId ? { ...f, estado: 'Activo' as EstadoUI } : f
+            )
+          );
+          router.refresh?.();
+          break;
+        }
+
+        case 'eliminar': {
+          const ok = confirm('¿Seguro que deseas eliminar esta intervención?');
+          if (!ok) break;
+          await eliminarIntervencionSoft(Number(selectedId));
+          setFormularios(prev =>
+            prev.map(f =>
+              f.id === selectedId ? { ...f, estado: 'Eliminado' as EstadoUI } : f
+            )
+          );
+          break;
+        }
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Ocurrió un error realizando la acción');
+    } finally {
+      handleCloseMenu();
     }
-    
-    return true;
-  });
-  
-  const endTime = performance.now();
-  console.log(`✅ Filtering completed in ${(endTime - startTime).toFixed(2)}ms. Found ${filtered.length}/${formularios.length} results`);
-  
-  return filtered;
-}, [formularios, filtro]);
+  };
 
-// Optimize the paginated results as well
-const formulariosPagina = useMemo(() => {
-  const startIndex = (pagina - 1) * formulariosPorPagina;
-  const endIndex = startIndex + formulariosPorPagina;
-  return formulariosFiltrados.slice(startIndex, endIndex);
-}, [formulariosFiltrados, pagina, formulariosPorPagina]);
-
-// Optimize filter handlers with useCallback
-const handleFiltroInputOptimized = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
-  setFiltro((prev) => ({ ...prev, [name]: value }));
-  setPagina(1);
-}, []);
-
-const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string> | { target: { name: string; value: string } }) => {
-  const { name, value } = event.target;
-
-  if (value === '__reset__') {
-    setFiltro({
-      coordinador: '',
-      operador: '',
-      victima: '',
-      numero: '',
-      dni: '',
-      fechaDesde: '',
-      fechaHasta: '',
-      estado: 'Todos',
-      delito: [],
-     departamento: [],
-      localidad: '',
-    });
-    setPagina(1);
-    return;
-  }
-
-  setFiltro((prev) => ({ ...prev, [name]: value }));
-  setPagina(1);
-}, []);
+  const handleNuevoCaso = () => {
+    router.push('/nuevo-caso');
+  };
 
   const formatearFecha = (fecha: string) => {
     const [a, m, d] = fecha.split('-');
@@ -596,17 +553,15 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
   };
 
   const toggleSeleccionado = (id: string) => {
-    // ✅ No permitir seleccionar formularios eliminados
     const formulario = formularios.find(f => f.id === id);
     if (formulario?.estado === 'Eliminado') {
-      return; // No hacer nada si está eliminado
+      return;
     }
     
     setSeleccionados((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   };
 
   const toggleTodos = () => {
-    // ✅ Solo seleccionar formularios que NO estén eliminados
     const formulariosSinEliminar = formulariosPagina.filter(f => f.estado !== 'Eliminado');
     
     if (formulariosSinEliminar.every((f) => seleccionados.includes(f.id))) {
@@ -617,7 +572,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     }
   };
 
-  // ======== EXPORTACIÓN A EXCEL CON ESTILOS ========
   const handleExportarExcel = () => {
     const rows =
       seleccionados.length > 0 ? formularios.filter((f) => seleccionados.includes(f.id)) : formulariosFiltrados;
@@ -653,7 +607,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
 
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    // 10 columnas (A..J)
     (ws as any)['!cols'] = [
       { wch: 6 },
       { wch: 18 },
@@ -667,7 +620,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       { wch: 16 },
     ];
 
-    // A1:J1
     (ws as any)['!autofilter'] = { ref: `A1:J1` };
 
     const range = XLSX.utils.decode_range((ws as any)['!ref']);
@@ -691,7 +643,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       fgColor: { rgb: isEven ? 'F7F7FB' : 'FFFFFF' },
     });
 
-    // Encabezados
     for (let c = range.s.c; c <= range.e.c; c++) {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c });
       const cell = (ws as any)[cellRef] || {};
@@ -699,8 +650,7 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       (ws as any)[cellRef] = cell;
     }
 
-    // Filas + Estado
-    const estadoColIdx = 7; // 0-based (columna "Estado")
+    const estadoColIdx = 7;
     for (let r = 1; r <= range.e.r; r++) {
       const isEven = r % 2 === 0;
 
@@ -725,7 +675,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
 
         if (c === estadoColIdx) {
           const estado = String(cell.v || '');
-          // Verificación de tipo segura
           const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
           const hex = (estadoColorMap[colorKey] || '#9E9E9E').replace('#', '').toUpperCase();
           baseStyle.fill = { patternType: 'solid', fgColor: { rgb: hex } };
@@ -751,7 +700,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
 
     XLSX.writeFile(wb, nombreArchivo);
   };
-  // ======== FIN EXPORTACIÓN ========
 
   const renderEstadoChip = (estado: string) => {
     const muiColorMap: Record<EstadoUI, 'success' | 'info' | 'default'> = {
@@ -759,12 +707,10 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
       Archivado: 'info',
       Eliminado: 'default',
     };
-    // Verificación de tipo segura
     const colorKey = ESTADOS_UI.includes(estado as EstadoUI) ? estado as EstadoUI : 'Eliminado';
     return <Chip label={estado} color={muiColorMap[colorKey] || 'default'} size="small" />;
   };
 
-  // Resumen con Material Icons + tooltip + etiqueta en grilla 2×2
   const renderResumen = (f: Formulario) => {
     const c = f.counts || { derivaciones: 0, hechos_delictivos: 0, victimas: 0, seguimientos: 0 };
 
@@ -855,7 +801,6 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
   const handleCambiarEstadoSeleccionados = () => {
     if (seleccionados.length === 0) return;
     
-    // ✅ Verificar que no haya formularios eliminados en la selección
     const hayEliminados = seleccionados.some(id => {
       const formulario = formularios.find(f => f.id === id);
       return formulario?.estado === 'Eliminado';
@@ -869,14 +814,12 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     setOpenEstadoDialog(true);
   };
 
-  // Reemplaza la función confirmarCambioEstado en InicioPage.tsx
   const confirmarCambioEstado = async () => {
     if (!nuevoEstado || !ESTADOS_SELECCIONABLES.includes(nuevoEstado as EstadoUI)) {
       alert('Estado inválido');
       return;
     }
 
-    // Mostrar loading
     const loading = document.createElement('div');
     loading.textContent = `Cambiando estado a "${nuevoEstado}"...`;
     loading.style.cssText = `
@@ -887,27 +830,22 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     document.body.appendChild(loading);
 
     try {
-      // Convertir IDs de string a number
       const idsNumero = seleccionados.map(id => Number(id));
       
-      // ✅ Usar la nueva función con verificación
       console.log(`Cambiando estado de ${idsNumero.length} intervenciones a "${nuevoEstado}"`);
       await cambiarEstadoMultipleConVerificacion(idsNumero, nuevoEstado);
       
-      // ✅ Actualizar el estado local SOLO después de verificación exitosa
       setFormularios(prev =>
         prev.map(f => (seleccionados.includes(f.id) ? { ...f, estado: nuevoEstado as EstadoUI } : f))
       );
       
       console.log(`Estado cambiado y verificado exitosamente a "${nuevoEstado}"`);
       
-      // Mostrar mensaje de éxito
       alert(`Estado cambiado exitosamente a "${nuevoEstado}" para ${seleccionados.length} intervenciones`);
       
     } catch (error: any) {
       console.error('Error cambiando estado:', error);
       
-      // Mostrar error detallado
       const mensaje = error.message || error.toString();
       alert(
         `Error cambiando estado: ${mensaje}\n\n` +
@@ -915,12 +853,10 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
         `Verifica que el endpoint esté funcionando correctamente.`
       );
       
-      // NO cerrar el diálogo si hay error
       document.body.removeChild(loading);
       return;
     }
 
-    // Limpiar y cerrar solo si todo fue exitoso
     document.body.removeChild(loading);
     setSeleccionados([]);
     setSelectedId(null);
@@ -928,15 +864,19 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     setOpenEstadoDialog(false);
   };
 
-  // ✅ Early return para mostrar loading mientras se carga el usuario
+  // ========== EARLY RETURNS AL FINAL (después de todos los hooks) ==========
   if (loadingUser) {
     return (
       <Box sx={{ p: 4 }}>
-        <Typography color="text.secondary">Cargando usuario...</Typography>
+        <Typography color="text.secondary">Verificando sesión...</Typography>
       </Box>
     );
   }
 
+  // Si no hay usuario, el useEffect ya redirigió a /login
+  if (!user) {
+    return null;
+  }
 
   if (cargando) {
     return (
@@ -954,19 +894,18 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
     );
   }
 
+  // ========== RENDER PRINCIPAL ==========
   return (
     <Box sx={{ p: 4 }}>
       {/* BÚSQUEDA AVANZADA */}
-     <BusquedaAvanzada
-  filtro={filtro}
-  handleFiltroInput={handleFiltroInput}
-  handleFiltroSelect={handleFiltroSelect}
-  handleExportarExcel={handleExportarExcel}
-  EstadoDot={EstadoDot}
-  onReset={resetFiltros}   // 👈 NUEVO
-/>
-
-
+      <BusquedaAvanzada
+        filtro={filtro}
+        handleFiltroInput={handleFiltroInput}
+        handleFiltroSelect={handleFiltroSelect}
+        handleExportarExcel={handleExportarExcel}
+        EstadoDot={EstadoDot}
+        onReset={resetFiltros}
+      />
 
       <Box display="flex" gap={2} mb={2}>
         <Button
@@ -987,52 +926,48 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
           🖨️ Imprimir seleccionados
         </Button>
 
-   <Button
-  variant="contained"
-  color="success"
-  onClick={handleImprimirFormularioPDF}
-  startIcon={<PrintIcon />}
-  sx={{
-    backgroundColor: '#43a047',
-    color: '#fff',
-    fontWeight: 'bold',
-    textTransform: 'none',
-    px: 3,
-    py: 1.5,
-    borderRadius: 2,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    '&:hover': { backgroundColor: '#388e3c' },
-  }}
->
-  Imprimir Formulario en Blanco
-</Button>
-
-
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleImprimirFormularioPDF}
+          startIcon={<PrintIcon />}
+          sx={{
+            backgroundColor: '#43a047',
+            color: '#fff',
+            fontWeight: 'bold',
+            textTransform: 'none',
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            '&:hover': { backgroundColor: '#388e3c' },
+          }}
+        >
+          Imprimir Formulario en Blanco
+        </Button>
       </Box>
 
       <Box display="flex" justifyContent="flex-start" mb={2} gap={2}>
-   {!loadingUser && user?.rol === 'admin' && (
-  <Button
-    variant="contained"
-    onClick={() => router.push('/admin')}
-    startIcon={<PersonIcon sx={{ color: '#fff' }} />}
-    sx={{
-      backgroundColor: '#00796b',
-      color: '#fff',
-      fontWeight: 'bold',
-      textTransform: 'none',
-      px: 3,
-      py: 1.5,
-      borderRadius: 2,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      '&:hover': { backgroundColor: '#004d40' },
-    }}
-  >
-    Gestión de Usuarios
-  </Button>
-)}
-
-
+        {!loadingUser && user?.rol === 'admin' && (
+          <Button
+            variant="contained"
+            onClick={() => router.push('/admin')}
+            startIcon={<PersonIcon sx={{ color: '#fff' }} />}
+            sx={{
+              backgroundColor: '#00796b',
+              color: '#fff',
+              fontWeight: 'bold',
+              textTransform: 'none',
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              '&:hover': { backgroundColor: '#004d40' },
+            }}
+          >
+            Gestión de Usuarios
+          </Button>
+        )}
 
         <Button
           variant="contained"
@@ -1072,7 +1007,7 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
         renderEstadoChip={renderEstadoChip}
       />
 
-      {/* ✅ Pasar solo estados seleccionables al dialog */}
+      {/* DIALOG CAMBIAR ESTADO */}
       <DialogCambiarEstado
         open={openEstadoDialog}
         onClose={() => setOpenEstadoDialog(false)}
@@ -1080,7 +1015,7 @@ const handleFiltroSelectOptimized = useCallback((event: SelectChangeEvent<string
         nuevoEstado={nuevoEstado}
         setNuevoEstado={setNuevoEstado}
         EstadoDot={EstadoDot}
-        estadosDisponibles={ESTADOS_SELECCIONABLES} // ✅ Nueva prop
+        estadosDisponibles={ESTADOS_SELECCIONABLES}
       />
     </Box>
   );

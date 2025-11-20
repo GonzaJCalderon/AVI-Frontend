@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.100.1.80:3333/api'
 
-export default function RecuperarPasswordPage() {
+export default function rPasswordPage() {
   const [email, setEmail] = useState('')
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')

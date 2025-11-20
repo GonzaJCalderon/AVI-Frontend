@@ -456,202 +456,186 @@ export default function ListarFormulariosPage() {
                 {searchTerm && ` (filtradas de ${formularios.length} totales)`}
               </Typography>
             </Box>
-            
-            <TableContainer sx={{ maxHeight: 600 }}>
-              <Table sx={{ minWidth: 1200 }} stickyHeader>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'id'}
-                        direction={sortConfig.field === 'id' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('id')}
-                      >
-                        <strong>ID</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'numero'}
-                        direction={sortConfig.field === 'numero' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('numero')}
-                      >
-                        <strong>Número</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'coordinador'}
-                        direction={sortConfig.field === 'coordinador' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('coordinador')}
-                      >
-                        <strong>Coordinador</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'operador'}
-                        direction={sortConfig.field === 'operador' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('operador')}
-                      >
-                        <strong>Operador</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'victima'}
-                        direction={sortConfig.field === 'victima' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('victima')}
-                      >
-                        <strong>Víctima</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'fecha'}
-                        direction={sortConfig.field === 'fecha' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('fecha')}
-                      >
-                        <strong>Fecha</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'estado'}
-                        direction={sortConfig.field === 'estado' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('estado')}
-                      >
-                        <strong>Estado</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'delito'}
-                        direction={sortConfig.field === 'delito' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('delito')}
-                      >
-                        <strong>Delito</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'departamento'}
-                        direction={sortConfig.field === 'departamento' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('departamento')}
-                      >
-                        <strong>Departamento</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    {/* Nueva columna de reseñas */}
-                    <TableCell sx={{ minWidth: 200 }}>
-                      <TableSortLabel
-                        active={sortConfig.field === 'reseña'}
-                        direction={sortConfig.field === 'reseña' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('reseña')}
-                      >
-                        <strong>Reseña del Hecho</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortConfig.field === 'counts'}
-                        direction={sortConfig.field === 'counts' ? sortConfig.direction : 'asc'}
-                        onClick={() => handleSort('counts')}
-                      >
-                        <strong>Conteos</strong>
-                      </TableSortLabel>
-                    </TableCell>
-                     <TableCell align="center">
-      <strong>Ver</strong>
-    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {processedData.items.map((formulario) => (
-                    <TableRow 
-                      key={formulario.id}
-                      sx={{ 
-                        '&:nth-of-type(odd)': { backgroundColor: 'grey.25' },
-                        '&:hover': { backgroundColor: 'action.hover' }
-                      }}
-                    >
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold" color="primary">
-                          {formulario.id}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {formulario.numero}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {formulario.coordinador}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {formulario.operador}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {formulario.victima}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {formatearFecha(formulario.fecha)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {renderEstadoChip(formulario.estado)}
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={formulario.delito} arrow>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              maxWidth: 150, 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {formulario.delito}
-                          </Typography>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {formulario.departamento}
-                        </Typography>
-                      </TableCell>
-                      {/* Nueva celda de reseñas */}
-                      <TableCell sx={{ minWidth: 200 }}>
-                        {renderReseña(formulario)}
-                      </TableCell>
-                      <TableCell>
-                        {renderCounts(formulario.counts)}
-                      </TableCell>
-                       <TableCell align="center">
-        <Tooltip title="Ver detalle" arrow>
-          <IconButton 
-            color="primary" 
-      onClick={() => router.push(`/imprimir-formulario?id=${formulario.id}`)}
-
-
+ <TableContainer sx={{ maxHeight: 600 }}>
+  <Box sx={{ width: '100%', overflowX: 'auto' }}>
+    <Table sx={{ minWidth: 1500 }} stickyHeader>
+      <TableHead>
+        <TableRow sx={{ backgroundColor: 'grey.50' }}>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'id'}
+              direction={sortConfig.field === 'id' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('id')}
+            >
+              <strong>ID</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'numero'}
+              direction={sortConfig.field === 'numero' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('numero')}
+            >
+              <strong>Número</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'coordinador'}
+              direction={sortConfig.field === 'coordinador' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('coordinador')}
+            >
+              <strong>Coordinador</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'operador'}
+              direction={sortConfig.field === 'operador' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('operador')}
+            >
+              <strong>Operador</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'victima'}
+              direction={sortConfig.field === 'victima' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('victima')}
+            >
+              <strong>Víctima</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'fecha'}
+              direction={sortConfig.field === 'fecha' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('fecha')}
+            >
+              <strong>Fecha</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'estado'}
+              direction={sortConfig.field === 'estado' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('estado')}
+            >
+              <strong>Estado</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'delito'}
+              direction={sortConfig.field === 'delito' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('delito')}
+            >
+              <strong>Delito</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'departamento'}
+              direction={sortConfig.field === 'departamento' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('departamento')}
+            >
+              <strong>Departamento</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell sx={{ minWidth: 200 }}>
+            <TableSortLabel
+              active={sortConfig.field === 'reseña'}
+              direction={sortConfig.field === 'reseña' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('reseña')}
+            >
+              <strong>Reseña del Hecho</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell>
+            <TableSortLabel
+              active={sortConfig.field === 'counts'}
+              direction={sortConfig.field === 'counts' ? sortConfig.direction : 'asc'}
+              onClick={() => handleSort('counts')}
+            >
+              <strong>Conteos</strong>
+            </TableSortLabel>
+          </TableCell>
+          <TableCell align="center">
+            <strong>Ver</strong>
+          </TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {processedData.items.map((formulario) => (
+          <TableRow
+            key={formulario.id}
+            sx={{
+              '&:nth-of-type(odd)': { backgroundColor: 'grey.25' },
+              '&:hover': { backgroundColor: 'action.hover' }
+            }}
           >
-            <VisibilityIcon />
-          </IconButton>
-        </Tooltip>
-      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <TableCell>
+              <Typography variant="body2" fontWeight="bold" color="primary">
+                {formulario.id}
+              </Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2" fontFamily="monospace">
+                {formulario.numero}
+              </Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2">{formulario.coordinador}</Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2">{formulario.operador}</Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2">{formulario.victima}</Typography>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2" fontFamily="monospace">
+                {formatearFecha(formulario.fecha)}
+              </Typography>
+            </TableCell>
+            <TableCell>{renderEstadoChip(formulario.estado)}</TableCell>
+            <TableCell>
+              <Tooltip title={formulario.delito} arrow>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    maxWidth: 150,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {formulario.delito}
+                </Typography>
+              </Tooltip>
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2">{formulario.departamento}</Typography>
+            </TableCell>
+            <TableCell sx={{ minWidth: 200 }}>{renderReseña(formulario)}</TableCell>
+            <TableCell>{renderCounts(formulario.counts)}</TableCell>
+            <TableCell align="center">
+              <Tooltip title="Ver detalle" arrow>
+                <IconButton
+                  color="primary"
+                  onClick={() => router.push(`/imprimir-formulario?id=${formulario.id}`)}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+              </Tooltip>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </Box>
+</TableContainer>
+
 
             {/* Paginación */}
             {processedData.totalPages > 1 && (
@@ -676,11 +660,12 @@ export default function ListarFormulariosPage() {
           maxWidth="md"
           fullWidth
         >
-          <DialogTitle sx={{ pb: 1 }}>
-            <Typography variant="h6" fontWeight="bold">
-              {selectedReseña?.titulo}
-            </Typography>
-          </DialogTitle>
+         <DialogTitle sx={{ pb: 1 }}>
+  <Typography variant="h6" component="div" fontWeight="bold">
+    {selectedReseña?.titulo}
+  </Typography>
+</DialogTitle>
+
           <DialogContent>
             <Typography 
               variant="body1" 

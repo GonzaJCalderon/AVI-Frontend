@@ -47,10 +47,12 @@ const STORAGE_KEYS = {
 } as const;
 
 const API_ENDPOINTS = {
-  LOGIN: '/auth/login', // <-- cambiar esta línea
-  RECOVERY: '/recuperar',
+  LOGIN: '/api/auth/login', // ✅ Correcto
+  RECOVERY: 'recuperar-password',
   DASHBOARD: '/inicio',
 };
+
+
 
 
 const VALIDATION_RULES = {
@@ -104,7 +106,8 @@ const secureStorage = {
       }
 
       // ✅ Guardar token como cookie para que lo lea el middleware
-      document.cookie = `access_token=${accessToken}; path=/; max-age=3600; SameSite=Strict; Secure`;
+document.cookie = `access_token=${accessToken}; path=/; max-age=3600; SameSite=Lax`;
+// ✅ Quitar "Secure" y cambiar a "Lax"
 
     } catch (error) {
       console.error('Error al guardar datos de autenticación:', error);
@@ -158,25 +161,41 @@ export default function LoginPage() {
 
 
 const performLogin = async (credentials: FormData): Promise<LoginResponse> => {
-  const data = await apiFetch<LoginResponse>(API_ENDPOINTS.LOGIN, {
-    method: 'POST',
-    body: JSON.stringify({
-      email: credentials.email.trim().toLowerCase(),
-      password: credentials.password,
-    }),
-  });
+  // 🔍 Log antes de hacer la llamada
+  console.log("🟣 Enviando login...");
+  console.log("🌐 Endpoint:", API_ENDPOINTS.LOGIN);
+  console.log("📡 API base:", process.env.NEXT_PUBLIC_API_BASE_URL);
+  console.log("📧 Email:", credentials.email);
 
-  const hasValidToken = data?.access_token || data?.accessToken || data?.token;
-  if (!hasValidToken) {
-    throw new Error('Respuesta del servidor inválida: token no encontrado');
+  try {
+    const data = await apiFetch<LoginResponse>(API_ENDPOINTS.LOGIN, {
+      method: 'POST',
+      body: JSON.stringify({
+        email: credentials.email.trim().toLowerCase(),
+        password: credentials.password,
+      }),
+    });
+
+    // 🔍 Log después de recibir la respuesta
+    console.log("🟢 Respuesta backend login:", data);
+
+    const hasValidToken = data?.access_token || data?.accessToken || data?.token;
+    if (!hasValidToken) {
+      throw new Error('Respuesta del servidor inválida: token no encontrado');
+    }
+
+    logger.info('Login exitoso', {
+      email: credentials.email,
+      userId: data?.user?.id,
+    });
+
+    return data;
+  } catch (error: any) {
+    console.error("❌ Error en performLogin:", error);
+    throw error;
   }
-logger.info('Login exitoso', {
-  email: credentials.email,
-  userId: data?.user?.id,
-});
-
-  return data;
 };
+
 
 
   // Manejador de envío mejorado
@@ -206,7 +225,7 @@ logger.info('Login exitoso', {
       
       // Navegación exitosa con pequeño delay para UX
       await new Promise(resolve => setTimeout(resolve, 500));
-      router.push(API_ENDPOINTS.DASHBOARD);
+    router.push(API_ENDPOINTS.DASHBOARD);
       
     } catch (error: any) {
   logger.error('Error de login', error);

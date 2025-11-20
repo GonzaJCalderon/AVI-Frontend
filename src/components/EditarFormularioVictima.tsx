@@ -31,7 +31,7 @@ import {
 import MuiAlert from "@mui/material/Alert";
 
 // Servicios
-import { actualizarIntervencion } from "@/services/intervenciones";
+import { actualizarIntervencion, listarIntervenciones } from "@/services/intervenciones";
 
 // Tipado que te está faltando
 import type { IntervencionItem } from "@/types/intervencion"; // 🔁 Asegurate de tener este tipo definido
@@ -73,6 +73,7 @@ export type IntervencionDetalle = {
     geo?: Array<{
       domicilio?: string;
       departamento_id?: number | string;
+      localidad_id?: number | string; 
       fecha?: string;
     }>;
     relaciones?: Array<Record<string, boolean>>;
@@ -144,8 +145,8 @@ export type IntervencionDetalle = {
 /** ========================
  *  Helpers de fecha/hora
  *  ======================== */
-const toDateInput = (value?: string) => {
-  if (!value) return "";
+const toDateInput = (value?: string | null) => {
+  if (!value || value === null) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
@@ -153,6 +154,7 @@ const toDateInput = (value?: string) => {
     "0"
   )}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
 
 const toTimeInput = (value?: string) => {
   if (!value) return "";
@@ -235,6 +237,7 @@ type FormState = {
   derivadorNombre: string;
   horaDerivacion: string;
   motivoDerivacion: number | "";
+  motivoDerivacionOtro: string;  // 👈 NUEVA LÍNEA
   nroExpediente: string;
   nroAgresores: string;
   robo: boolean;
@@ -389,7 +392,7 @@ const mapearDatosAPI = (
     departamentoHechoID,
     departamentos
   );
-  const localidadHechoID = hd.ubicacion?.localidad ?? geo0?.localidad_id ?? "";
+  const localidadHechoID = geo0?.localidad_id ||  ""; //hd.localidad_id
   const localidadHechoNombre = getNombreLocalidad(
     localidadHechoID,
     localidades
@@ -422,7 +425,7 @@ const mapearDatosAPI = (
   const violenciaGenero = !!(th.violenciaGenero ?? th.violencia_genero);
   const otros = !!th.otros;
 
-  // Acciones primera línea
+ // Acciones primera línea
   const accionesPrimeraLinea = api.acciones_primera_linea?.[0]?.acciones ?? "";
 
   // Abuso sexual
@@ -434,33 +437,46 @@ const mapearDatosAPI = (
   const kitAplicado: FormState["kitAplicado"] =
     kitStr === "si" ? "si" : kitStr === "no" ? "no" : "";
 
-  let relacionAgresor: FormState["relacionAgresor"] = "";
-  const rel = (abusoDatos?.relacion || "").toLowerCase();
-  if (rel === "conocido" || rel === "familiar" || rel === "desconocido")
-    relacionAgresor = rel as any;
-  const otroRelacion = relacionAgresor ? "" : abusoDatos?.relacion_otro ?? "";
+ let relacionAgresor: FormState["relacionAgresor"] = "";
+const rel = (abusoDatos?.relacion || "").trim();
 
-  let tipoLugar: FormState["tipoLugar"] = "";
-  const lugar = (abusoDatos?.lugar_hecho || "").toLowerCase();
+// Normalizar valores con mayúscula inicial
+if (rel.toLowerCase() === "conocido") {
+  relacionAgresor = "Conocido";
+} else if (rel.toLowerCase() === "desconocido") {
+  relacionAgresor = "Desconocido";
+} else if (rel.toLowerCase() === "familiar") {
+  relacionAgresor = "Familiar";
+} else if (rel.toLowerCase() === "pareja") {
+  relacionAgresor = "Pareja";
+} else if (rel.toLowerCase() === "otro") {
+  relacionAgresor = "Otro";
+}
 
-  if (lugar === "institucion") tipoLugar = "Institución";
-  else if (["vía pública", "via publica", "viapublica"].includes(lugar))
-    tipoLugar = "Vía Pública";
-  else if (
-    ["domicilio particular", "dom particular", "domparticular"].includes(lugar)
-  )
-    tipoLugar = "Domicilio Particular";
-  else if (["lugar de trabajo", "trabajo", "lugar trabajo"].includes(lugar))
-    tipoLugar = "Lugar de Trabajo";
-  else if (lugar === "otro") tipoLugar = "Otro";
+const otroRelacion = relacionAgresor === "Otro" ? (abusoDatos?.relacion_otro ?? "") : "";
 
-  const otroLugar = tipoLugar ? "" : abusoDatos?.lugar_otro ?? "";
+ let tipoLugar: FormState["tipoLugar"] = "";
+const lugar = (abusoDatos?.lugar_hecho || "").toLowerCase().trim();
+
+if (lugar === "institucion" || lugar === "institución") {
+  tipoLugar = "Institución";
+} else if (["vía pública", "via publica", "viapublica", "vía publica"].includes(lugar)) {
+  tipoLugar = "Vía Pública";
+} else if (["domicilio particular", "dom particular", "domparticular", "dom. particular"].includes(lugar)) {
+  tipoLugar = "Domicilio Particular";
+} else if (["lugar de trabajo", "trabajo", "lugar trabajo"].includes(lugar)) {
+  tipoLugar = "Lugar de Trabajo";
+} else if (lugar === "otro") {
+  tipoLugar = "Otro";
+}
+
+const otroLugar = tipoLugar === "Otro" ? (abusoDatos?.lugar_otro ?? "") : "";
   // Víctima
   const vict = api.victimas?.[0];
   const dni = vict?.dni ?? "";
   const nombreVictima = vict?.nombre ?? "";
   const genero = vict?.genero ?? vict?.genero_id ?? "";
-  const fechaNacimiento = toDateInput(vict?.fecha_nacimiento);
+const fechaNacimiento = vict?.fecha_nacimiento ? toDateInput(vict.fecha_nacimiento) : "";
   const telefono = vict?.telefono ?? "";
   const calleNro = vict?.direccion?.calle_nro ?? "";
   const barrio = vict?.direccion?.barrio ?? "";
@@ -474,10 +490,8 @@ const mapearDatosAPI = (
 
   const ocupacion = vict?.ocupacion ?? "";
 const ent = vict?.personas_entrevistadas?.[0];
-const entrevistadoNombre =
-  ent?.nombre && ent?.nombre.trim().toLowerCase() !== (vict?.nombre ?? "").toLowerCase()
-    ? ent.nombre
-    : "";
+const entrevistadoNombre = ent?.nombre ?? "";
+
 
   const entrevistadoCalle = ent?.direccion?.calle_nro ?? "";
   const entrevistadoBarrio = ent?.direccion?.barrio ?? "";
@@ -518,7 +532,7 @@ const entrevistadoNombre =
   const segArchivoCaso = !!segTipo?.archivocaso;
   const detalleSeguimiento = seg?.detalles?.[0]?.detalle ?? "";
 
-  return {
+return {
     fechaIntervencion,
     coordinador,
     operador,
@@ -526,6 +540,7 @@ const entrevistadoNombre =
     derivadorNombre,
     horaDerivacion,
     motivoDerivacion,
+    motivoDerivacionOtro: "",  // 👈 NUEVA LÍNEA
     nroExpediente,
     nroAgresores,
     robo,
@@ -664,14 +679,16 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
   }, []); // Se ejecuta una sola vez al montar el componente
 
   // Buffer mutable (no re-render por tecla en FastTextField)
-  const [formState, setFormState] = useState<FormState>({
+  const [formState, setFormState] = useState<FormState>({ 
+    
   fechaIntervencion: "",
   coordinador: "",
   operador: "",
   observaciones: "",
-  derivadorNombre: "",
+derivadorNombre: "",
   horaDerivacion: "",
   motivoDerivacion: "",
+  motivoDerivacionOtro: "",  // 👈 NUEVA LÍNEA
   nroExpediente: "",
   nroAgresores: "",
   robo: false,
@@ -733,6 +750,7 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
   segArchivoCaso: false,
   detalleSeguimiento: "",
 });
+const f = formState; 
 
 const commitDebounced = useMemo(() => {
   return debounce((name: keyof FormState, value: any) => {
@@ -756,10 +774,15 @@ const forceCommit = useCallback(
 );
 
 
+const [inicializado, setInicializado] = useState(false); // ⬅️ Agregá esto arriba del useEffect
 
-  // Inicialización desde selected (una sola vez y cuando cambie)
- useEffect(() => {
-  if (!selected || departamentos.length === 0 || localidades.length === 0)
+useEffect(() => {
+  if (
+    inicializado ||
+    !selected ||
+    departamentos.length === 0 ||
+    localidades.length === 0
+  )
     return;
 
   const formData = mapearDatosAPI(
@@ -768,13 +791,11 @@ const forceCommit = useCallback(
     localidades
   );
 
-  // 👇 Log seguro que se va a mostrar
-  console.log("🧪 Valor final de kitAplicado:", formData.kitAplicado);
-  console.log("🧪 Valor de abusoDatos?.kit crudo:", selected.abusos_sexuales?.[0]?.datos?.[0]?.kit);
-
   setFormState(formData);
   setVersion((v) => v + 1);
-}, [selected, departamentos, localidades]);
+  setInicializado(true); // ✅ Evita volver a pisar el estado
+}, [selected, departamentos, localidades, inicializado]);
+
 
 
 
@@ -800,293 +821,304 @@ const forceCommit = useCallback(
     );
   }
 
-  const validarFormulario = (): string[] => {
-    const nuevosErrores: string[] = [];
+  const validarFormulario = async (): Promise<string[]> => {
+  const nuevosErrores: string[] = [];
 
-    // 1️⃣ Coordinador obligatorio
-    if (!f.coordinador.trim()) {
-      nuevosErrores.push("El nombre y apellido del coordinador es obligatorio");
-    }
+  // 1️⃣ Coordinador obligatorio
+  if (!f.coordinador.trim()) {
+    nuevosErrores.push("El nombre y apellido del coordinador es obligatorio");
+  }
 
-    // 2️⃣ Tipo de delito
-    if (
-      !f.robo &&
-      !f.roboArmaFuego &&
-      !f.roboArmaBlanca &&
-      !f.amenazas &&
-      !f.lesiones &&
-      !f.lesionesArmaFuego &&
-      !f.lesionesArmaBlanca &&
-      !f.homicidioDelito &&
-      !f.homicidioAccidenteVial &&
-      !f.homicidioAvHecho &&
-      !f.femicidio &&
-      !f.transfemicidio &&
-      !f.violenciaGenero &&
-      !f.otros
-    ) {
-      nuevosErrores.push("Debe marcar al menos un tipo de delito");
-    }
+  // 2️⃣ Tipo de delito
+  if (
+    !f.robo &&
+    !f.roboArmaFuego &&
+    !f.roboArmaBlanca &&
+    !f.amenazas &&
+    !f.lesiones &&
+    !f.lesionesArmaFuego &&
+    !f.lesionesArmaBlanca &&
+    !f.homicidioDelito &&
+    !f.homicidioAccidenteVial &&
+    !f.homicidioAvHecho &&
+    !f.femicidio &&
+    !f.transfemicidio &&
+    !f.violenciaGenero &&
+    !f.otros
+  ) {
+    nuevosErrores.push("Debe marcar al menos un tipo de delito");
+  }
 
-    // 3️⃣ Ubicación geográfica
-    if (!f.calleBarrioHecho.trim()) {
-      nuevosErrores.push("La ubicación geográfica del hecho es obligatoria");
-    }
+  // 3️⃣ Ubicación geográfica
+  if (!f.calleBarrioHecho.trim()) {
+    nuevosErrores.push("La ubicación geográfica del hecho es obligatoria");
+  }
 
-    // 4️⃣ Departamento de la ubicación
-    if (!f.departamentoHecho || Number(f.departamentoHecho) === 0) {
-      nuevosErrores.push("Debe seleccionar un departamento para el hecho");
-    }
+  // 4️⃣ Departamento de la ubicación
+  if (!f.departamentoHecho || Number(f.departamentoHecho) === 0) {
+    nuevosErrores.push("Debe seleccionar un departamento para el hecho");
+  }
 
-    // 5️⃣ Fecha del hecho
-    if (!f.fechaHecho) {
-      nuevosErrores.push("La fecha del hecho es obligatoria");
-    }
+  // 5️⃣ Fecha del hecho
+  if (!f.fechaHecho) {
+    nuevosErrores.push("La fecha del hecho es obligatoria");
+  }
 
-    // 6️⃣ Acciones en primera línea
-    if (!f.accionesPrimeraLinea.trim()) {
-      nuevosErrores.push(
-        "Debe detallar las acciones realizadas en primera línea"
-      );
-    }
+  // 6️⃣ Acciones en primera línea
+  if (!f.accionesPrimeraLinea.trim()) {
+    nuevosErrores.push("Debe detallar las acciones realizadas en primera línea");
+  }
 
-    // 7️⃣ Nombre víctima
-    if (!f.nombreVictima.trim()) {
-      nuevosErrores.push("El nombre de la víctima es obligatorio");
-    }
+  // 7️⃣ Nombre víctima
+  if (!f.nombreVictima.trim()) {
+    nuevosErrores.push("El nombre de la víctima es obligatorio");
+  }
+
+  // 8️⃣ Verificar si ya existe una intervención con el mismo número de expediente
+  try {
+    const intervenciones = await listarIntervenciones();
+
+    const expedienteActual = f.nroExpediente.trim().toLowerCase();
+    const dniActual = f.dni.trim();
+
+  const expedienteDuplicado = intervenciones.some((i) => {
+  if (i.id === selected.id) return false;
+  return i.hechos_delictivos?.some(
+    (hd) => (hd.expediente?.trim().toLowerCase() || "") === expedienteActual
+  );
+});
+
+if (expedienteDuplicado) {
+  nuevosErrores.push("Ya existe una intervención con el mismo número de expediente");
+}
 
 
-    return nuevosErrores;
-  };
+  
+
+  } catch (error) {
+    nuevosErrores.push("Error al verificar duplicados de expediente");
+    console.error("❌ Error verificando duplicados:", error);
+  }
+
+  return nuevosErrores;
+};
+
 
   // Guardar cambios
-  const handleGuardarCambios = async () => {
-    console.log("✅ Entró a handleGuardarCambios");
-    try {
-      setGuardando(true);
-      setMensaje(null);
-      setError(null);
+// Guardar cambios - VERSIÓN CORREGIDA
+const handleGuardarCambios = async () => {
+  console.log("✅ Entró a handleGuardarCambios");
 
-      const erroresValidados = validarFormulario();
-      setErrores(erroresValidados);
+  // 🔥 Forzar flush del debounce y esperar el próximo tick
+  commitDebounced.flush();
+  await new Promise(resolve => setTimeout(resolve, 50));
 
-      if (erroresValidados.length > 0) {
-        showNotification(
-          `Errores en el formulario:\n${erroresValidados.join("\n")}`,
-          "error"
-        );
-        return;
-      }
+  try {
+    setGuardando(true);
+    setMensaje(null);
+    setError(null);
 
-    const f = formState;
-  
-      console.log("DEBUG departamentoHecho crudo:", f.departamentoHecho);
+    const erroresValidados = await validarFormulario();
+    setErrores(erroresValidados);
 
-      console.log(
-        "DEBUG valor procesado para departamento:",
-        (() => {
-          if (!f.departamentoHecho) return 0;
-          const soloNumero = String(f.departamentoHecho).trim().split(" ")[0];
-          const num = Number(soloNumero);
-          return isNaN(num) ? 0 : num;
-        })()
+    if (erroresValidados.length > 0) {
+      showNotification(
+        `Errores en el formulario:\n${erroresValidados.join("\n")}`,
+        "error"
       );
-
-      // Helpers de fechas/horas
-      const derivFechaISO =
-        f.horaDerivacion && f.horaDerivacion.includes("T")
-          ? f.horaDerivacion
-          : ""; // YYYY-MM-DDTHH:mm
-      const hechoFechaISO = f.fechaHecho || ""; // YYYY-MM-DD
-      const hechoHoraStr = f.horaHecho || ""; // HH:mm
-
-      // Normalizaciones abuso sexual
-      const simple = !!f.abusoSexualSimple;
-      const agravado = !!f.abusoSexualAgravado;
-      const relacion = f.relacionAgresor
-        ? f.relacionAgresor
-        : f.otroRelacion
-        ? "otro"
-        : "";
-      const lugarHecho =
-        f.tipoLugar === "Institución"
-          ? "institucion"
-          : f.tipoLugar === "Vía Pública"
-          ? "vía pública"
-          : f.tipoLugar === "Domicilio Particular"
-          ? "domicilio particular"
-          : f.tipoLugar === "Lugar de Trabajo"
-          ? "lugar de trabajo"
-          : f.tipoLugar === "Otro"
-          ? "otro"
-          : "";
-
-  // 🧹 Normalizamos y validamos todos los campos del entrevistado
-const nombreEntrev = f.entrevistadoNombre.trim();
-const relacionEntrev = f.entrevistadoRelacion.trim();
-const calleEntrev = f.entrevistadoCalle.trim();
-const barrioEntrev = f.entrevistadoBarrio.trim();
-const deptoEntrev = toValidPositiveNumber(f.entrevistadoDepartamento);
-const locEntrev = toValidPositiveNumber(f.entrevistadoLocalidad);
-
-// ⚙️ Construcción condicional solo si hay algo real
-const personaEntrevistada =
-  nombreEntrev ||
-  relacionEntrev ||
-  calleEntrev ||
-  barrioEntrev ||
-  deptoEntrev > 0 ||
-  locEntrev > 0
-    ? {
-        nombre: nombreEntrev,
-        relacionVictima: relacionEntrev,
-        direccion: {
-          calleNro: calleEntrev,
-          barrio: barrioEntrev,
-          departamento: deptoEntrev,
-          localidad: locEntrev,
-        },
-      }
-    : null;
-
-
-
-      const payload = {
-        intervencion: {
-          fecha: f.fechaIntervencion,
-          coordinador: f.coordinador,
-          operador: f.operador,
-          resena_hecho: f.observaciones,
-        },
-        tipoIntervencion: {
-          crisis: f.crisis,
-          telefonica: f.telefonica,
-          domiciliaria: f.domiciliaria,
-          psicologica: f.psicologica,
-          medica: f.medica,
-          social: f.social,
-          legal: f.legal,
-          sinIntervencion: f.sinIntervencion,
-          archivoCaso: f.archivoCaso,
-        },
-        derivacion: {
-          derivador: f.derivadorNombre,
-          motivos: f.motivoDerivacion === "" ? 0 : Number(f.motivoDerivacion),
-          fecha_derivacion: derivFechaISO.replace("T", " "), // ✅ CORRECTO
-        },
-
-        hechoDelictivo: {
-          expediente: f.nroExpediente,
-          numAgresores: parseInt(f.nroAgresores || "0", 10) || 0,
-          fecha: hechoFechaISO || "",
-          hora: hechoHoraStr || "",
-          ubicacion: {
-            calleBarrio: f.calleBarrioHecho,
-            departamento: (() => {
-              if (!f.departamentoHecho) return 0;
-
-              // Si el valor ya es un número o string numérico, úsalo directo
-              if (!isNaN(Number(f.departamentoHecho))) {
-                return Number(f.departamentoHecho);
-              }
-
-              // Si es texto como "Lavalle", intenta buscar el ID correspondiente
-              const dep = departamentos.find(
-                (d) => d.nombre === String(f.departamentoHecho).trim()
-              );
-              return dep ? Number(dep.id) : 0;
-            })(),
-
-            localidad: toOptionalPositiveNumber(f.localidad) ?? 0,
-          },
-
-          tipoHecho: {
-            robo: f.robo,
-            roboArmaFuego: f.roboArmaFuego,
-            roboArmaBlanca: f.roboArmaBlanca,
-            amenazas: f.amenazas,
-            lesiones: f.lesiones,
-            lesionesArmaFuego: f.lesionesArmaFuego,
-            lesionesArmaBlanca: f.lesionesArmaBlanca,
-            homicidioDelito: f.homicidioDelito,
-            homicidioAccidenteVial: f.homicidioAccidenteVial,
-            homicidioAvHecho: f.homicidioAvHecho,
-            femicidio: f.femicidio,
-            travestisidioTransfemicidio: f.transfemicidio,
-            violenciaGenero: f.violenciaGenero,
-            otros: f.otros,
-          },
-        },
-        accionesPrimeraLinea: f.accionesPrimeraLinea,
-        abusoSexual: {
-          simple,
-          agravado,
-        },
-        datosAbusoSexual: {
-          kit: f.kitAplicado || "",
-          relacion,
-          relacionOtro: f.otroRelacion,
-          lugarHecho,
-          lugarOtro: f.otroLugar,
-        },
-
-        victima: {
-          cantidadVictimas: 1,
-          dni: f.dni,
-          nombre: f.nombreVictima,
-          genero: f.genero === "" ? 0 : Number(f.genero),
-          fechaNacimiento: f.fechaNacimiento || "",
-          telefono: f.telefono,
-          ocupacion: f.ocupacion,
-          direccion: {
-            calleNro: f.calleNro,
-            barrio: f.barrio,
-            departamento: toValidPositiveNumber(f.departamento),
-            localidad: toValidPositiveNumber(f.localidad),
-          },
-        },
-
-personaEntrevistada: personaEntrevistada || undefined,
-
-
-
-        seguimiento: {
-          realizado: f.seguimientoRealizado === "si",
-          tipo: {
-            asesoramientoLegal: f.segAsesoramientoLegal,
-            tratamientoPsicologico: f.segTratamientoPsicologico,
-            seguimientoLegal: f.segSeguimientoLegal,
-            archivoCaso: f.segArchivoCaso,
-          },
-        },
-        detalleIntervencion: f.detalleSeguimiento,
-      };
-
-      try {
-        console.log("Payload enviado:", JSON.stringify(payload, null, 2));
-      } catch (e) {
-        console.error("Error al hacer JSON.stringify del payload", e);
-        console.log("Payload crudo:", payload);
-      }
-
-      console.log(
-        "🧪 Payload FINAL que se enviará al backend:",
-        JSON.stringify(payload, null, 2)
-      );
-
-      await actualizarIntervencion(selected.id, payload);
-      setMensaje("Cambios guardados correctamente ✅");
-      setTimeout(() => router.push("/inicio"), 1200);
-    } catch (e: any) {
-      console.error("Error al guardar", e);
-      setError(
-        "Ocurrió un error al guardar. Revisa los campos e intenta nuevamente."
-      );
-    } finally {
-      setGuardando(false);
+      setGuardando(false); // ✅ Desactivar loader si hay errores de validación
+      return;
     }
-  };
-  const f = formState;
+
+    console.log("DEBUG departamentoHecho crudo:", f.departamentoHecho);
+
+    // Helpers de fechas/horas
+    const derivFechaISO =
+      f.horaDerivacion && f.horaDerivacion.includes("T")
+        ? f.horaDerivacion
+        : "";
+    const hechoFechaISO = f.fechaHecho || "";
+    const hechoHoraStr = f.horaHecho || "";
+
+    // Normalizaciones abuso sexual
+    const simple = !!f.abusoSexualSimple;
+    const agravado = !!f.abusoSexualAgravado;
+    const relacion = f.relacionAgresor
+      ? f.relacionAgresor
+      : f.otroRelacion
+      ? "otro"
+      : "";
+
+    const lugarHecho = (() => {
+      const tipo = f.tipoLugar?.trim().toLowerCase();
+      if (tipo === "institución" || tipo === "institucion") return "institucion";
+      if (tipo === "vía pública" || tipo === "via pública" || tipo === "vía publica" || tipo === "via publica") return "vía pública";
+      if (tipo === "domicilio particular") return "domicilio particular";
+      if (tipo === "lugar de trabajo") return "lugar de trabajo";
+      if (tipo === "otro") return "otro";
+      return "";
+    })();
+
+    // 🧹 Normalizamos y validamos todos los campos del entrevistado
+    const nombreEntrev = f.entrevistadoNombre.trim();
+    const relacionEntrev = f.entrevistadoRelacion.trim();
+    const calleEntrev = f.entrevistadoCalle.trim();
+    const barrioEntrev = f.entrevistadoBarrio.trim();
+    const deptoEntrev = toValidPositiveNumber(f.entrevistadoDepartamento);
+    const locEntrev = toValidPositiveNumber(f.entrevistadoLocalidad);
+
+    const personaEntrevistada =
+      nombreEntrev ||
+      relacionEntrev ||
+      calleEntrev ||
+      barrioEntrev ||
+      deptoEntrev > 0 ||
+      locEntrev > 0
+        ? {
+            nombre: nombreEntrev,
+            relacionVictima: relacionEntrev,
+            direccion: {
+              calleNro: calleEntrev,
+              barrio: barrioEntrev,
+              departamento: deptoEntrev,
+              localidad: locEntrev,
+            },
+          }
+        : null;
+
+    const payload = {
+      intervencion: {
+        fecha: f.fechaIntervencion,
+        coordinador: f.coordinador,
+        operador: f.operador,
+        resena_hecho: f.observaciones,
+      },
+      tipoIntervencion: {
+        crisis: f.crisis,
+        telefonica: f.telefonica,
+        domiciliaria: f.domiciliaria,
+        psicologica: f.psicologica,
+        medica: f.medica,
+        social: f.social,
+        legal: f.legal,
+        sinIntervencion: f.sinIntervencion,
+        archivoCaso: f.archivoCaso,
+      },
+      derivacion: {
+        derivador: f.derivadorNombre,
+        motivos: f.motivoDerivacion === "" ? 0 : Number(f.motivoDerivacion),
+        fecha_derivacion: derivFechaISO.replace("T", " "),
+      },
+      hechoDelictivo: {
+        expediente: f.nroExpediente,
+        numAgresores: parseInt(f.nroAgresores || "0", 10) || 0,
+        fecha: hechoFechaISO || "",
+        hora: hechoHoraStr || "",
+        ubicacion: {
+          calleBarrio: f.calleBarrioHecho,
+          departamento: (() => {
+            if (!f.departamentoHecho) return 0;
+            if (!isNaN(Number(f.departamentoHecho))) {
+              return Number(f.departamentoHecho);
+            }
+            const dep = departamentos.find(
+              (d) => d.nombre === String(f.departamentoHecho).trim()
+            );
+            return dep ? Number(dep.id) : 0;
+          })(),
+          localidad: toOptionalPositiveNumber(f.localidadHecho) ?? 0,
+        },
+        tipoHecho: {
+          robo: f.robo,
+          roboArmaFuego: f.roboArmaFuego,
+          roboArmaBlanca: f.roboArmaBlanca,
+          amenazas: f.amenazas,
+          lesiones: f.lesiones,
+          lesionesArmaFuego: f.lesionesArmaFuego,
+          lesionesArmaBlanca: f.lesionesArmaBlanca,
+          homicidioDelito: f.homicidioDelito,
+          homicidioAccidenteVial: f.homicidioAccidenteVial,
+          homicidioAvHecho: f.homicidioAvHecho,
+          femicidio: f.femicidio,
+          travestisidioTransfemicidio: f.transfemicidio,
+          violenciaGenero: f.violenciaGenero,
+          otros: f.otros,
+        },
+      },
+      accionesPrimeraLinea: f.accionesPrimeraLinea,
+      abusoSexual: {
+        simple,
+        agravado,
+      },
+      datosAbusoSexual: {
+        kit: f.kitAplicado || "",
+        relacion,
+        relacionOtro: f.otroRelacion,
+        lugarHecho,
+        lugarOtro: f.otroLugar,
+      },
+  victima: {
+        cantidadVictimas: 1,
+        dni: f.dni,
+        nombre: f.nombreVictima,
+        genero: f.genero === "" ? 0 : Number(f.genero),
+        fechaNacimiento: f.fechaNacimiento && f.fechaNacimiento.trim() ? f.fechaNacimiento : null,
+        telefono: f.telefono,
+        ocupacion: f.ocupacion,
+        direccion: {
+          calleNro: f.calleNro,
+          barrio: f.barrio,
+          departamento: toValidPositiveNumber(f.departamento),
+          localidad: toValidPositiveNumber(f.localidad),
+        }
+      },
+      personaEntrevistada: personaEntrevistada
+        ? {
+            nombre: personaEntrevistada.nombre,
+            relacionVictima: personaEntrevistada.relacionVictima,
+            direccion: {
+              calleNro: personaEntrevistada.direccion.calleNro,
+              barrio: personaEntrevistada.direccion.barrio,
+              departamento: personaEntrevistada.direccion.departamento,
+              localidad: personaEntrevistada.direccion.localidad,
+            },
+          }
+        : undefined,
+      seguimiento: {
+        realizado: f.seguimientoRealizado === "si",
+        tipo: {
+          asesoramientoLegal: f.segAsesoramientoLegal,
+          tratamientoPsicologico: f.segTratamientoPsicologico,
+          seguimientoLegal: f.segSeguimientoLegal,
+          archivoCaso: f.segArchivoCaso,
+        },
+      },
+      detalleIntervencion: f.detalleSeguimiento,
+    };
+
+    console.log("🧪 Payload FINAL:", JSON.stringify(payload, null, 2));
+
+    // ✅ Enviar al backend
+    await actualizarIntervencion(selected.id, payload);
+    
+    // ✅ Mostrar mensaje de éxito
+    setMensaje("Cambios guardados correctamente ✅");
+    
+    // ✅ Esperar para que el usuario vea el mensaje
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // ✅ Redirigir (el loader sigue visible)
+    router.push("/inicio");
+    
+  } catch (e: any) {
+    console.error("Error al guardar", e);
+    setError(
+      "Ocurrió un error al guardar. Revisa los campos e intenta nuevamente."
+    );
+    setGuardando(false); // ✅ Solo desactivar en caso de error
+  }
+  // ❌ NO usar finally, se maneja manualmente
+};
 
 
   const localidadesVictima = localidades.filter(
@@ -1283,37 +1315,60 @@ personaEntrevistada: personaEntrevistada || undefined,
           </Grid>
         </Grid>
 
-        {/* Motivos de Derivación */}
-        <Grid container spacing={2} sx={{ mt: 2 }}>
-          {motivosDerivacion.map(({ value, label }) => (
-            <Grid item xs={12} md={6} key={value}>
-              <FormControlLabel
-                control={
-                  <Radio
-                    checked={f.motivoDerivacion === value}
-                    onChange={() => forceCommit("motivoDerivacion", value)}
-                  />
-                }
-                label={label}
-              />
-              {(value === 7 || value === 8) && f.motivoDerivacion === value && (
-                <FastTextField
-                  name="derivadorNombre"
-                  label={
-                    label === "Municipio"
-                      ? "Ingrese Municipio"
-                      : "Especifique Otro"
-                  }
-                  fullWidth
-                  sx={{ mt: 1 }}
-                  value={f.derivadorNombre}
-                  onCommit={commit}
-                  version={version}
-                />
-              )}
-            </Grid>
-          ))}
-        </Grid>
+ {/* Motivos de Derivación */}
+<Grid container spacing={2} sx={{ mt: 2 }}>
+  {motivosDerivacion.map(({ value, label }) => (
+    <Grid item xs={12} md={6} key={value}>
+      <FormControlLabel
+        control={
+          <Radio
+            checked={f.motivoDerivacion === value}
+            onChange={() => {
+              forceCommit("motivoDerivacion", value);
+              // Limpiar campo adicional al cambiar de opción
+              if (value !== 6 && value !== 8) {
+                forceCommit("motivoDerivacionOtro", "");
+              }
+            }}
+          />
+        }
+        label={label}
+      />
+
+      {/* Si selecciona Municipio (6) → mostrar SELECT con departamentos */}
+      {value === 6 && f.motivoDerivacion === value && (
+        <FormControl fullWidth sx={{ mt: 1 }}>
+          <InputLabel>Seleccione Municipio</InputLabel>
+          <Select
+            value={f.motivoDerivacionOtro}
+            onChange={(e) => forceCommit("motivoDerivacionOtro", e.target.value)}
+          >
+            <MenuItem value="">--Seleccione Municipio--</MenuItem>
+            {departamentos.map((d) => (
+              <MenuItem key={d.id} value={d.nombre}>
+                {d.nombre}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+      {/* Si selecciona Otro (8) → mostrar TextField */}
+      {value === 8 && f.motivoDerivacion === value && (
+        <FastTextField
+          name="motivoDerivacionOtro"
+          label="Especifique Otro"
+          fullWidth
+          sx={{ mt: 1 }}
+          value={f.motivoDerivacionOtro}
+          onCommit={commit}
+          version={version}
+        />
+      )}
+    </Grid>
+  ))}
+</Grid>
+
 
         <Divider sx={{ my: 3 }} />
       </Paper>

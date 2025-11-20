@@ -8,11 +8,14 @@ import { ReactNode } from 'react'
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
-  // Rutas que NO deben mostrar la sidebar
-  const hideSidebarPaths = ['/recuperar', '/login', '/auth/reset']
+  // ✅ SIN /avd/ porque basePath lo maneja automáticamente
+  const hideSidebarPaths = [
+    '/login',
+    '/recuperar-password',
+    '/restablecer-password',
+  ]
 
-  // ✅ Se oculta si termina en /login o /recuperar
-  const shouldHideSidebar = hideSidebarPaths.some(path => pathname.endsWith(path))
+  const shouldHideSidebar = hideSidebarPaths.includes(pathname)
 
   return (
     <Box display="flex">

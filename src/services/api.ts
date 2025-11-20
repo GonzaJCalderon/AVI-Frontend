@@ -15,7 +15,7 @@ function joinUrl(base: string, endpoint: string) {
 
 export const API_URL = (() => {
   const env = process.env.NEXT_PUBLIC_API_BASE_URL;
-  return env ? trimSlashes(env) : 'http://10.100.1.80:3333/api';
+ return env ? trimSlashes(env) : 'http://10.100.1.64:3333';
 })();
 
 const ACCESS_KEY = 'access_token';

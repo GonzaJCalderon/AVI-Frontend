@@ -1,56 +1,50 @@
 'use client'
 
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  List, 
-  ListItem, 
-  ListItemText, 
+import { useEffect, useState } from 'react'
+import {
+  Box,
+  Typography,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
   Divider,
   Chip,
   Avatar,
-  ListItemAvatar
+  ListItemAvatar,
+  CircularProgress,
+  Alert,
 } from '@mui/material'
-import { useEffect, useState } from 'react'
+
 import PersonIcon from '@mui/icons-material/Person'
 import StarIcon from '@mui/icons-material/Star'
 
-type Usuario = {
-  nombre: string
-  email: string
-  rol: string
-}
+import { usuarioService } from '@/services/usuarioService'
+import { Usuario } from '@/services/usuarioService'
 
 export default function VerUsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [usuarioActual, setUsuarioActual] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Cargar usuarios
-    fetch('http://localhost:8000/api/listar_usuarios.php')
-      .then(res => res.json())
-      .then(data => setUsuarios(data))
-      .catch(err => console.error('Error al cargar usuarios:', err))
+    const fetchUsuarios = async () => {
+      try {
+        const lista = await usuarioService.getUsuarios()
+        setUsuarios(lista)
 
-    // Obtener el usuario actual desde localStorage (siguiendo tu estructura de login)
-    try {
-      const userDataString = localStorage.getItem('user')
-      if (userDataString) {
-        const userData = JSON.parse(userDataString)
-        if (userData && userData.email) {
-          setUsuarioActual(userData.email)
-        }
-      }
-    } catch (error) {
-      console.error('Error al obtener usuario actual:', error)
-      // Fallback: intentar obtener desde token si tienes el email en el payload
-      const token = localStorage.getItem('access_token') || localStorage.getItem('token')
-      if (token) {
-        // Aquí podrías decodificar el JWT si contiene el email
-        // Por ahora dejamos el manejo básico
+        const perfil = await usuarioService.getPerfil()
+        setUsuarioActual(perfil.email || '')
+      } catch (err: any) {
+        console.error(err)
+        setError(err.message || 'Ocurrió un error al cargar los usuarios.')
+      } finally {
+        setLoading(false)
       }
     }
+
+    fetchUsuarios()
   }, [])
 
   const esUsuarioActual = (email: string) => email === usuarioActual
@@ -62,42 +56,58 @@ export default function VerUsuariosPage() {
           Listado de usuarios
         </Typography>
 
-        {usuarios.length === 0 ? (
+        {loading && (
+          <Box display="flex" justifyContent="center" my={4}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {!loading && usuarios.length === 0 && !error && (
           <Typography mt={2}>No hay usuarios para mostrar.</Typography>
-        ) : (
+        )}
+
+        {!loading && usuarios.length > 0 && (
           <List>
             {usuarios.map((user, idx) => (
               <Box key={idx}>
                 <ListItem
                   sx={{
-                    backgroundColor: esUsuarioActual(user.email) 
-                      ? 'rgba(25, 118, 210, 0.08)' 
+                    backgroundColor: esUsuarioActual(user.email)
+                      ? 'rgba(25, 118, 210, 0.08)'
                       : 'transparent',
                     borderRadius: esUsuarioActual(user.email) ? 2 : 0,
                     mb: esUsuarioActual(user.email) ? 1 : 0,
-                    border: esUsuarioActual(user.email) 
-                      ? '2px solid' 
+                    border: esUsuarioActual(user.email)
+                      ? '2px solid'
                       : '1px solid transparent',
-                    borderColor: esUsuarioActual(user.email) 
-                      ? 'primary.main' 
+                    borderColor: esUsuarioActual(user.email)
+                      ? 'primary.main'
                       : 'transparent',
                     '&:hover': {
                       backgroundColor: esUsuarioActual(user.email)
                         ? 'rgba(25, 118, 210, 0.12)'
-                        : 'rgba(0, 0, 0, 0.04)'
-                    }
+                        : 'rgba(0, 0, 0, 0.04)',
+                    },
                   }}
                 >
                   <ListItemAvatar>
-                    <Avatar sx={{ 
-                      bgcolor: esUsuarioActual(user.email) 
-                        ? 'primary.main' 
-                        : 'grey.400' 
-                    }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: esUsuarioActual(user.email)
+                          ? 'primary.main'
+                          : 'grey.400',
+                      }}
+                    >
                       {esUsuarioActual(user.email) ? <StarIcon /> : <PersonIcon />}
                     </Avatar>
                   </ListItemAvatar>
-                  
+
                   <ListItemText
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -109,18 +119,14 @@ export default function VerUsuariosPage() {
                             label="Tu cuenta"
                             size="small"
                             color="primary"
-                            variant="filled"
-                            sx={{ 
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold'
-                            }}
+                            sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}
                           />
                         )}
                       </Box>
                     }
                     secondary={
-                      <Typography 
-                        variant="body2" 
+                      <Typography
+                        variant="body2"
                         color={esUsuarioActual(user.email) ? 'primary.dark' : 'text.secondary'}
                         fontWeight={esUsuarioActual(user.email) ? 'medium' : 'normal'}
                       >
