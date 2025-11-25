@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { 
@@ -13,11 +13,65 @@ import {
 import {
   Box, Button, Checkbox, Divider, FormControl,
   FormControlLabel, Grid, InputLabel, MenuItem, Paper,
-  Radio, RadioGroup, Select, TextField, Typography, FormHelperText,
+  Radio, RadioGroup, Select, Typography, FormHelperText,
 } from '@mui/material';
+import TextField, { TextFieldProps } from '@mui/material/TextField';
 import { crearIntervencion, CreateIntervencionPayload } from '@/services/intervenciones';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+import FormSection from '@/components/FormSection';
+
+
+/** ========================
+ *  TextField sin lag (commit onBlur)
+ *  ======================== */
+
+type FormState = any; // reemplazá esto por el tipo real si lo tenés
+
+type FastTextFieldProps = Omit<
+  React.ComponentProps<typeof TextField>,
+  "defaultValue" | "onBlur" | "value" | "onChange"
+> & {
+  name: string;
+  value: string;
+  onCommit: (name: string, next: string) => void;
+  version: number;
+};
+
+
+const FastTextField: React.FC<FastTextFieldProps> = ({
+  name,
+  value,
+  onCommit,
+  version,
+  ...props
+}) => {
+  const localRef = useRef<string>(value);
+  const [key, setKey] = useState<number>(version);
+  useEffect(() => setKey(version), [version]);
+
+  
+
+  return (
+    <TextField
+      key={`${String(name)}-${key}`}
+      defaultValue={value ?? ""}
+      onChange={(e) => {
+        localRef.current = e.target.value;
+      }}
+      onBlur={(e) => {
+        const v = e.target.value ?? "";
+        if (v !== localRef.current) {
+          localRef.current = v;
+          onCommit(name, v);
+        } else {
+          onCommit(name, v);
+        }
+      }}
+      {...props}
+    />
+  );
+};
 
 
 // ✅ Labels para tipo de hecho delictivo
@@ -106,6 +160,7 @@ const [fechaNacimientoInput, setFechaNacimientoInput] = useState('');
 
 
 
+
 useEffect(() => {
   const loadData = async () => {
     try {
@@ -117,11 +172,24 @@ useEffect(() => {
       const deps = await depRes.json();
       const locs = await locRes.json();
 
-      setDepartamentos(deps.departamentos || deps);
-      setLocalidades(locs.localidades || locs);
+      // Manejo seguro por si vienen envueltos en objetos
+      const departamentos = Array.isArray(deps)
+        ? deps
+        : Array.isArray(deps.departamentos)
+        ? deps.departamentos
+        : [];
 
-      console.log('📦 Departamentos cargados:', deps.departamentos?.length || deps.length);
-      console.log('📦 Localidades cargadas:', locs.localidades?.length || locs.length);
+      const localidades = Array.isArray(locs)
+        ? locs
+        : Array.isArray(locs.localidades)
+        ? locs.localidades
+        : [];
+
+      setDepartamentos(departamentos);
+      setLocalidades(localidades);
+
+      console.log('📦 Departamentos cargados:', departamentos.length);
+      console.log('📦 Localidades cargadas:', localidades.length);
     } catch (error) {
       console.error('❌ Error cargando JSONs:', error);
     }
@@ -129,6 +197,7 @@ useEffect(() => {
 
   loadData();
 }, []);
+
 
 
   
@@ -150,6 +219,76 @@ const handleCloseSnackbar = () => {
   setSnackbarOpen(false);
 };
 
+const handleCommit = (name: string, value: string) => {
+  setFormData((prev) => {
+    const keys = name.split('.');
+    const updatedData = { ...prev } as any; // 👈 hacer cast
+
+    let current = updatedData;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!current[keys[i]]) current[keys[i]] = {};
+      current = current[keys[i]];
+    }
+
+    current[keys[keys.length - 1]] = value;
+
+    return updatedData;
+  });
+};
+const consultarRenaper = async (dni: string, genero: number) => {
+  const generoVal = genero === 1 ? 'M' : genero === 2 ? 'F' : 'X';
+
+  try {
+    const res = await fetch(
+      `http://10.100.1.216:9501/api/v1/Renaper/GetDocumentoRenaper?nroDoc=${dni}&sexo=${generoVal}`
+    );
+
+    if (!res.ok) throw new Error('No se pudo consultar RENAPER');
+
+    const data = await res.json();
+    const persona = data?.persona;
+
+    if (persona?.nombres && persona?.apellidos) {
+      // Buscamos localidad exacta
+      const localidadNombre = persona.domicilio?.localidad?.toUpperCase() ?? '';
+
+      const localidadEncontrada = localidades.find(
+        (l) => l.nombre.toUpperCase() === localidadNombre
+      );
+
+      const departamentoId = localidadEncontrada?.departamento_id;
+
+      setFormData((prev) => ({
+        ...prev,
+        victima: {
+          ...prev.victima,
+          nombre: persona.nombres.trim(),
+          apellido: persona.apellidos.trim(),
+          fechaNacimiento: persona.fechaNacimiento,
+          genero: persona.genero === 'M' ? 1 : persona.genero === 'F' ? 2 : 3,
+          direccion: {
+            ...prev.victima.direccion,
+            localidad: localidadEncontrada ? Number(localidadEncontrada.id) : prev.victima.direccion.localidad,
+            departamento: departamentoId ? Number(departamentoId) : prev.victima.direccion.departamento,
+          }
+        }
+      }));
+
+      // Formatear fecha para input visible
+      setFechaNacimientoInput(
+        persona.fechaNacimiento?.split('T')[0]?.split('-')?.reverse()?.join('/') ?? ''
+      );
+
+      showNotification('✔ Datos cargados desde RENAPER', 'success');
+    } else {
+      showNotification('⚠ No se encontraron datos en RENAPER', 'error');
+    }
+  } catch (err) {
+    console.error('❌ Error al consultar RENAPER:', err);
+    showNotification('Error al consultar RENAPER', 'error');
+  }
+};
 
 
 
@@ -161,30 +300,34 @@ const maxBirthDateStr = maxBirthDate.toISOString().split('T')[0];
 const router = useRouter();
 
 const [formData, setFormData] = useState<CreateIntervencionPayload>({
-  intervencion: { 
-    coordinador: '', 
-    operador: '', 
-    fecha: '', 
-    resena_hecho: '' 
+  intervencion: {
+    coordinador: '',
+    operador: '',
+    fecha: '',
+    resena_hecho: '',
+    // Podés agregar acá más campos si el backend los acepta, como:
+    // numero_intervencion: '', estado: '', etc.
   },
-  derivacion: { 
-    motivos: 0, 
-    derivador: null, 
-    fecha_derivacion: '',
 
-    expediente: null,       // 🆕 agregado
-    departamento: null,     // 🆕 agregado
-    localidad: null         // 🆕 agregado
+  derivacion: {
+    motivos: 0,
+    derivador: '',
+    fecha_derivacion: '',
+    expediente: '',
+    departamento: '',
+    localidad: '',
+    organismo: '', // agregado
   },
+
   hechoDelictivo: {
     expediente: '',
     numAgresores: 0,
-    fecha: null,
+    fecha: '',
     hora: '',
-    ubicacion: { 
-      calleBarrio: '', 
-      departamento: null, 
-      localidad: null 
+    ubicacion: {
+      calleBarrio: '',
+      departamento: '',
+      localidad: '',
     },
     tipoHecho: {
       robo: false,
@@ -200,48 +343,54 @@ const [formData, setFormData] = useState<CreateIntervencionPayload>({
       femicidio: false,
       travestisidioTransfemicidio: false,
       violenciaGenero: false,
-      otros: false
-    }
+      otros: false,
+    },
   },
+
   accionesPrimeraLinea: '',
-  abusoSexual: { 
-    simple: false, 
-    agravado: false 
+
+  abusoSexual: {
+    simple: false,
+    agravado: false,
   },
-  datosAbusoSexual: { 
-    kit: '', 
-    relacion: '', 
-    relacionOtro: '', 
-    lugarHecho: '', 
-    lugarOtro: '' 
+
+  datosAbusoSexual: {
+    kit: '',
+    relacion: '',
+    relacionOtro: '',
+    lugarHecho: '',
+    lugarOtro: '',
   },
+
   victima: {
     dni: '',
     nombre: '',
-    genero: 1,
-   fechaNacimiento: null,
-
+    apellido: '',
+    genero: 0,
+    fechaNacimiento: '',
     telefono: '',
     ocupacion: '',
     cantidadVictimas: 1,
-direccion: {
-  calleNro: '',
-  barrio: '',
-  departamento: '', 
-  localidad: ''     
-}
-
+    direccion: {
+      calleNro: '',
+      barrio: '',
+      departamento: '',
+      localidad: '',
+    },
   },
+
   personaEntrevistada: {
     nombre: '',
+    apellido: '',
     relacionVictima: '',
-    direccion: { 
-      calleNro: '', 
-      barrio: '', 
-      departamento: 0, 
-      localidad: 0 
-    }
+    direccion: {
+      calleNro: '',
+      barrio: '',
+      departamento: '',
+      localidad: '',
+    },
   },
+
   tipoIntervencion: {
     crisis: false,
     telefonica: false,
@@ -251,21 +400,24 @@ direccion: {
     social: false,
     legal: false,
     sinIntervencion: false,
-    archivoCaso: false
+    archivoCaso: false,
   },
+
   seguimiento: {
     realizado: null,
     tipo: {
       asesoramientoLegal: false,
       tratamientoPsicologico: false,
       seguimientoLegal: false,
-      archivoCaso: false
-    }
+      archivoCaso: false,
+    },
+    detalles: '',
   },
-  detalleIntervencion: ''
+
+  detalleIntervencion: '',
 });
 
-
+const [version, setVersion] = useState(0);
 
 
 
@@ -346,6 +498,11 @@ const huboIntervencion = Object.values(resto).some(v => v === true);
   if (!formData.victima.nombre.trim()) {
     nuevosErrores.push("El nombre de la víctima es obligatorio");
   }
+
+  if (!formData.victima.apellido.trim()) {
+  nuevosErrores.push("El apellido de la víctima es obligatorio");
+}
+
 
   if (!Object.values(formData.tipoIntervencion).some(v => v === true)) {
     nuevosErrores.push("Debe marcar al menos un tipo de intervención");
@@ -459,10 +616,9 @@ const normalizarPayloadParaBackend = (payload: CreateIntervencionPayload): any =
     direccion: {
       calleNro: toEmptyString(payload.victima.direccion.calleNro),
       barrio: toEmptyString(payload.victima.direccion.barrio),
-      departamento: Number(payload.victima.direccion.departamento) || 0,
-      localidad: payload.victima.direccion.localidad
-        ? Number(payload.victima.direccion.localidad)
-        : null,
+    departamento: toNumberOrNull(payload.victima.direccion.departamento),
+localidad: toNumberOrNull(payload.victima.direccion.localidad),
+
     },
   };
 
@@ -509,20 +665,20 @@ const normalizarPayloadParaBackend = (payload: CreateIntervencionPayload): any =
       lugarOtro: toEmptyString(payload.datosAbusoSexual.lugarOtro),
     },
     victima: victimaData, // ✅ Usar el objeto construido
-    personaEntrevistada: {
-      nombre: toEmptyString(payload.personaEntrevistada.nombre),
-      relacionVictima: toEmptyString(payload.personaEntrevistada.relacionVictima),
-      direccion: {
-        calleNro: toEmptyString(payload.personaEntrevistada.direccion.calleNro),
-        barrio: toEmptyString(payload.personaEntrevistada.direccion.barrio),
-        departamento: Number(payload.personaEntrevistada.direccion.departamento) || 0,
-        localidad:
-          payload.personaEntrevistada.direccion.localidad === '' ||
-          payload.personaEntrevistada.direccion.localidad === null
-            ? null
-            : Number(payload.personaEntrevistada.direccion.localidad),
-      },
-    },
+personaEntrevistada: {
+  nombre: toEmptyString(payload.personaEntrevistada.nombre),
+  relacionVictima: toEmptyString(payload.personaEntrevistada.relacionVictima),
+direccion: {
+  calleNro: toEmptyString(payload.personaEntrevistada.direccion.calleNro),
+  barrio: toEmptyString(payload.personaEntrevistada.direccion.barrio),
+  departamento: toNumberOrNull(payload.personaEntrevistada.direccion.departamento),
+  localidad: toNumberOrNull(payload.personaEntrevistada.direccion.localidad),
+},
+
+},
+
+
+
     tipoIntervencion: payload.tipoIntervencion,
     seguimiento: {
       realizado: payload.seguimiento.realizado ?? false,
@@ -531,6 +687,13 @@ const normalizarPayloadParaBackend = (payload: CreateIntervencionPayload): any =
     detalleIntervencion: toEmptyString(payload.detalleIntervencion),
   };
 };
+
+const toNumberOrNull = (val: any): number => {
+  if (val === null || val === undefined || val === '') return 0;
+  const num = Number(val);
+  return !isNaN(num) && num > 0 ? num : 0;
+};
+
 
 const handleSubmit = async () => {
   console.log('🚀 ==================== INICIO SUBMIT ====================');
@@ -774,71 +937,74 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
         <Divider sx={{ my: 3 }} />
 
        {/* 1. Intervención */}
-<Typography variant="h6">1. Datos de la Intervención</Typography>
+<FormSection title="1. Datos de la Intervención">
 <Grid container spacing={2}>
 <Grid item xs="auto">
-  <TextField
-    type="date"
-    label="Fecha *"
-    value={formData.intervencion.fecha}
-    onChange={(e) => {
-      const value = e.target.value;
+ <FastTextField
+  type="date"
+  label="Fecha *"
+  name="intervencion.fecha"
+  value={formData.intervencion.fecha ?? ''}
+  onCommit={(name, value) => {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const currentYear = new Date().getFullYear();
+      if (year > currentYear) {
+        value = `${currentYear}-${match[2]}-${match[3]}`;
+      }
+    }
 
-      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    setFormData((prev) => ({
+      ...prev,
+      intervencion: {
+        ...prev.intervencion,
+        fecha: value,
+      },
+    }));
+  }}
+  version={version}
+  error={!!formErrors['intervencion.fecha']}
+  helperText={formErrors['intervencion.fecha']}
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    max: todayISO,
+    min: '1900-01-01',
+    onKeyDown: preventInvalidDateYear,
+    onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+      const pasted = e.clipboardData.getData('text');
+      const match = pasted.match(/^(\d{4})/);
       if (match) {
         const year = parseInt(match[1], 10);
         const currentYear = new Date().getFullYear();
-
-        if (year > currentYear) {
-          const fixedDate = `${currentYear}-${match[2]}-${match[3]}`;
-          setFormData((prev) => ({
-            ...prev,
-            intervencion: { ...prev.intervencion, fecha: fixedDate },
-          }));
-          return;
+        if (year > currentYear || year < 1900) {
+          e.preventDefault();
         }
       }
+    },
+  }}
+  sx={dateFieldStyles}
+/>
 
-      setFormData((prev) => ({
-        ...prev,
-        intervencion: { ...prev.intervencion, fecha: value },
-      }));
-    }}
-    error={!!formErrors['intervencion.fecha']}
-    helperText={formErrors['intervencion.fecha']}
-    InputLabelProps={{ shrink: true }}
-    inputProps={{
-      max: todayISO,
-      min: '1900-01-01',
-      onKeyDown: preventInvalidDateYear,
-      onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
-        const pasted = e.clipboardData.getData('text');
-        const match = pasted.match(/^(\d{4})/);
-        if (match) {
-          const year = parseInt(match[1], 10);
-          const currentYear = new Date().getFullYear();
-          if (year > currentYear || year < 1900) {
-            e.preventDefault();
-          }
-        }
-      }
-    }}
-    sx={dateFieldStyles}
-  />
 </Grid>
 
 
 
   <Grid item xs={12} md={4}>
-   <TextField
+<FastTextField
+  name="intervencion.coordinador"
   label="Nombre y apellido del Coordinador *"
   value={formData.intervencion.coordinador}
-  onChange={(e) =>
+  onCommit={(name, value) =>
     setFormData((prev) => ({
       ...prev,
-      intervencion: { ...prev.intervencion, coordinador: e.target.value },
+      intervencion: {
+        ...prev.intervencion,
+        coordinador: value,
+      },
     }))
   }
+  version={version}
   fullWidth
   error={mostrarErrores && formData.intervencion.coordinador.trim() === ""}
   helperText={
@@ -851,126 +1017,180 @@ const handleFechaNacimientoChange = (e: React.ChangeEvent<HTMLInputElement>) => 
   </Grid>
 
   <Grid item xs={12} md={4}>
-    <TextField
-      fullWidth
-      label="Operador"
-      value={formData.intervencion.operador}
-      onChange={handleChange('intervencion.operador')}
-      placeholder="Nombre y apellido del operador"
-    />
+ 
   </Grid>
+<Grid item xs={12} md={4}>
+  <FastTextField
+    name="intervencion.operador"
+    fullWidth
+    label="Operador"
+    value={formData.intervencion.operador}
+    placeholder="Nombre y apellido del operador"
+    onCommit={(name, value) =>
+      setFormData((prev) => ({
+        ...prev,
+        intervencion: {
+          ...prev.intervencion,
+          operador: value,
+        },
+      }))
+    }
+    version={version}
+  />
+</Grid>
+
 
   <Grid item xs={12}>
-    <TextField
-      fullWidth
-      multiline
-      rows={3}
-      label="Breve reseña del hecho"
-      value={formData.intervencion.resena_hecho}
-      onChange={handleChange('intervencion.resena_hecho')}
-      placeholder="Describa brevemente lo ocurrido..."
-    />
+<FastTextField
+  name="intervencion.resena_hecho"
+  fullWidth
+  multiline
+  rows={3}
+  label="Breve reseña del hecho"
+  value={formData.intervencion.resena_hecho}
+  onCommit={handleCommit}
+  version={version}
+  placeholder="Describa brevemente lo ocurrido..."
+/>
+
   </Grid>
 </Grid>
+</FormSection>
 
 <Divider sx={{ my: 3 }} />
 
 {/* 2. Derivación */}
-<Typography variant="h6">2. Derivación</Typography>
+<FormSection title="2. Derivación">
 
 <Grid container spacing={2}>
   {/* Derivador */}
+ {formData.derivacion.motivos !== 7 && formData.derivacion.motivos !== 8 && (
   <Grid item xs={12} md={6}>
-    <TextField
+    <FastTextField
+      name="derivacion.derivador"
       fullWidth
       label="Nombre y Apellido del Derivador"
       value={formData.derivacion.derivador ?? ''}
-
-
-      onChange={handleChange('derivacion.derivador')}
+      onCommit={(name, value) =>
+        setFormData((prev) => ({
+          ...prev,
+          derivacion: {
+            ...prev.derivacion,
+            derivador: value,
+          },
+        }))
+      }
+      version={version}
     />
   </Grid>
+)}
+
 
   {/* Fecha/Hora */}
   <Grid item xs={12} md={6}>
-    <TextField
-      type="datetime-local"
-      label="Fecha/Hora"
-value={formData.derivacion.fecha_derivacion || ''}
+ <FastTextField
+  name="derivacion.fecha_derivacion"
+  type="datetime-local"
+  label="Fecha/Hora"
+  value={formData.derivacion.fecha_derivacion || ''}
+  onCommit={(name, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      derivacion: {
+        ...prev.derivacion,
+        fecha_derivacion: value,
+      },
+    }));
+  }}
+  version={version}
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    max: now,
+    min: '1900-01-01T00:00',
+    onKeyDown: preventInvalidDateYear,
+  }}
+  sx={dateFieldStyles}
+  fullWidth
+/>
 
-
-
-
-      onChange={handleFechaDerivacionChange}
-      InputLabelProps={{ shrink: true }}
-      inputProps={{
-        max: now,
-        min: '1900-01-01T00:00',
-        onKeyDown: preventInvalidDateYear
-      }}
-      sx={dateFieldStyles}
-      fullWidth
-    />
   </Grid>
 
   {/* Número de Expediente */}
   <Grid item xs={12} md={6}>
-    <TextField
-      fullWidth
-      label="Número de Expediente"
-      placeholder="Ej. 1234/2023"
-      value={formData.hechoDelictivo.expediente}
-      onChange={handleChange('hechoDelictivo.expediente')}
-    />
+<FastTextField
+  name="hechoDelictivo.expediente"
+  fullWidth
+  label="Número de Expediente"
+  placeholder="Ej. 1234/2023"
+  value={formData.hechoDelictivo.expediente}
+  onCommit={(name, value) =>
+    setFormData((prev) => ({
+      ...prev,
+      hechoDelictivo: {
+        ...prev.hechoDelictivo,
+        expediente: value,
+      },
+    }))
+  }
+  version={version}
+/>
+
   </Grid>
 
   {/* Cantidad de Agresores */}
-  <Grid item xs={12} md={2}>
-    <TextField
-      fullWidth
-      type="number"
-      label="Cantidad de agresores"
-      value={formData.hechoDelictivo.numAgresores}
-      onChange={(e) => {
-        const value = parseInt(e.target.value, 10);
-        setFormData((prev) => ({
-          ...prev,
-          hechoDelictivo: {
-            ...prev.hechoDelictivo,
-            numAgresores: isNaN(value) ? 0 : Math.max(0, value),
-          },
-        }));
-      }}
-      inputProps={{ min: 0 }}
-    />
-  </Grid>
+  <Grid item xs="auto">
+  <FastTextField
+    name="hechoDelictivo.numAgresores"
+    type="number"
+    label="Cantidad de Agresores"
+    value={formData.hechoDelictivo.numAgresores.toString()}
+    onCommit={(name, value) =>
+      setFormData((prev) => ({
+        ...prev,
+        hechoDelictivo: {
+          ...prev.hechoDelictivo,
+          numAgresores: Number(value)
+        },
+      }))
+    }
+    inputProps={{
+      min: 0,
+    }}
+    version={version}
+    sx={{ width: 180 }}
+  />
 </Grid>
+
+
+</Grid>
+
+
 
 <Grid container spacing={2} sx={{ mt: 2 }}>
   {Object.entries(derivacionOptions).map(([id, label]) => (
-    <Grid item xs={12} md={6} key={id}>
-      <FormControlLabel
-        control={
-          <Radio
-            checked={formData.derivacion.motivos === Number(id)}
-            onChange={() =>
-              setFormData((prev) => ({
-                ...prev,
-                derivacion: {
-                  ...prev.derivacion,
-                  motivos: Number(id),
-                  // Limpiar derivador si cambia a una opción distinta
-                  derivador:
-                    Number(id) === 7 || Number(id) === 8
-                      ? prev.derivacion.derivador
-                      : '',
-                },
-              }))
-            }
-          />
-        }
-        label={label}
-      />
+  <Grid item xs={12} md={6} key={id}>
+    <FormControlLabel
+      control={
+        <Radio
+          checked={formData.derivacion.motivos === Number(id)}
+          onChange={() =>
+            setFormData((prev) => ({
+              ...prev,
+              derivacion: {
+                ...prev.derivacion,
+                motivos: Number(id),
+                derivador:
+                  Number(id) === 7 || Number(id) === 8
+                    ? prev.derivacion.derivador
+                    : '',
+              },
+            }))
+          }
+        />
+      }
+      label={label}
+    />
+
 
       {/* 🟢 Municipio: Mostrar Select de departamentos */}
       {Number(id) === 7 &&
@@ -1002,62 +1222,88 @@ value={formData.derivacion.fecha_derivacion || ''}
       {/* 🟣 Otro: Mostrar campo de texto libre */}
       {Number(id) === 8 &&
         formData.derivacion.motivos === Number(id) && (
-          <TextField
-            fullWidth
-            label="Especifique Otro"
-            sx={{ mt: 1 }}
-            value={formData.derivacion.derivador}
-            onChange={handleChange("derivacion.derivador")}
-          />
+        <FastTextField
+  name="derivacion.derivador"
+  value={formData.derivacion.derivador ?? ''}
+  onCommit={handleCommit}
+  version={version}
+  label="Especifique Otro"
+  fullWidth
+  sx={{ mt: 1 }}
+/>
+
         )}
     </Grid>
   ))}
 </Grid>
+</FormSection>
 
 
 <Divider sx={{ my: 3 }} />
 
 
 {/* 3. Hecho Delictivo */}
-<Typography variant="h6">3. Datos del Hecho Delictivo</Typography>
+<FormSection title="3. Datos del Hecho Delictivo">
 
 <Grid container spacing={2}>
   {/* Fecha del Hecho */}
   <Grid item xs="auto">
-<TextField
+<FastTextField
+  name="hechoDelictivo.fecha"
   type="date"
   value={formData.hechoDelictivo.fecha ?? ''}
- 
-      onChange={handleFechaHechoChange}
-      error={!!formErrors['hechoDelictivo.fecha']}
-      helperText={formErrors['hechoDelictivo.fecha']}
-      InputLabelProps={{ shrink: true }}
-      inputProps={{
-        max: todayISO,
-        min: '1900-01-01',
-        onKeyDown: preventInvalidDateYear, // Evita escribir fechas inválidas
-      }}
-      sx={{ width: 180 }} // Ancho fijo para la fecha
-    />
+  onCommit={(name, value) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      hechoDelictivo: {
+        ...prev.hechoDelictivo,
+        fecha: value,
+      },
+    }));
+  }}
+  version={version} // Asegurate que esta variable esté definida
+  error={!!formErrors['hechoDelictivo.fecha']}
+  helperText={formErrors['hechoDelictivo.fecha']}
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    max: todayISO,
+    min: '1900-01-01',
+    onKeyDown: preventInvalidDateYear,
+  }}
+  sx={{ width: 180 }}
+/>
+
   </Grid>
 
   {/* Hora del Hecho */}
   <Grid item xs="auto">
-    <TextField
-      type="time"
-      label="Hora del Hecho *"
-      value={formData.hechoDelictivo.hora}
-      onChange={handleChange('hechoDelictivo.hora')}
-      InputLabelProps={{ shrink: true }}
-      inputProps={{
-        step: 60, // Intervalo en minutos
-      }}
-      error={!!formErrors['hechoDelictivo.hora']}
-      helperText={formErrors['hechoDelictivo.hora']}
-      sx={{ width: 120 }} // Ancho reducido para HH:mm
-    />
+ <FastTextField
+  name="hechoDelictivo.hora"
+  type="time"
+  label="Hora del Hecho *"
+  value={formData.hechoDelictivo.hora ?? ''}
+  onCommit={(name, value) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      hechoDelictivo: {
+        ...prev.hechoDelictivo,
+        hora: value,
+      },
+    }));
+  }}
+  version={version} // Asegurate de tener esta variable definida
+  InputLabelProps={{ shrink: true }}
+  inputProps={{
+    step: 60,
+  }}
+  error={!!formErrors['hechoDelictivo.hora']}
+  helperText={formErrors['hechoDelictivo.hora']}
+  sx={{ width: 120 }}
+/>
+
   </Grid>
 </Grid>
+
 
 {/* Ubicación del Hecho */}
 <Typography variant="subtitle1" sx={{ mt: 2 }}>
@@ -1067,13 +1313,27 @@ value={formData.derivacion.fecha_derivacion || ''}
 <Grid container spacing={2}>
   {/* Calle y Barrio */}
   <Grid item xs={12} md={6}>
-    <TextField
-      fullWidth
-      label="Calle y Barrio"
-      value={formData.hechoDelictivo.ubicacion.calleBarrio}
-      onChange={handleChange('hechoDelictivo.ubicacion.calleBarrio')}
-      required
-    />
+    <FastTextField
+  name="hechoDelictivo.ubicacion.calleBarrio"
+  fullWidth
+  label="Calle y Barrio"
+  value={formData.hechoDelictivo.ubicacion.calleBarrio ?? ''}
+  onCommit={(name, value) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      hechoDelictivo: {
+        ...prev.hechoDelictivo,
+        ubicacion: {
+          ...prev.hechoDelictivo.ubicacion,
+          calleBarrio: value,
+        },
+      },
+    }));
+  }}
+  required
+  version={version}
+/>
+
   </Grid>
 
   {/* Departamento */}
@@ -1158,6 +1418,8 @@ value={formData.derivacion.fecha_derivacion || ''}
 
   </Grid>
 </Grid>
+</FormSection>
+
 
 {/* Tipo de Hecho */}
 <FormControl
@@ -1200,14 +1462,35 @@ value={formData.derivacion.fecha_derivacion || ''}
 
 
         {/* 4. Acciones */}
-        <Typography variant="h6">4. Acciones en Primera Línea</Typography>
-        <TextField fullWidth multiline required rows={3} label="Acciones realizadas"
-          value={formData.accionesPrimeraLinea} onChange={handleChange('accionesPrimeraLinea')} />
+       <FormSection title="4.  Acciones Realizadas en Primera Línea">
+          <Grid container spacing={2}>
+  
 
         <Divider sx={{ my: 3 }} />
+          </Grid>
+
+<FastTextField
+  name="accionesPrimeraLinea"
+  fullWidth
+  multiline
+  required
+  rows={3}
+  label="Acciones realizadas"
+  value={formData.accionesPrimeraLinea}
+  onCommit={(name, value) =>
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+  version={version}
+/>
+
+</FormSection>
+
 
 {/* 5. Abuso Sexual */}
-<Typography variant="h6">5. Abuso Sexual</Typography>
+<FormSection title="5. Abuso Sexual">
 
 <Grid container spacing={2} sx={{ mt: 2 }}>
   {/* Abuso sexual simple */}
@@ -1267,282 +1550,393 @@ value={formData.derivacion.fecha_derivacion || ''}
     </Grid>
   )}
 
-  {/* Relación entre víctima y agresor */}
-  <Grid item xs={12}>
-    <Typography variant="subtitle1" sx={{ mt: 2 }}>
-      Relación entre la víctima y el presunto agresor:
-    </Typography>
-    <FormControl fullWidth>
-      <InputLabel>Relación</InputLabel>
-      <Select
-        value={formData.datosAbusoSexual.relacion}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            datosAbusoSexual: {
-              ...prev.datosAbusoSexual,
-              relacion: String(e.target.value),
-            },
-          }))
-        }
-      >
-        <MenuItem value="">Seleccione...</MenuItem>
-        <MenuItem value="Conocido">Conocido</MenuItem>
-        <MenuItem value="Desconocido">Desconocido</MenuItem>
-        <MenuItem value="Familiar">Familiar</MenuItem>
-        <MenuItem value="Pareja">Pareja</MenuItem>
-        <MenuItem value="Otro">Otro</MenuItem>
-      </Select>
-    </FormControl>
-  </Grid>
-
-  {/* Campo adicional cuando elige "Otro" en relación */}
-  {formData.datosAbusoSexual.relacion === 'Otro' && (
+{(formData.abusoSexual.simple || formData.abusoSexual.agravado) && (
+  <>
+    {/* Relación entre víctima y agresor */}
     <Grid item xs={12}>
-      <TextField
-        fullWidth
-        label="Especifique relación"
-        value={formData.datosAbusoSexual.relacionOtro}
-        onChange={handleChange('datosAbusoSexual.relacionOtro')}
-      />
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Relación entre la víctima y el presunto agresor:
+      </Typography>
+      <FormControl fullWidth>
+        <InputLabel>Relación</InputLabel>
+        <Select
+          value={formData.datosAbusoSexual.relacion}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              datosAbusoSexual: {
+                ...prev.datosAbusoSexual,
+                relacion: String(e.target.value),
+              },
+            }))
+          }
+        >
+          <MenuItem value="">Seleccione...</MenuItem>
+          <MenuItem value="Conocido">Conocido</MenuItem>
+          <MenuItem value="Desconocido">Desconocido</MenuItem>
+          <MenuItem value="Familiar">Familiar</MenuItem>
+          <MenuItem value="Pareja">Pareja</MenuItem>
+          <MenuItem value="Otro">Otro</MenuItem>
+        </Select>
+      </FormControl>
     </Grid>
-  )}
 
-  {/* Tipo del lugar del hecho */}
-  <Grid item xs={12}>
-    <Typography variant="subtitle1" sx={{ mt: 2 }}>
-      Tipo del lugar del hecho:
-    </Typography>
-    <FormControl fullWidth>
-      <InputLabel>Seleccione lugar</InputLabel>
-      <Select
-        value={formData.datosAbusoSexual.lugarHecho}
-        onChange={(e) =>
-          setFormData((prev) => ({
-            ...prev,
-            datosAbusoSexual: {
-              ...prev.datosAbusoSexual,
-              lugarHecho: String(e.target.value),
-            },
-          }))
-        }
-      >
-        <MenuItem value="">Seleccione...</MenuItem>
-        <MenuItem value="Institución">Institución</MenuItem>
-        <MenuItem value="Vía pública">Vía Pública</MenuItem>
-        <MenuItem value="Domicilio particular">Dom. Particular</MenuItem>
-        <MenuItem value="Lugar de trabajo">Lugar de trabajo</MenuItem>
-        <MenuItem value="Otro">Otro</MenuItem>
-      </Select>
-    </FormControl>
-  </Grid>
+    {formData.datosAbusoSexual.relacion === 'Otro' && (
+      <Grid item xs={12}>
+        <FastTextField
+          name="datosAbusoSexual.relacionOtro"
+          fullWidth
+          label="Especifique relación"
+          value={formData.datosAbusoSexual.relacionOtro}
+          onCommit={(name, value) =>
+            setFormData((prev) => ({
+              ...prev,
+              datosAbusoSexual: {
+                ...prev.datosAbusoSexual,
+                relacionOtro: value
+              }
+            }))
+          }
+          version={version}
+        />
+      </Grid>
+    )}
+
+    {/* Tipo del lugar del hecho */}
+    <Grid item xs={12}>
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Tipo del lugar del hecho:
+      </Typography>
+      <FormControl fullWidth>
+        <InputLabel>Seleccione lugar</InputLabel>
+        <Select
+          value={formData.datosAbusoSexual.lugarHecho}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              datosAbusoSexual: {
+                ...prev.datosAbusoSexual,
+                lugarHecho: String(e.target.value),
+              },
+            }))
+          }
+        >
+          <MenuItem value="">Seleccione...</MenuItem>
+          <MenuItem value="Institución">Institución</MenuItem>
+          <MenuItem value="Vía pública">Vía Pública</MenuItem>
+          <MenuItem value="Domicilio particular">Dom. Particular</MenuItem>
+          <MenuItem value="Lugar de trabajo">Lugar de trabajo</MenuItem>
+          <MenuItem value="Otro">Otro</MenuItem>
+        </Select>
+      </FormControl>
+    </Grid>
+
+    {formData.datosAbusoSexual.lugarHecho === 'Otro' && (
+      <Grid item xs={12}>
+        <FastTextField
+          name="datosAbusoSexual.lugarOtro"
+          fullWidth
+          label="Especifique lugar"
+          value={formData.datosAbusoSexual.lugarOtro}
+          onCommit={(name, value) =>
+            setFormData((prev) => ({
+              ...prev,
+              datosAbusoSexual: {
+                ...prev.datosAbusoSexual,
+                lugarOtro: value
+              }
+            }))
+          }
+          version={version}
+        />
+      </Grid>
+    )}
+  </>
+)}
+
 
   {/* Campo adicional cuando elige "Otro" en lugar del hecho */}
   {formData.datosAbusoSexual.lugarHecho === 'Otro' && (
     <Grid item xs={12}>
-      <TextField
-        fullWidth
-        label="Especifique lugar"
-        value={formData.datosAbusoSexual.lugarOtro}
-        onChange={handleChange('datosAbusoSexual.lugarOtro')}
-      />
+ <FastTextField
+  name="datosAbusoSexual.lugarOtro"
+  fullWidth
+  label="Especifique lugar"
+  value={formData.datosAbusoSexual.lugarOtro}
+  onCommit={(name, value) =>
+    setFormData((prev) => ({
+      ...prev,
+      datosAbusoSexual: {
+        ...prev.datosAbusoSexual,
+        lugarOtro: value
+      }
+    }))
+  }
+  version={version}
+/>
+
     </Grid>
   )}
 </Grid>
+</FormSection>
 
 
 
 
 
      {/* 6. Víctima */}
-<Typography variant="h6">6. Víctima</Typography>
+<FormSection title="6. Datos de la Víctima">
 <Grid container spacing={2}>
     <Grid item xs={12} md={4}>
-    <TextField
-      fullWidth
-      label="DNI"
-      value={formData.victima.dni}
-      onChange={handleChange('victima.dni')}
-      inputProps={{
-        inputMode: 'numeric',     // Para mostrar teclado numérico en móviles
-        pattern: '[0-9]*',        // Patrón para solo números
-        maxLength: 8,             // Límite de dígitos (opcional)
-        onKeyDown: (e) => {
-          const allowedKeys = [
-            'Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'
-          ];
-          if (!/^[0-9]$/.test(e.key) && !allowedKeys.includes(e.key)) {
-            e.preventDefault(); // Bloquea todo excepto números y teclas permitidas
-          }
-        },
-        onInput: (e) => {
-          // Elimina cualquier caracter no numérico pegado
-          e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
-        }
-      }}
-    />
-  </Grid>
-
-
-  <Grid item xs={12} md={4}>
- <TextField
+<FastTextField
+  name="victima.dni"
   fullWidth
-  label="Nombre de la Víctima *"
-  value={formData.victima.nombre}
-  onChange={handleChange('victima.nombre')}
-  error={mostrarErrores && formData.victima.nombre.trim() === ""}
-  helperText={
-    mostrarErrores && formData.victima.nombre.trim() === ""
-      ? "El nombre de la víctima es obligatorio"
-      : ""
-  }
+  label="DNI"
+  value={formData.victima.dni}
+  onCommit={(name, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      victima: {
+        ...prev.victima,
+        dni: value,
+      },
+    }));
+
+    if (value.length >= 7 && formData.victima.genero !== 0) {
+      consultarRenaper(value, formData.victima.genero);
+    }
+  }}
+  version={version}
 />
 
 
   </Grid>
+
+
+ <Grid item xs={12} md={4}>
+  <FastTextField
+    name="victima.nombre"
+    fullWidth
+    label="Nombre de la Víctima *"
+    value={formData.victima.nombre}
+    onCommit={(name, value) =>
+      setFormData((prev) => ({
+        ...prev,
+        victima: {
+          ...prev.victima,
+          nombre: value,
+        },
+      }))
+    }
+    error={mostrarErrores && formData.victima.nombre.trim() === ''}
+    helperText={
+      mostrarErrores && formData.victima.nombre.trim() === ''
+        ? 'El nombre de la víctima es obligatorio'
+        : ''
+    }
+    InputLabelProps={{ shrink: true }}
+    version={version}
+  />
+</Grid>
+
+<Grid item xs={12} md={4}>
+  <FastTextField
+    name="victima.apellido"
+    fullWidth
+    label="Apellido de la Víctima *"
+    value={formData.victima.apellido}
+    onCommit={(name, value) =>
+      setFormData((prev) => ({
+        ...prev,
+        victima: {
+          ...prev.victima,
+          apellido: value,
+        },
+      }))
+    }
+    error={mostrarErrores && formData.victima.apellido.trim() === ''}
+    helperText={
+      mostrarErrores && formData.victima.apellido.trim() === ''
+        ? 'El apellido de la víctima es obligatorio'
+        : ''
+    }
+    InputLabelProps={{ shrink: true }}
+    version={version}
+  />
+</Grid>
+
+
+
   <Grid item xs={12} md={4}>
-<TextField
+<FastTextField
+  name="victima.cantidadVictimas"
   type="number"
   fullWidth
   label="Cantidad de víctimas *"
-  value={formData.victima.cantidadVictimas}
-  onChange={handleChange('victima.cantidadVictimas')}
+  value={formData.victima.cantidadVictimas.toString()}
+  onCommit={(name, value) =>
+    setFormData((prev) => ({
+      ...prev,
+      victima: {
+        ...prev.victima,
+        cantidadVictimas: parseInt(value, 10)
+      }
+    }))
+  }
   required
   inputProps={{ min: 1 }}
+  version={version}
 />
+
 
 
 
   </Grid>
  
 <Grid item xs={12} md={4}>
-  <TextField
-    label="Fecha de Nacimiento"
-    placeholder="dd/mm/aaaa"
-value={formData.victima.fechaNacimiento ? formData.victima.fechaNacimiento.split('T')[0] : ''}
-
-    fullWidth
-    InputLabelProps={{ shrink: true }}
-   error={!!formErrors['victima.fechaNacimiento']}
-helperText={formErrors['victima.fechaNacimiento'] || ''} // No mostrar si está vacío
-
-    inputProps={{
-      maxLength: 10,
-      inputMode: 'numeric',
-      onPaste: (e) => {
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '');
-        if (pasted.length > 8) {
-          e.preventDefault();
-        }
+<FastTextField
+  name="victima.fechaNacimiento"
+  label="Fecha de Nacimiento"
+  placeholder="dd/mm/aaaa"
+  value={fechaNacimientoInput} // controlás la vista con el input formateado
+  fullWidth
+  InputLabelProps={{ shrink: true }}
+  error={!!formErrors['victima.fechaNacimiento']}
+  helperText={formErrors['victima.fechaNacimiento'] || ''}
+  inputProps={{
+    maxLength: 10,
+    inputMode: 'numeric',
+    onPaste: (e) => {
+      const pasted = e.clipboardData.getData('text').replace(/\D/g, '');
+      if (pasted.length > 8) {
+        e.preventDefault();
       }
-    }}
-   
-    onChange={(e) => {
-  let raw = e.target.value.replace(/\D/g, '');
-  if (raw.length > 8) raw = raw.slice(0, 8);
-  
-  let formatted = raw;
-  if (raw.length >= 5) {
-    formatted = `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
-  } else if (raw.length >= 3) {
-    formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
-  }
+    }
+  }}
+  onCommit={(name, nextValue) => {
+    let raw = nextValue.replace(/\D/g, '');
+    if (raw.length > 8) raw = raw.slice(0, 8);
 
-  setFechaNacimientoInput(formatted);
+    let formatted = raw;
+    if (raw.length >= 5) {
+      formatted = `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
+    } else if (raw.length >= 3) {
+      formatted = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+    }
 
-  if (formatted === '') {
-    setFormErrors(prev => {
-      const copy = { ...prev };
-      delete copy['victima.fechaNacimiento'];
-      return copy;
-    });
-    setFormData(prev => ({
-      ...prev,
-      victima: {
-        ...prev.victima,
-        fechaNacimiento: ''
-      }
-    }));
-    return;
-  }
+    setFechaNacimientoInput(formatted);
 
-  if (formatted.length === 10) {
-    const [dd, mm, yyyy] = formatted.split('/');
-    const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-    const date = new Date(iso);
-    const minDate = new Date('1900-01-01');
-    const today = new Date();
-
-    if (isNaN(date.getTime()) || date < minDate || date > today) {
-      setFormErrors(prev => ({
-        ...prev,
-        'victima.fechaNacimiento': 'Fecha fuera de rango o inválida',
-      }));
+    if (formatted === '') {
+      setFormErrors(prev => {
+        const copy = { ...prev };
+        delete copy['victima.fechaNacimiento'];
+        return copy;
+      });
       setFormData(prev => ({
         ...prev,
-        victima: {
-          ...prev.victima,
-          fechaNacimiento: '',
-        },
+        victima: { ...prev.victima, fechaNacimiento: '' }
       }));
       return;
     }
 
-    setFormErrors(prev => {
-      const copy = { ...prev };
-      delete copy['victima.fechaNacimiento'];
-      return copy;
-    });
-    setFormData(prev => ({
-      ...prev,
-      victima: {
-        ...prev.victima,
-        fechaNacimiento: iso,
-      },
-    }));
-  } else {
-    setFormErrors(prev => {
-      const copy = { ...prev };
-      delete copy['victima.fechaNacimiento'];
-      return copy;
-    });
-  }
-}}
+    if (formatted.length === 10) {
+      const [dd, mm, yyyy] = formatted.split('/');
+      const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      const date = new Date(iso);
+      const minDate = new Date('1900-01-01');
+      const today = new Date();
 
+      if (isNaN(date.getTime()) || date < minDate || date > today) {
+        setFormErrors(prev => ({
+          ...prev,
+          'victima.fechaNacimiento': 'Fecha fuera de rango o inválida',
+        }));
+        setFormData(prev => ({
+          ...prev,
+          victima: { ...prev.victima, fechaNacimiento: '' }
+        }));
+        return;
+      }
+
+      setFormErrors(prev => {
+        const copy = { ...prev };
+        delete copy['victima.fechaNacimiento'];
+        return copy;
+      });
+      setFormData(prev => ({
+        ...prev,
+        victima: { ...prev.victima, fechaNacimiento: iso }
+      }));
+    } else {
+      setFormErrors(prev => {
+        const copy = { ...prev };
+        delete copy['victima.fechaNacimiento'];
+        return copy;
+      });
+    }
+  }}
+  version={version}
+/>
+
+</Grid>
+
+  <Grid item xs={12} md={4}>
+<FormControl fullWidth>
+  <InputLabel id="genero-select-label">Seleccioná un género</InputLabel>
+  <Select
+    labelId="genero-select-label"
+    label="Seleccioná un género"
+    value={formData.victima.genero === 0 ? "" : formData.victima.genero}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        victima: {
+          ...prev.victima,
+          genero: Number(e.target.value),
+        },
+      }))
+    }
+  >
+
+                 <MenuItem value={1}>Masculino</MenuItem>
+                 <MenuItem value={2}>Femenino</MenuItem>
+                 <MenuItem value={3}>No binario</MenuItem>
+                 <MenuItem value={4}>Agénero</MenuItem>
+                 <MenuItem value={5}>Género fluido</MenuItem>
+                 <MenuItem value={6}>Bigénero</MenuItem>
+                 <MenuItem value={7}>Transgénero</MenuItem>
+                 <MenuItem value={8}>Mujer trans</MenuItem>
+                 <MenuItem value={9}>Hombre trans</MenuItem>
+                 <MenuItem value={10}>Intergénero</MenuItem>
+                 <MenuItem value={11}>Intersex</MenuItem>
+                 <MenuItem value={12}>Otro</MenuItem>
+                 <MenuItem value={13}>Prefiero no decirlo</MenuItem>
+               </Select>
+             </FormControl>
+</Grid>
+
+<Grid item xs={12} md={4}>
+  <FastTextField
+    fullWidth
+    label="Teléfono"
+    name="victima.telefono"
+    value={formData.victima.telefono ?? ''}
+    onCommit={handleCommit}
+    version={version}
   />
 </Grid>
 
-  <Grid item xs={12} md={4}>
-  <FormControl fullWidth>
-    <InputLabel>Género</InputLabel>
-    <Select
-      value={formData.victima.genero || ''}
-      onChange={(e) =>
-        setFormData(prev => ({
-          ...prev,
-          victima: { ...prev.victima, genero: Number(e.target.value) }
-        }))
-      }
-    >
-      <MenuItem value={1}>Masculino</MenuItem>
-      <MenuItem value={2}>Femenino</MenuItem>
-      <MenuItem value={3}>Otro</MenuItem>
-    </Select>
-  </FormControl>
+<Grid item xs={12} md={4}>
+  <FastTextField
+    fullWidth
+    label="Ocupación"
+    name="victima.ocupacion"
+    value={formData.victima.ocupacion}
+    onCommit={handleCommit}
+    version={version}
+  />
 </Grid>
 
-  <Grid item xs={12} md={4}>
-    <TextField fullWidth label="Teléfono"
-     value={formData.victima.telefono ?? ''}
-      onChange={handleChange('victima.telefono')}
-    />
-  </Grid>
-  <Grid item xs={12} md={4}>
-    <TextField fullWidth label="Ocupación"
-      value={formData.victima.ocupacion}
-      onChange={handleChange('victima.ocupacion')}
-    />
-  </Grid>
   <Grid item xs={12} md={6}>
   <FormControl fullWidth>
   <InputLabel>Departamento</InputLabel>
@@ -1600,76 +1994,117 @@ helperText={formErrors['victima.fechaNacimiento'] || ''} // No mostrar si está 
           ))}
       </Select>
     </FormControl>
+
+    
   </Grid>
+  <Grid item xs={12} md={6}>
+  <FastTextField
+    fullWidth
+    label="Calle y Número"
+    name="victima.direccion.calleNro"
+    value={formData.victima.direccion.calleNro}
+    onCommit={handleCommit}
+    version={version}
+  />
 </Grid>
 
-<Typography variant="subtitle1" sx={{ mt: 3 }}>
-  Persona Entrevistada
+<Grid item xs={12} md={6}>
+  <FastTextField
+    fullWidth
+    label="Barrio"
+    name="victima.direccion.barrio"
+    value={formData.victima.direccion.barrio}
+    onCommit={handleCommit}
+    version={version}
+  />
+</Grid>
+
+</Grid>
+
+  <Divider sx={{ my: 3 }} />
+
+      <Typography variant="subtitle2" sx={{ mb: 2, color: "text.secondary" }}>
+  Persona entrevistada
 </Typography>
+
 <Grid container spacing={2}>
   <Grid item xs={12} md={6}>
-<TextField
-  fullWidth
-  label="Nombre y Apellido de la Persona Entrevistada (opcional)"
-  value={formData.personaEntrevistada.nombre}
-  onChange={handleChange('personaEntrevistada.nombre')}
-/>
-
-
-  </Grid>
-  <Grid item xs={12} md={6}>
-    <TextField fullWidth label="Relación con la víctima"
-      value={formData.personaEntrevistada.relacionVictima}
-      onChange={handleChange('personaEntrevistada.relacionVictima')}
+    <FastTextField
+      fullWidth
+      name="personaEntrevistada.nombre"
+      label="Nombre de la Persona Entrevistada (opcional)"
+      value={formData.personaEntrevistada.nombre}
+      onCommit={handleCommit}
+      version={version}
     />
   </Grid>
+
   <Grid item xs={12} md={6}>
-  <TextField
-  fullWidth
-  label="Calle y Nro / Barrio / Lugar"
-  value={formData.personaEntrevistada.direccion.calleNro}
-  onChange={handleChange('personaEntrevistada.direccion.calleNro')}
-/>
-
-
+    <FastTextField
+      fullWidth
+      name="personaEntrevistada.apellido"
+      label="Apellido de la Persona Entrevistada"
+      value={formData.personaEntrevistada.apellido}
+      onCommit={handleCommit}
+      version={version}
+    />
   </Grid>
+
+  <Grid item xs={12} md={6}>
+    <FastTextField
+      fullWidth
+      name="personaEntrevistada.relacionVictima"
+      label="Relación con la víctima"
+      value={formData.personaEntrevistada.relacionVictima}
+      onCommit={handleCommit}
+      version={version}
+    />
+  </Grid>
+
+  <Grid item xs={12} md={6}>
+    <FastTextField
+      fullWidth
+      name="personaEntrevistada.direccion.calleNro"
+      label="Calle y Nro / Barrio / Lugar"
+      value={formData.personaEntrevistada.direccion.calleNro}
+      onCommit={handleCommit}
+      version={version}
+    />
+  </Grid>
+
   <Grid item xs={12} md={3}>
- <FormControl fullWidth>
-  <InputLabel>Departamento</InputLabel>
- <Select
- value={formData.personaEntrevistada.direccion.departamento ?? ''}
-
-  onChange={(e) =>
-    setFormData(prev => ({
-      ...prev,
-      personaEntrevistada: {
-        ...prev.personaEntrevistada,
-        direccion: {
-          ...prev.personaEntrevistada.direccion,
-          departamento: Number(e.target.value), // ✅ Correcto
-          localidad: 0 // ✅ Resetear localidad cuando cambia departamento
+    <FormControl fullWidth>
+      <InputLabel>Departamento</InputLabel>
+      <Select
+        value={formData.personaEntrevistada.direccion.departamento ?? ''}
+        onChange={(e) =>
+          setFormData(prev => ({
+            ...prev,
+            personaEntrevistada: {
+              ...prev.personaEntrevistada,
+              direccion: {
+                ...prev.personaEntrevistada.direccion,
+                departamento: Number(e.target.value),
+                localidad: 0,
+              }
+            }
+          }))
         }
-      }
-    }))
-  }
->
-
-    {departamentos.map(dep => (
-      <MenuItem key={dep.id} value={Number(dep.id)}>
-        {dep.nombre}
-      </MenuItem>
-    ))}
-  </Select>
-</FormControl>
-
+      >
+        {departamentos.map(dep => (
+          <MenuItem key={dep.id} value={Number(dep.id)}>
+            {dep.nombre}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   </Grid>
+
   <Grid item xs={12} md={3}>
     <FormControl fullWidth>
       <InputLabel>Localidad</InputLabel>
       <Select
-value={formData.personaEntrevistada.direccion.localidad ?? ''}
-
-
+        value={formData.personaEntrevistada.direccion.localidad ?? ''}
         onChange={(e) =>
           setFormData(prev => ({
             ...prev,
@@ -1694,6 +2129,9 @@ value={formData.personaEntrevistada.direccion.localidad ?? ''}
     </FormControl>
   </Grid>
 </Grid>
+ 
+</FormSection>
+
 
 <Divider sx={{ my: 3 }} />
 
@@ -1705,9 +2143,7 @@ value={formData.personaEntrevistada.direccion.localidad ?? ''}
   error={mostrarErrores && !Object.values(formData.tipoIntervencion).some(v => v === true)}
   sx={{ width: '100%', mt: 2 }}
 >
-  <Typography variant="h6">
-    7. Tipo de Intervención <span style={{ color: 'red' }}>*</span>
-  </Typography>
+<FormSection title="7. Tipo de Intervención">
 
   {/* Checkboxes */}
   <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -1727,6 +2163,8 @@ value={formData.personaEntrevistada.direccion.localidad ?? ''}
       </Grid>
     ))}
   </Grid>
+  </FormSection>
+
 
   {/* Error mensaje si no se marca ningún checkbox */}
   <FormHelperText>
@@ -1737,14 +2175,16 @@ value={formData.personaEntrevistada.direccion.localidad ?? ''}
 </FormControl>
 
 {/* Detalle obligatorio */}
-<TextField
+<FastTextField
   fullWidth
   multiline
   rows={3}
   sx={{ mt: 3 }}
-  label="Detalle de la Intervención *"  // ✅ Nombre correcto
-  value={formData.detalleIntervencion}  // ✅ Usar estado correcto
-  onChange={handleChange('detalleIntervencion')}
+  name="detalleIntervencion"
+  label="Detalle de la Intervención *"
+  value={formData.detalleIntervencion}
+  onCommit={handleCommit}
+  version={version}
   error={mostrarErrores && formData.detalleIntervencion.trim() === ""}
   helperText={
     mostrarErrores && formData.detalleIntervencion.trim() === ""
@@ -1754,84 +2194,91 @@ value={formData.personaEntrevistada.direccion.localidad ?? ''}
 />
 
 
+
 <Divider sx={{ my: 3 }} />
 
-{/* 8. Seguimiento */}
-<Typography variant="h6">8. Seguimiento</Typography>
+{/* . Seguimiento */}
+<FormSection title="7.1 Seguimiento">
+  <Grid container spacing={2}>
+  
 
-<FormControl
-  error={mostrarErrores && formData.seguimiento.realizado === null}
-  sx={{ mt: 2 }}
->
-  <Typography>¿Se realizó seguimiento? *</Typography>
-  <RadioGroup
-    row
-    value={
-      formData.seguimiento.realizado === null
-        ? ''
-        : formData.seguimiento.realizado
-        ? 'si'
-        : 'no'
-    }
-    onChange={(e) =>
-      setFormData((prev) => ({
-        ...prev,
-        seguimiento: {
-          ...prev.seguimiento,
-          realizado: e.target.value === 'si',
-          tipo:
-            e.target.value === 'no'
-              ? {
-                  asesoramientoLegal: false,
-                  tratamientoPsicologico: false,
-                  seguimientoLegal: false,
-                  archivoCaso: false,
-                }
-              : prev.seguimiento.tipo,
-        },
-      }))
-    }
-  >
-    <FormControlLabel value="si" control={<Radio />} label="Sí" />
-    <FormControlLabel value="no" control={<Radio />} label="No" />
-  </RadioGroup>
-  <FormHelperText>
-    {mostrarErrores && formData.seguimiento.realizado === null
-      ? 'Debe seleccionar una opción'
-      : ''}
-  </FormHelperText>
-</FormControl>
+    <Grid item xs={12}>
+      <FormControl
+        error={mostrarErrores && formData.seguimiento.realizado === null}
+        sx={{ mt: 2 }}
+      >
+        <Typography sx={{ mb: 1 }}>¿Se realizó seguimiento? *</Typography>
+        <RadioGroup
+          row
+          value={
+            formData.seguimiento.realizado === null
+              ? ''
+              : formData.seguimiento.realizado
+              ? 'si'
+              : 'no'
+          }
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              seguimiento: {
+                ...prev.seguimiento,
+                realizado: e.target.value === 'si',
+                tipo:
+                  e.target.value === 'no'
+                    ? {
+                        asesoramientoLegal: false,
+                        tratamientoPsicologico: false,
+                        seguimientoLegal: false,
+                        archivoCaso: false,
+                      }
+                    : prev.seguimiento.tipo,
+              },
+            }))
+          }
+        >
+          <FormControlLabel value="si" control={<Radio />} label="Sí" />
+          <FormControlLabel value="no" control={<Radio />} label="No" />
+        </RadioGroup>
+        <FormHelperText>
+          {mostrarErrores && formData.seguimiento.realizado === null
+            ? 'Debe seleccionar una opción'
+            : ''}
+        </FormHelperText>
+      </FormControl>
+    </Grid>
 
+    {formData.seguimiento.realizado && (
+      <>
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" sx={{ mt: 2 }}>
+            Tipos de seguimiento
+          </Typography>
+        </Grid>
 
-
-{/* Si la respuesta es "Sí", mostrar los tipos de seguimiento */}
-{formData.seguimiento.realizado && (
-  <Grid container spacing={2} sx={{ mt: 2 }}>
-    <Typography variant="subtitle1" sx={{ mb: 2, ml: 1 }}>
-      Tipos de seguimiento
-    </Typography>
-
-    {Object.entries(formData.seguimiento.tipo).map(([key, value]) => (
-      <Grid item xs={6} md={3} key={key}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={value}
-              onChange={handleChange(`seguimiento.tipo.${key}`)}
+        {Object.entries(formData.seguimiento.tipo).map(([key, value]) => (
+          <Grid item xs={6} md={3} key={key}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={value}
+                  onChange={handleChange(`seguimiento.tipo.${key}`)}
+                />
+              }
+              label={
+                key === 'archivoCaso'
+                  ? 'Archivo del Caso'
+                  : key
+                      .replace(/([A-Z])/g, ' $1')
+                      .replace(/^./, (str) => str.toUpperCase())
+              }
             />
-          }
-          label={
-            key === 'archivoCaso'
-              ? 'Archivo'
-              : key
-                  .replace(/([A-Z])/g, ' $1') // Separar palabras por mayúsculas
-                  .replace(/^./, (str) => str.toUpperCase()) // Capitalizar primera letra
-          }
-        />
-      </Grid>
-    ))}
+          </Grid>
+        ))}
+      </>
+    )}
   </Grid>
-)}
+</FormSection>
+
 
         <Box textAlign="center" mt={5}>
           <Button variant="contained" color="primary" size="large" onClick={handleSubmit}>

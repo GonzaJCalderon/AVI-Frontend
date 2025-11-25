@@ -3,7 +3,9 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import EditarFormularioVictima from '@/components/EditarFormularioVictima';
-import { IntervencionItem, obtenerIntervencionPorId } from '@/services/intervenciones';
+import { obtenerIntervencionPorId } from '@/services/intervenciones';
+import { IntervencionItem } from '@/types/intervencion'; // ✅
+
 
 import { CircularProgress, Box, Alert } from '@mui/material';
 

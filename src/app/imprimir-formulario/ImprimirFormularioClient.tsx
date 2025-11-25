@@ -2,7 +2,8 @@
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { obtenerIntervencionPorId } from '@/services/intervenciones'
-import type { IntervencionItem as IntervencionData } from '@/services/intervenciones'
+import type { IntervencionItem as IntervencionData } from '@/types/intervencion'
+
 import { Button, Stack } from '@mui/material'
 import PrintIcon from '@mui/icons-material/Print'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -161,22 +162,25 @@ useEffect(() => {
   }
 }, [data]); 
 
-// Función para extraer hora soportando "T" o espacio
-const extractTime = (dateString?: string | null) => {
+// ✅ Función mejorada para extraer hora
+const extractTime = (dateString?: string | null): string => {
   if (!dateString || typeof dateString !== 'string') return '';
   
-  // Si viene como "2025-11-05T14:30:00" usa 'T', si viene como SQL usa ' '
+  // Si ya viene solo como hora (HH:MM o HH:MM:SS)
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(dateString.trim())) {
+    return dateString.substring(0, 5); // Solo HH:MM
+  }
+  
+  // Si viene como "2025-11-05T14:30:00" o "2025-11-05 14:30:00"
   const separator = dateString.includes('T') ? 'T' : ' ';
   const parts = dateString.split(separator);
 
-  // Si tenemos la parte de la hora, devolvemos los primeros 5 carácteres (HH:MM)
-  if (parts.length > 1) {
-    return parts[1].substring(0, 5);
+  if (parts.length > 1 && parts[1]) {
+    return parts[1].substring(0, 5); // Solo HH:MM
   }
   
   return '';
 };
-
 const formatDate = (date?: string | null) => {
   if (!date || typeof date !== 'string' || !date.includes('-')) return '';
 
@@ -337,11 +341,24 @@ const partesNombre = nombreCompleto.split(' ');
     ),
     '{{FECHA_HECHO}}': formatDate(d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha),
   '{{HORA_HECHO}}': (() => {
-  const fecha = d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha;
-  if (!fecha) return '';
-  const partes = fecha.split(' ');
-  return partes[1] ? partes[1].slice(0, 5) : '';
-})(),
+      // 1. Prioridad: Si hay campo "hora" explícito, usarlo
+      const horaExplicita = d?.hechos_delictivos?.[0]?.geo?.[0]?.hora;
+      if (horaExplicita) {
+        return horaExplicita.substring(0, 5);
+      }
+      
+      // 2. Si no, extraer de la fecha completa
+      const fechaCompleta = d?.hechos_delictivos?.[0]?.geo?.[0]?.fecha;
+      return extractTime(fechaCompleta);
+    })(),
+
+
+
+
+
+
+
+
 
 
 

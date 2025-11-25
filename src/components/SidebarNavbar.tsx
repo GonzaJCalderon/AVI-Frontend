@@ -79,7 +79,41 @@ export default function SidebarNavbar() {
 
   // Redirigir a login
   router.push('/login')
-}
+} 
+
+const handleImprimirFormularioPDF = () => {
+  const win = window.open('/formulario.pdf', '_blank');
+
+  if (!win) {
+    alert('No se pudo abrir el formulario');
+    return;
+  }
+
+  const checkIfStylesLoadedAndPrint = () => {
+    const stylesheets = win.document.styleSheets;
+    const stylesLoaded = Array.from(stylesheets).some(sheet => {
+      try {
+        return sheet.cssRules.length > 0;
+      } catch (e) {
+        return false;
+      }
+    });
+
+    if (stylesLoaded) {
+      setTimeout(() => {
+        win.print();
+      }, 300); // espera un poco más por seguridad
+    } else {
+      setTimeout(checkIfStylesLoadedAndPrint, 100); // intenta nuevamente en 100ms
+    }
+  };
+
+  win.onload = () => {
+    checkIfStylesLoadedAndPrint();
+  };
+};
+
+
 
   const navItems = [
     { label: 'Inicio', icon: <HomeIcon />, path: '/inicio' },
@@ -129,15 +163,10 @@ export default function SidebarNavbar() {
             button
             key={item.label}
             onClick={() => {
-              if (item.action === 'imprimir-pdf') {
-                const win = window.open(item.path, '_blank')
-                if (win) {
-                  win.focus()
-                  win.onload = () => {
-                    setTimeout(() => win.print(), 500)
-                  }
-                }
-              } else {
+             if (item.action === 'imprimir-pdf') {
+  handleImprimirFormularioPDF()
+}
+else {
                 router.push(item.path)
               }
               if (isMobile) setMobileOpen(false)

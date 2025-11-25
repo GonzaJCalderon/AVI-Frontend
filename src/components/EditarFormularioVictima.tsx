@@ -630,7 +630,23 @@ const EditarFormularioVictima: React.FC<Props> = ({ selected }) => {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+  const [intervenciones, setIntervenciones] = useState<IntervencionItem[]>([]);
+
+useEffect(() => {
+  const fetchIntervenciones = async () => {
+    try {
+      const data = await listarIntervenciones();
+      console.log("📦 Intervenciones cargadas:", data); // 🧪 Agregado
+      setIntervenciones(data);
+    } catch (error) {
+      console.error("Error al cargar las intervenciones:", error);
+    }
+  };
+
+  fetchIntervenciones();
+}, []);
+
+
   const [departamentos, setDepartamentos] = useState<
     Array<{
       id: string;
@@ -821,88 +837,71 @@ useEffect(() => {
     );
   }
 
-  const validarFormulario = async (): Promise<string[]> => {
+const validarFormulario = (): string[] => {
   const nuevosErrores: string[] = [];
 
-  // 1️⃣ Coordinador obligatorio
-  if (!f.coordinador.trim()) {
-    nuevosErrores.push("El nombre y apellido del coordinador es obligatorio");
+  if (!f.nroExpediente.trim()) {
+    nuevosErrores.push("El número de expediente es obligatorio");
   }
+const expedienteActual = f.nroExpediente.trim().toLowerCase();
 
-  // 2️⃣ Tipo de delito
-  if (
-    !f.robo &&
-    !f.roboArmaFuego &&
-    !f.roboArmaBlanca &&
-    !f.amenazas &&
-    !f.lesiones &&
-    !f.lesionesArmaFuego &&
-    !f.lesionesArmaBlanca &&
-    !f.homicidioDelito &&
-    !f.homicidioAccidenteVial &&
-    !f.homicidioAvHecho &&
-    !f.femicidio &&
-    !f.transfemicidio &&
-    !f.violenciaGenero &&
-    !f.otros
-  ) {
-    nuevosErrores.push("Debe marcar al menos un tipo de delito");
-  }
+const expedienteDuplicado = intervenciones.some((i) => {
+  if (String(i.id) === String(selected.id)) return false;
 
-  // 3️⃣ Ubicación geográfica
-  if (!f.calleBarrioHecho.trim()) {
-    nuevosErrores.push("La ubicación geográfica del hecho es obligatoria");
-  }
+  const hechos = i.hechos_delictivos ?? [];
 
-  // 4️⃣ Departamento de la ubicación
-  if (!f.departamentoHecho || Number(f.departamentoHecho) === 0) {
-    nuevosErrores.push("Debe seleccionar un departamento para el hecho");
-  }
-
-  // 5️⃣ Fecha del hecho
-  if (!f.fechaHecho) {
-    nuevosErrores.push("La fecha del hecho es obligatoria");
-  }
-
-  // 6️⃣ Acciones en primera línea
-  if (!f.accionesPrimeraLinea.trim()) {
-    nuevosErrores.push("Debe detallar las acciones realizadas en primera línea");
-  }
-
-  // 7️⃣ Nombre víctima
-  if (!f.nombreVictima.trim()) {
-    nuevosErrores.push("El nombre de la víctima es obligatorio");
-  }
-
-  // 8️⃣ Verificar si ya existe una intervención con el mismo número de expediente
-  try {
-    const intervenciones = await listarIntervenciones();
-
-    const expedienteActual = f.nroExpediente.trim().toLowerCase();
-    const dniActual = f.dni.trim();
-
-  const expedienteDuplicado = intervenciones.some((i) => {
-  if (i.id === selected.id) return false;
-  return i.hechos_delictivos?.some(
-    (hd) => (hd.expediente?.trim().toLowerCase() || "") === expedienteActual
-  );
+  return hechos.some((hd) => {
+    const expedienteBD = (hd?.expediente ?? "").trim().toLowerCase();
+    return expedienteBD === expedienteActual;
+  });
 });
 
-if (expedienteDuplicado) {
-  nuevosErrores.push("Ya existe una intervención con el mismo número de expediente");
+
+  if (expedienteDuplicado) {
+    nuevosErrores.push(
+      "Ya existe una intervención con el mismo número de expediente"
+    );
+  }
+
+ if (!f.fechaHecho) {
+  nuevosErrores.push("La fecha del hecho es obligatoria");
+}
+
+if (!f.horaHecho) {
+  nuevosErrores.push("La hora del hecho es obligatoria");
+}
+
+if (!f.calleBarrioHecho.trim()) {
+  nuevosErrores.push("La calle o barrio es obligatorio");
+}
+
+if (!f.departamentoHecho) {
+  nuevosErrores.push("El departamento es obligatorio");
+}
+
+if (!f.localidadHecho) {
+  nuevosErrores.push("La localidad es obligatoria");
+}
+
+if (!f.nroAgresores || parseInt(f.nroAgresores) < 1) {
+  nuevosErrores.push("Debe haber al menos un agresor");
+}
+
+// Acá podés validar si al menos un tipo de hecho fue marcado:
+const hayAlgunHecho =
+  f.robo || f.roboArmaFuego || f.roboArmaBlanca ||
+  f.amenazas || f.lesiones || f.lesionesArmaFuego ||
+  f.lesionesArmaBlanca || f.homicidioDelito ||
+  f.homicidioAccidenteVial || f.homicidioAvHecho ||
+  f.femicidio || f.transfemicidio || f.violenciaGenero || f.otros;
+
+if (!hayAlgunHecho) {
+  nuevosErrores.push("Debe seleccionar al menos un tipo de hecho delictivo");
 }
 
 
-  
-
-  } catch (error) {
-    nuevosErrores.push("Error al verificar duplicados de expediente");
-    console.error("❌ Error verificando duplicados:", error);
-  }
-
   return nuevosErrores;
 };
-
 
   // Guardar cambios
 // Guardar cambios - VERSIÓN CORREGIDA
@@ -1651,78 +1650,78 @@ const handleGuardarCambios = async () => {
     </FormControl>
   </Grid>
 )}
+{(f.abusoSexualSimple || f.abusoSexualAgravado) && (
+  <>
+    {/* Relación con el agresor */}
+    <Grid item xs={12}>
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Relación entre la víctima y el presunto agresor:
+      </Typography>
+      <FormControl fullWidth>
+        <InputLabel>Relación</InputLabel>
+        <Select
+          value={f.relacionAgresor}
+          onChange={(e) => forceCommit("relacionAgresor", e.target.value)}
+        >
+          <MenuItem value="">Seleccione...</MenuItem>
+          <MenuItem value="Conocido">Conocido</MenuItem>
+          <MenuItem value="Desconocido">Desconocido</MenuItem>
+          <MenuItem value="Familiar">Familiar</MenuItem>
+          <MenuItem value="Pareja">Pareja</MenuItem>
+          <MenuItem value="Otro">Otro</MenuItem>
+        </Select>
+      </FormControl>
+    </Grid>
 
-        {/* Relación con el agresor */}
-        <Grid item xs={12}>
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Relación entre la víctima y el presunto agresor:
-          </Typography>
-          <FormControl fullWidth>
-            <InputLabel>Relación</InputLabel>
-            <Select
-              value={f.relacionAgresor}
-              onChange={(e) => forceCommit("relacionAgresor", e.target.value)}
-            >
-              <MenuItem value="">Seleccione...</MenuItem>
-              <MenuItem value="Conocido">Conocido</MenuItem>
-              <MenuItem value="Desconocido">Desconocido</MenuItem>
-              <MenuItem value="Familiar">Familiar</MenuItem>
-              <MenuItem value="Pareja">Pareja</MenuItem>
-              <MenuItem value="Otro">Otro</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
+    {f.relacionAgresor === "Otro" && (
+      <Grid item xs={12}>
+        <FastTextField
+          name="otroRelacion"
+          label="Especifique relación"
+          fullWidth
+          value={f.otroRelacion}
+          onCommit={commit}
+          version={version}
+        />
+      </Grid>
+    )}
 
-        {/* Campo adicional cuando elige "Otro" */}
-        {f.relacionAgresor === "Otro" && (
-          <Grid item xs={12}>
-            <FastTextField
-              name="otroRelacion"
-              label="Especifique relación"
-              fullWidth
-              value={f.otroRelacion}
-              onCommit={commit}
-              version={version}
-            />
-          </Grid>
-        )}
+    {/* Tipo del lugar del hecho */}
+    <Grid item xs={12}>
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Tipo del lugar del hecho:
+      </Typography>
+      <FormControl fullWidth>
+        <InputLabel>Seleccione lugar</InputLabel>
+        <Select
+          value={f.tipoLugar}
+          onChange={(e) => forceCommit("tipoLugar", e.target.value)}
+        >
+          <MenuItem value="">Seleccione...</MenuItem>
+          <MenuItem value="Institución">Institución</MenuItem>
+          <MenuItem value="Vía Pública">Vía Pública</MenuItem>
+          <MenuItem value="Domicilio Particular">Domicilio Particular</MenuItem>
+          <MenuItem value="Lugar de Trabajo">Lugar de Trabajo</MenuItem>
+          <MenuItem value="Otro">Otro</MenuItem>
+        </Select>
+      </FormControl>
+    </Grid>
 
-        {/* Tipo del lugar del hecho */}
-        <Grid item xs={12}>
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>
-            Tipo del lugar del hecho:
-          </Typography>
-          <FormControl fullWidth>
-            <InputLabel>Seleccione lugar</InputLabel>
-            <Select
-              value={f.tipoLugar}
-              onChange={(e) => forceCommit("tipoLugar", e.target.value)}
-            >
-              <MenuItem value="">Seleccione...</MenuItem>
-              <MenuItem value="Institución">Institución</MenuItem>
-              <MenuItem value="Vía pública">Vía Pública</MenuItem>
-              <MenuItem value="Domicilio particular">
-                Domicilio Particular
-              </MenuItem>
-              <MenuItem value="Lugar de trabajo">Lugar de trabajo</MenuItem>
-              <MenuItem value="Otro">Otro</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
+    {f.tipoLugar === "Otro" && (
+      <Grid item xs={12}>
+        <FastTextField
+          name="otroLugar"
+          label="Especifique lugar"
+          fullWidth
+          value={f.otroLugar}
+          onCommit={commit}
+          version={version}
+        />
+      </Grid>
+    )}
+  </>
+)}
 
-        {/* Campo adicional cuando elige "Otro" en lugar */}
-        {f.tipoLugar === "Otro" && (
-          <Grid item xs={12}>
-            <FastTextField
-              name="otroLugar"
-              label="Especifique lugar"
-              fullWidth
-              value={f.otroLugar}
-              onCommit={commit}
-              version={version}
-            />
-          </Grid>
-        )}
       </Grid>
        </Paper>
 
@@ -2037,6 +2036,24 @@ const handleGuardarCambios = async () => {
         </Grid>
       </Paper>
 
+         {/*. Detalle de la Intervención */}
+<Paper sx={{ p: 3, mb: 3 }}>
+  <Typography variant="h6" gutterBottom>
+     Detalle de la Intervención
+  </Typography>
+  <FastTextField
+    name="detalleSeguimiento"
+    label="Detalle de la intervención"
+    fullWidth
+    multiline
+    rows={3}
+    value={f.detalleSeguimiento}
+    onCommit={commit}
+    version={version}
+  />
+</Paper>
+
+
       {/* 7.1 Seguimiento */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
@@ -2093,111 +2110,9 @@ const handleGuardarCambios = async () => {
       </Paper>
 
 
-      {/* 7. Tipo de intervención */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          7. Tipo de Intervención
-        </Typography>
-        <Grid container spacing={1}>
-          {(
-            [
-              ["crisis", "Intervención en Crisis"],
-              ["telefonica", "Intervención Telefónica"],
-              ["domiciliaria", "Intervención Domiciliaria"],
-              ["psicologica", "Intervención Psicológica"],
-              ["medica", "Intervención Médica"],
-              ["social", "Intervención Social"],
-              ["legal", "Intervención Legal"],
-              ["sinIntervencion", "Sin Intervención"],
-              ["archivoCaso", "Archivo del Caso"],
-            ] as const
-          ).map(([key, label]) => (
-            <Grid item xs={12} md={6} key={key}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={Boolean((f as any)[key])}
-                    onChange={onCheck(key)}
-                  />
-                }
-                label={label}
-              />
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
+     
 
-      {/* 7.1 Seguimiento */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          7.1 Seguimiento
-        </Typography>
-        <FormLabel>¿Se realizó seguimiento?</FormLabel>
-        <RadioGroup
-          row
-          value={f.seguimientoRealizado}
-          onChange={(e) => onRadio("seguimientoRealizado")(e as any)}
-          sx={{ mb: 2 }}
-        >
-          <FormControlLabel value="si" control={<Radio />} label="Sí" />
-          <FormControlLabel value="no" control={<Radio />} label="No" />
-        </RadioGroup>
-        <FormGroup>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.segAsesoramientoLegal}
-                onChange={onCheck("segAsesoramientoLegal")}
-              />
-            }
-            label="Asesoramiento Legal"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.segTratamientoPsicologico}
-                onChange={onCheck("segTratamientoPsicologico")}
-              />
-            }
-            label="Tratamiento Psicológico"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.segSeguimientoLegal}
-                onChange={onCheck("segSeguimientoLegal")}
-              />
-            }
-            label="Seguimiento Legal"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.segArchivoCaso}
-                onChange={onCheck("segArchivoCaso")}
-              />
-            }
-            label="Archivo del Caso"
-          />
-        </FormGroup>
-      </Paper>
 
-      {/* 7.2 Detalle seguimiento */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          7.2 Detalle de Seguimiento
-        </Typography>
-        <FastTextField
-          name="detalleSeguimiento"
-          label="Detalle de seguimiento"
-          fullWidth
-          multiline
-          rows={3}
-          value={f.detalleSeguimiento}
-          onCommit={commit}
-          version={version}
-        />
-      </Paper>
 
       <Box textAlign="center" sx={{ mb: 2 }}>
         <Button

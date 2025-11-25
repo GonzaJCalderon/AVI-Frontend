@@ -125,3 +125,4 @@ export type FormularioResponse = {
   message: string;
   data: Formulario[];
 };
+

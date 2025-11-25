@@ -16,6 +16,7 @@ export type IntervencionItem = {
     tipo_derivacion_id: number;
     derivador?: string;
     fecha_derivacion?: string;
+    organismo?: string;
     municipio?: string;
     otro_texto?: string;
     tipo_derivaciones?: {
@@ -49,15 +50,19 @@ export type IntervencionItem = {
       abuso_sexual_agravado: boolean;
       otros: boolean;
     }>;
-    geo?: Array<{
-      domicilio?: string;
-      fecha?: string;
-      departamentos?: {
-        id?: number;
-        descripcion?: string;
-        dep_id?: number;
-      };
-    }>;
+ geo?: Array<{
+  domicilio?: string;
+  fecha?: string;
+  hora?: string;
+  localidad?: number;
+  localidad_id?: number;
+  departamentos?: {
+    id?: number;
+    descripcion?: string;
+    dep_id?: number;
+  };
+}>;
+
   }>;
 
   victimas?: Array<{
@@ -65,6 +70,7 @@ export type IntervencionItem = {
     dni?: string;
     nombre?: string;
     genero?: number;
+    apellido?: string;
     genero_id?: number;
     fecha_nacimiento?: string;
     telefono?: string;
@@ -85,6 +91,8 @@ export type IntervencionItem = {
     personas_entrevistadas?: Array<{
       id: number;
       nombre: string;
+      apellido: string;
+      
       relacion_victima: string;
       direccion_id: number;
       direccion?: {
