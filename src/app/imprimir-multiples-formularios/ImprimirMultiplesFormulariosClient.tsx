@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { obtenerIntervencionPorId } from '@/services/intervenciones'
-import type { IntervencionItem as IntervencionData } from '@/services/intervenciones'
+import type { IntervencionItem as IntervencionData } from '@/types/intervencion';
+
 import { Button, Stack } from '@mui/material'
 import PrintIcon from '@mui/icons-material/Print'
 import DownloadIcon from '@mui/icons-material/Download'

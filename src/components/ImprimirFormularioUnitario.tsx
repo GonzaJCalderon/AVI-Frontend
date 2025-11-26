@@ -1,12 +1,14 @@
 'use client'
 
 import { Box, Typography, Grid, Checkbox, FormControlLabel } from '@mui/material'
-import type { IntervencionItem } from '@/services/intervenciones'
+import type { IntervencionItem as IntervencionData } from '@/types/intervencion';
+
 
 type Props = {
-  data: IntervencionItem
+  data: IntervencionData
   id: number
 }
+
 
 export default function ImprimirFormularioUnitario({ data, id }: Props) {
   const formatDate = (date?: string) => {
